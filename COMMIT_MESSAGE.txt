@@ -1,0 +1,72 @@
+feat: Implement functional UAE ROI calculator with database persistence
+
+BREAKING CHANGES:
+- Replaced CalculatorPage placeholder with fully functional calculator form
+- Replaced ResultsPage placeholder with comprehensive results display
+
+NEW FEATURES:
+✅ Calculator Form (/calculator):
+- 12+ input fields for property investment analysis
+- Portal dropdown (Bayut, Property Finder, Dubizzle, Other)
+- Real time ROI calculations using existing calculation utilities
+- Quick results preview on same page after calculation
+- Auto navigation to /results page with data
+- Database persistence for authenticated users
+- Sign in prompts for non authenticated users
+
+✅ Results Display (/results):
+- Free summary: 4 key metrics (Gross Yield, Net Yield, Monthly Cash Flow, Cash on Cash Return)
+- Financial overview with 3 additional metrics
+- Operating expenses breakdown
+- Premium features section (locked, AED 49, coming soon)
+- Sign in prompt for unauthenticated users
+- Back to Calculator navigation
+
+✅ Backend Integration:
+- New POST /analyses endpoint for saving calculations
+- Maps calculator inputs to database schema
+- Stores complete calculation results as JSONB
+- Authentication required for saving
+- Comprehensive error logging
+
+TECHNICAL DETAILS:
+- Uses existing calculation engine from /src/utils/calculations.ts
+- Integrates with existing auth system via AuthContext
+- Saves to existing `analyses` table with RLS policies
+- Client side state management with React hooks
+- React Router for navigation with state passing
+- Consistent UI matching existing branding (blue/green/purple)
+
+DEFAULT VALUES:
+Sensible defaults for quick testing:
+- Purchase Price: AED 1,500,000
+- Property: 1,000 sqft
+- Rent: AED 8,000/month
+- Deposit: 20%
+- Interest: 5.5%
+- Term: 25 years
+
+FILES CHANGED:
+- /src/pages/CalculatorPage.tsx (complete rewrite)
+- /src/pages/ResultsPage.tsx (complete rewrite)
+- /supabase/functions/server/index.tsx (new endpoint)
+
+FILES CREATED:
+- /CALCULATOR_IMPLEMENTATION.md (documentation)
+- /COMMIT_MESSAGE.txt (this file)
+
+TESTING:
+All functionality tested and working:
+- Form validation with HTML5 constraints
+- ROI calculations with UAE specific formulas
+- Database saving for authenticated users
+- Sign in prompts for non authenticated users
+- Navigation between pages with state
+- Results display with all metrics
+- Premium section UI (locked)
+
+DEPLOYMENT:
+Ready for GitHub commit and automatic Vercel deployment.
+All routes configured for SPA in vercel.json.
+
+No breaking changes to existing backend schema or auth system.
