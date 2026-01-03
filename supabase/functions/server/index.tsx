@@ -3,8 +3,14 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import * as kv from "./kv_store.tsx";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import Stripe from "npm:stripe@17";
 
 const app = new Hono();
+
+// Initialize Stripe with secret key from environment
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
+  apiVersion: "2024-12-18.acacia",
+});
 
 // Enable logger
 app.use('*', logger(console.log));
@@ -371,6 +377,51 @@ app.get("/make-server-ef294769/analyses/user/me", async (c) => {
 });
 
 // ================================================================
+// PROFILE ROUTES
+// ================================================================
+
+app.get("/make-server-ef294769/profile/me", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      {
+        global: {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      }
+    );
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(accessToken);
+
+    if (authError || !user) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching profile:", error);
+      return c.json({ error: error.message }, 404);
+    }
+
+    return c.json(profile);
+  } catch (error) {
+    console.error("Error in get profile:", error);
+    return c.json({ error: "Internal server error" }, 500);
+  }
+});
+
+// ================================================================
 // PAYMENT ROUTES
 // ================================================================
 
@@ -454,164 +505,5 @@ app.post("/make-server-ef294769/payments/create", async (c) => {
 // ADMIN ROUTES
 // ================================================================
 
-app.get("/make-server-ef294769/admin/analytics", async (c) => {
-  try {
-    const accessToken = c.req.header("Authorization")?.split(" ")[1];
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      {
-        global: {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        },
-      }
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(accessToken);
-
-    if (authError || !user) {
-      return c.json({ error: "Unauthorized" }, 401);
-    }
-
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.is_admin) {
-      return c.json({ error: "Forbidden - Admin access required" }, 403);
-    }
-
-    // Get analytics data
-    const { data: analyses } = await supabase.from("analyses").select("*");
-
-    const { data: payments } = await supabase.from("payments").select("*");
-
-    const totalAnalyses = analyses?.length || 0;
-    const paidAnalyses = analyses?.filter((a) => a.is_paid).length || 0;
-    const totalRevenue =
-      payments?.reduce((sum, p) => sum + parseFloat(p.amount_aed), 0) || 0;
-    const conversionRate =
-      totalAnalyses > 0 ? (paidAnalyses / totalAnalyses) * 100 : 0;
-
-    return c.json({
-      totalAnalyses,
-      paidAnalyses,
-      totalRevenue,
-      conversionRate,
-      recentAnalyses: analyses?.slice(0, 10) || [],
-      recentPayments: payments?.slice(0, 10) || [],
-    });
-  } catch (error) {
-    console.error("Error in admin analytics:", error);
-    return c.json({ error: "Internal server error" }, 500);
-  }
-});
-
-app.get("/make-server-ef294769/admin/analyses", async (c) => {
-  try {
-    const accessToken = c.req.header("Authorization")?.split(" ")[1];
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      {
-        global: {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        },
-      }
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(accessToken);
-
-    if (authError || !user) {
-      return c.json({ error: "Unauthorized" }, 401);
-    }
-
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.is_admin) {
-      return c.json({ error: "Forbidden - Admin access required" }, 403);
-    }
-
-    // Get all analyses with user info
-    const { data: analyses, error } = await supabase
-      .from("analyses")
-      .select(`
-        *,
-        profiles!inner(email, full_name)
-      `)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching all analyses:", error);
-      return c.json({ error: error.message }, 400);
-    }
-
-    return c.json(analyses || []);
-  } catch (error) {
-    console.error("Error in admin get analyses:", error);
-    return c.json({ error: "Internal server error" }, 500);
-  }
-});
-
-// ================================================================
-// PROFILE ROUTES
-// ================================================================
-
-app.get("/make-server-ef294769/profile/me", async (c) => {
-  try {
-    const accessToken = c.req.header("Authorization")?.split(" ")[1];
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      {
-        global: {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        },
-      }
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(accessToken);
-
-    if (authError || !user) {
-      return c.json({ error: "Unauthorized" }, 401);
-    }
-
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (error) {
-      console.error("Error fetching profile:", error);
-      return c.json({ error: error.message }, 404);
-    }
-
-    return c.json(profile);
-  } catch (error) {
-    console.error("Error in get profile:", error);
-    return c.json({ error: "Internal server error" }, 500);
-  }
-});
-
+// Start the server
 Deno.serve(app.fetch);

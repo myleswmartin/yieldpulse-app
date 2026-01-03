@@ -6,6 +6,12 @@ import ResultsPage from '../pages/ResultsPage';
 import SignInPage from '../pages/SignInPage';
 import SignUpPage from '../pages/SignUpPage';
 import DashboardPage from '../pages/DashboardPage';
+import HowItWorksPage from '../pages/HowItWorksPage';
+import PricingPage from '../pages/PricingPage';
+import ReportsPage from '../pages/ReportsPage';
+import PrivacyPolicyPage from '../pages/PrivacyPolicyPage';
+import TermsOfServicePage from '../pages/TermsOfServicePage';
+import DisclaimerPage from '../pages/DisclaimerPage';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 export default function App() {
@@ -18,6 +24,12 @@ export default function App() {
           <Route path="/results" element={<ResultsPage />} />
           <Route path="/auth/signin" element={<SignInPage />} />
           <Route path="/auth/signup" element={<SignUpPage />} />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+          <Route path="/disclaimer" element={<DisclaimerPage />} />
           <Route 
             path="/dashboard" 
             element={

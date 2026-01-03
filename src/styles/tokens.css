@@ -1,0 +1,151 @@
+/* YieldPulse Design Tokens */
+/* Premium fintech-grade design system */
+
+:root {
+  /* ========== Brand Colors ========== */
+  /* Primary - Deep Navy/Rich Blue */
+  --color-brand-navy-50: #f0f4ff;
+  --color-brand-navy-100: #e0e9ff;
+  --color-brand-navy-200: #c7d7fe;
+  --color-brand-navy-300: #a4bcfd;
+  --color-brand-navy-400: #7e97fa;
+  --color-brand-navy-500: #5e74f5;
+  --color-brand-navy-600: #4656ea;
+  --color-brand-navy-700: #3a46d6;
+  --color-brand-navy-800: #2f3aad;
+  --color-brand-navy-900: #1e2875;
+  --color-brand-navy-950: #0f1445;
+
+  /* Accent - Teal/Emerald */
+  --color-brand-teal-50: #f0fdfa;
+  --color-brand-teal-100: #ccfbf1;
+  --color-brand-teal-200: #99f6e4;
+  --color-brand-teal-300: #5eead4;
+  --color-brand-teal-400: #2dd4bf;
+  --color-brand-teal-500: #14b8a6;
+  --color-brand-teal-600: #0d9488;
+  --color-brand-teal-700: #0f766e;
+  --color-brand-teal-800: #115e59;
+  --color-brand-teal-900: #134e4a;
+  --color-brand-teal-950: #042f2e;
+
+  /* Neutral - Cool Greys */
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+  --color-neutral-950: #020617;
+
+  /* Semantic Colors */
+  --color-success-50: #f0fdf4;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
+
+  --color-warning-50: #fffbeb;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+
+  --color-error-50: #fef2f2;
+  --color-error-500: #ef4444;
+  --color-error-600: #dc2626;
+  --color-error-700: #b91c1c;
+
+  /* ========== Spacing ========== */
+  --spacing-xs: 0.25rem;    /* 4px */
+  --spacing-sm: 0.5rem;     /* 8px */
+  --spacing-md: 0.75rem;    /* 12px */
+  --spacing-lg: 1rem;       /* 16px */
+  --spacing-xl: 1.5rem;     /* 24px */
+  --spacing-2xl: 2rem;      /* 32px */
+  --spacing-3xl: 2.5rem;    /* 40px */
+  --spacing-4xl: 3rem;      /* 48px */
+  --spacing-5xl: 4rem;      /* 64px */
+  --spacing-6xl: 5rem;      /* 80px */
+  --spacing-7xl: 6rem;      /* 96px */
+
+  /* ========== Border Radius ========== */
+  --radius-sm: 0.375rem;    /* 6px */
+  --radius-md: 0.5rem;      /* 8px */
+  --radius-lg: 0.75rem;     /* 12px */
+  --radius-xl: 1rem;        /* 16px */
+  --radius-2xl: 1.5rem;     /* 24px */
+  --radius-full: 9999px;
+
+  /* ========== Shadows ========== */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+
+  /* Colored shadows for premium effects */
+  --shadow-navy: 0 10px 30px -5px rgb(31 41 55 / 0.15);
+  --shadow-teal: 0 10px 30px -5px rgb(20 184 166 / 0.15);
+
+  /* ========== Typography ========== */
+  /* Font Sizes */
+  --text-xs: 0.75rem;       /* 12px */
+  --text-sm: 0.875rem;      /* 14px */
+  --text-base: 1rem;        /* 16px */
+  --text-lg: 1.125rem;      /* 18px */
+  --text-xl: 1.25rem;       /* 20px */
+  --text-2xl: 1.5rem;       /* 24px */
+  --text-3xl: 1.875rem;     /* 30px */
+  --text-4xl: 2.25rem;      /* 36px */
+  --text-5xl: 3rem;         /* 48px */
+  --text-6xl: 3.75rem;      /* 60px */
+
+  /* Line Heights */
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* Font Weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* Letter Spacing */
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+
+  /* ========== Transitions ========== */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ========== Z-Index ========== */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+
+  /* ========== Gradients ========== */
+  --gradient-navy-to-blue: linear-gradient(135deg, var(--color-brand-navy-900) 0%, var(--color-brand-navy-700) 100%);
+  --gradient-teal-to-emerald: linear-gradient(135deg, var(--color-brand-teal-500) 0%, var(--color-brand-teal-700) 100%);
+  --gradient-navy-subtle: linear-gradient(180deg, var(--color-brand-navy-50) 0%, var(--color-neutral-50) 100%);
+  --gradient-premium: linear-gradient(135deg, var(--color-brand-navy-800) 0%, var(--color-brand-navy-900) 50%, var(--color-brand-teal-900) 100%);
+
+  /* ========== Container Max Widths ========== */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+}

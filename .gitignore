@@ -26,14 +26,18 @@ coverage/
 .env.*
 !.env.example
 
+# Supabase
+supabase/.temp/
+supabase/.branches/
+
 # Vercel
 .vercel/
 
-# Supabase
-/supabase/.temp/
-
 # TypeScript
 *.tsbuildinfo
+
+# Lint caches
+.eslintcache
 
 # Editor/IDE
 .vscode/*

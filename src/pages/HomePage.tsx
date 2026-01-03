@@ -1,210 +1,348 @@
 import { Link } from 'react-router-dom';
-import { Calculator, TrendingUp, DollarSign, Building, LogIn } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { 
+  Calculator, 
+  TrendingUp, 
+  DollarSign, 
+  Building, 
+  CheckCircle, 
+  ArrowRight, 
+  BarChart3, 
+  Shield, 
+  Zap,
+  Lock,
+  FileCheck,
+  Users
+} from 'lucide-react';
+import { Header } from '../components/Header';
+import { Footer } from '../components/Footer';
 
 export default function HomePage() {
-  const { user } = useAuth();
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-2">
-              <TrendingUp className="w-8 h-8 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">YieldPulse</h1>
-            </Link>
-            <nav className="flex items-center space-x-4">
-              <Link to="/calculator" className="text-gray-600 hover:text-gray-900 px-4 py-2">
-                Calculator
-              </Link>
-              {user ? (
-                <Link 
-                  to="/dashboard" 
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                >
-                  My Reports
-                </Link>
-              ) : (
-                <>
-                  <Link to="/auth/signin" className="text-gray-600 hover:text-gray-900 px-4 py-2 flex items-center space-x-1">
-                    <LogIn className="w-4 h-4" />
-                    <span>Sign In</span>
-                  </Link>
-                  <Link 
-                    to="/calculator" 
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                  >
-                    Get Started
-                  </Link>
-                </>
-              )}
-            </nav>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-b from-neutral-50 via-white to-neutral-50">
+      <Header variant="transparent" />
 
       {/* Hero Section */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center">
-          <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-            UAE Property Investment
-            <br />
-            <span className="text-blue-600">ROI Calculator</span>
-          </h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Make smarter property investment decisions in the UAE. Calculate returns, 
-            analyze cash flow, and generate detailed investment reports in minutes.
-          </p>
-          <Link 
-            to="/calculator" 
-            className="inline-block bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 shadow-lg"
-          >
-            Start Calculating Free
-          </Link>
-        </div>
-
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-3 gap-8 mt-20">
-          <div className="bg-white p-8 rounded-xl shadow-md">
-            <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mb-4">
-              <Calculator className="w-6 h-6 text-blue-600" />
+      <section className="relative overflow-hidden bg-white">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-secondary/3 pointer-events-none" />
+        
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-8 pt-24 pb-32">
+          <div className="text-center max-w-4xl mx-auto">
+            {/* Badge */}
+            <div className="inline-flex items-center space-x-2 bg-primary/5 px-4 py-2 rounded-full mb-10">
+              <Shield className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-primary">Professional UAE Property Analysis</span>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Comprehensive ROI Analysis
-            </h3>
-            <p className="text-gray-600">
-              Calculate gross yield, net yield, cash-on-cash return, and 5-year projections 
-              with UAE-specific formulas and fees.
+
+            {/* Headline */}
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-foreground mb-8 leading-[1.1] tracking-tight">
+              UAE Property Investment
+              <br />
+              <span className="text-primary">
+                ROI Calculator
+              </span>
+            </h1>
+
+            {/* Subheadline */}
+            <p className="text-xl sm:text-2xl text-neutral-600 mb-12 leading-relaxed max-w-3xl mx-auto font-light">
+              Make data driven property investment decisions in the UAE. Calculate returns, 
+              analyze cash flow, and access institutional grade analysis starting at AED 49.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+              <Link 
+                to="/calculator" 
+                className="group inline-flex items-center space-x-2 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-all shadow-md hover:shadow-lg"
+              >
+                <span>Start Free Analysis</span>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link 
+                to="/pricing" 
+                className="inline-flex items-center space-x-2 px-8 py-4 bg-white text-primary border-2 border-border rounded-xl font-medium hover:border-primary/30 hover:bg-neutral-50 transition-all"
+              >
+                <span>View Pricing</span>
+              </Link>
+            </div>
+
+            {/* Credibility Strip */}
+            <div className="pt-8 border-t border-border">
+              <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-neutral-600">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-5 h-5 text-secondary" />
+                  <span className="font-medium">UAE specific formulas and fees</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-5 h-5 text-secondary" />
+                  <span className="font-medium">Transparent calculations</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-5 h-5 text-secondary" />
+                  <span className="font-medium">Instant results, no signup</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl font-bold text-foreground mb-4">
+              How It Works
+            </h2>
+            <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
+              Three simple steps to institutional grade property analysis
             </p>
           </div>
 
-          <div className="bg-white p-8 rounded-xl shadow-md">
-            <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mb-4">
-              <DollarSign className="w-6 h-6 text-green-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Cash Flow Projections
-            </h3>
-            <p className="text-gray-600">
-              Understand your monthly and annual cash flow with detailed breakdowns of 
-              income, expenses, and mortgage payments.
+          <div className="grid md:grid-cols-3 gap-12">
+            {[
+              { 
+                num: '1', 
+                title: 'Enter Property Details', 
+                desc: 'Add purchase price, rent, financing terms, and operating assumptions in under 2 minutes',
+                icon: Building
+              },
+              { 
+                num: '2', 
+                title: 'View Free Preview', 
+                desc: 'Instantly see headline metrics including yield, cash flow, and cash on cash return',
+                icon: Zap
+              },
+              { 
+                num: '3', 
+                title: 'Unlock Premium Report', 
+                desc: 'Pay AED 49 for complete 5 year projections, sensitivity analysis, and exit strategy calculations',
+                icon: FileCheck
+              }
+            ].map((step, i) => (
+              <div key={i} className="relative">
+                <div className="flex flex-col items-center text-center">
+                  <div className="relative mb-6">
+                    <div className="flex items-center justify-center w-16 h-16 bg-primary rounded-xl text-primary-foreground shadow-sm">
+                      <step.icon className="w-7 h-7" />
+                    </div>
+                    <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-2 w-7 h-7 bg-secondary rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-sm">
+                      {step.num}
+                    </div>
+                  </div>
+                  <h3 className="font-semibold text-foreground mb-3">
+                    {step.title}
+                  </h3>
+                  <p className="text-neutral-600 text-sm leading-relaxed">
+                    {step.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Premium Report Preview Teaser */}
+      <section className="py-24 bg-neutral-50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-foreground mb-4">
+              Institutional Grade Analysis
+            </h2>
+            <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
+              Unlock detailed projections and sensitivity analysis used by professional investors
             </p>
           </div>
 
-          <div className="bg-white p-8 rounded-xl shadow-md">
-            <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-lg mb-4">
-              <Building className="w-6 h-6 text-purple-600" />
+          <div className="bg-white rounded-2xl border-2 border-border overflow-hidden shadow-sm">
+            {/* Preview Header */}
+            <div className="px-8 py-6 border-b border-border bg-muted/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">Premium Investment Report</h3>
+                  <p className="text-sm text-neutral-600">Complete 5 year analysis with sensitivity testing</p>
+                </div>
+                <div className="flex items-center space-x-2 px-4 py-2 bg-secondary/10 rounded-lg">
+                  <Lock className="w-4 h-4 text-secondary" />
+                  <span className="text-sm font-medium text-secondary">AED 49</span>
+                </div>
+              </div>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Detailed PDF Reports
-            </h3>
-            <p className="text-gray-600">
-              Generate professional investment reports with sensitivity analysis and 
-              all calculations documented for your records.
+
+            {/* Blurred Preview Content */}
+            <div className="relative">
+              <div className="px-8 py-12 space-y-6 filter blur-sm select-none pointer-events-none">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="p-6 bg-muted/50 rounded-xl">
+                    <div className="h-4 bg-neutral-300 rounded mb-2 w-24" />
+                    <div className="h-8 bg-neutral-300 rounded w-32" />
+                  </div>
+                  <div className="p-6 bg-muted/50 rounded-xl">
+                    <div className="h-4 bg-neutral-300 rounded mb-2 w-24" />
+                    <div className="h-8 bg-neutral-300 rounded w-32" />
+                  </div>
+                  <div className="p-6 bg-muted/50 rounded-xl">
+                    <div className="h-4 bg-neutral-300 rounded mb-2 w-24" />
+                    <div className="h-8 bg-neutral-300 rounded w-32" />
+                  </div>
+                </div>
+                <div className="h-48 bg-muted/50 rounded-xl" />
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="h-40 bg-muted/50 rounded-xl" />
+                  <div className="h-40 bg-muted/50 rounded-xl" />
+                </div>
+              </div>
+
+              {/* Overlay CTA */}
+              <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+                <div className="text-center max-w-md px-6">
+                  <Lock className="w-12 h-12 text-primary mx-auto mb-4" />
+                  <h4 className="font-semibold text-foreground mb-2">
+                    Complete Analysis Available
+                  </h4>
+                  <p className="text-sm text-neutral-600 mb-6">
+                    Get detailed projections, sensitivity analysis, and professional reporting for AED 49
+                  </p>
+                  <Link
+                    to="/calculator"
+                    className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors shadow-sm"
+                  >
+                    <span>Start Free Analysis</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="py-24 bg-white">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-foreground mb-4">
+              Simple, Transparent Pricing
+            </h2>
+            <p className="text-lg text-neutral-600">
+              Pay per report. No subscriptions. No hidden fees.
             </p>
           </div>
-        </div>
 
-        {/* How It Works */}
-        <div className="mt-20 bg-white rounded-2xl shadow-lg p-12">
-          <h3 className="text-3xl font-bold text-center text-gray-900 mb-12">
-            How It Works
-          </h3>
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mx-auto mb-4">
-                <span className="text-2xl font-bold text-blue-600">1</span>
+          <div className="bg-white rounded-2xl border-2 border-border p-12 shadow-sm">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-baseline space-x-2">
+                <span className="text-5xl font-bold text-foreground">AED 49</span>
+                <span className="text-xl text-neutral-600">per report</span>
               </div>
-              <h4 className="font-semibold text-gray-900 mb-2">Enter Property Details</h4>
-              <p className="text-gray-600 text-sm">
-                Add your property information and financial assumptions
-              </p>
+              <p className="text-sm text-neutral-500 mt-2">One time payment per property analysis</p>
             </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mx-auto mb-4">
-                <span className="text-2xl font-bold text-blue-600">2</span>
-              </div>
-              <h4 className="font-semibold text-gray-900 mb-2">Get Instant Results</h4>
-              <p className="text-gray-600 text-sm">
-                View key metrics including yield, cash flow, and returns
-              </p>
+
+            <div className="mb-10">
+              <h3 className="font-semibold text-foreground mb-4 text-center">What You Get</h3>
+              <ul className="space-y-3 max-w-md mx-auto">
+                {[
+                  'Free headline metrics (yield, cash flow, ROI)',
+                  '5 year detailed financial projections',
+                  'Sensitivity analysis (vacancy, rates, rent)',
+                  'Exit strategy and capital gain calculations',
+                  'Professional breakdown of all formulas',
+                  'Lifetime access to your saved report'
+                ].map((feature, i) => (
+                  <li key={i} className="flex items-start space-x-3">
+                    <CheckCircle className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
+                    <span className="text-neutral-700 text-sm">{feature}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mx-auto mb-4">
-                <span className="text-2xl font-bold text-blue-600">3</span>
-              </div>
-              <h4 className="font-semibold text-gray-900 mb-2">Unlock Full Report</h4>
-              <p className="text-gray-600 text-sm">
-                Get detailed analysis with projections for just 49 AED
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mx-auto mb-4">
-                <span className="text-2xl font-bold text-blue-600">4</span>
-              </div>
-              <h4 className="font-semibold text-gray-900 mb-2">Save & Download</h4>
-              <p className="text-gray-600 text-sm">
-                Access your analyses anytime from your dashboard
-              </p>
-            </div>
+
+            <Link
+              to="/calculator"
+              className="block w-full py-4 bg-primary text-primary-foreground text-center rounded-xl font-medium hover:bg-primary-hover transition-colors shadow-sm"
+            >
+              Start Your Free Analysis
+            </Link>
           </div>
         </div>
+      </section>
 
-        {/* CTA Section */}
-        <div className="mt-20 bg-blue-600 rounded-2xl shadow-lg p-12 text-center">
-          <h3 className="text-3xl font-bold text-white mb-4">
-            Ready to Analyze Your Investment?
-          </h3>
-          <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
-            Join property investors across the UAE who trust YieldPulse for 
-            accurate ROI calculations and investment analysis.
-          </p>
-          <Link 
-            to="/calculator" 
-            className="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 shadow-lg"
-          >
-            Start Your Free Analysis
-          </Link>
-        </div>
-      </main>
+      {/* Methodology and Trust Section */}
+      <section className="py-24 bg-muted/30">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-foreground mb-4">
+              Methodology and Transparency
+            </h2>
+            <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
+              Conservative assumptions and transparent calculations you can verify
+            </p>
+          </div>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white mt-20 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-3 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <TrendingUp className="w-6 h-6 text-blue-400" />
-                <span className="font-bold text-lg">YieldPulse</span>
+            <div className="bg-white p-8 rounded-xl border border-border">
+              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
+                <BarChart3 className="w-6 h-6 text-primary" />
               </div>
-              <p className="text-gray-400 text-sm">
-                Professional UAE property investment analysis and ROI calculator.
+              <h3 className="font-semibold text-foreground mb-3">
+                UAE Specific Formulas
+              </h3>
+              <p className="text-sm text-neutral-600 leading-relaxed">
+                All calculations use Dubai Land Department fees (4%), standard agent commissions, 
+                and mortgage structures specific to UAE property markets.
               </p>
             </div>
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
-                <li><Link to="/calculator" className="hover:text-white">ROI Calculator</Link></li>
-                <li>Reports</li>
-                <li>Pricing</li>
-              </ul>
+
+            <div className="bg-white p-8 rounded-xl border border-border">
+              <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center mb-4">
+                <Shield className="w-6 h-6 text-secondary" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-3">
+                Conservative Presentation
+              </h3>
+              <p className="text-sm text-neutral-600 leading-relaxed">
+                We present metrics honestly, including negative cash flow scenarios and 
+                realistic vacancy assumptions, not optimistic projections.
+              </p>
             </div>
-            <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
-                <li>Privacy Policy</li>
-                <li>Terms of Service</li>
-                <li>Disclaimer</li>
-              </ul>
+
+            <div className="bg-white p-8 rounded-xl border border-border">
+              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
+                <FileCheck className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-3">
+                Full Audit Trail
+              </h3>
+              <p className="text-sm text-neutral-600 leading-relaxed">
+                Every calculation is documented and accessible in your premium report. 
+                See exactly how each metric is derived from your inputs.
+              </p>
             </div>
-          </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400 text-sm">
-            <p>© 2026 YieldPulse. For informational purposes only. Not financial advice.</p>
           </div>
         </div>
-      </footer>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="py-24 bg-primary text-primary-foreground">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
+          <h2 className="text-4xl font-bold mb-6">
+            Ready to Analyze Your Investment?
+          </h2>
+          <p className="text-lg text-primary-foreground/90 mb-10 max-w-2xl mx-auto leading-relaxed">
+            Join property investors across the UAE who use YieldPulse for 
+            accurate ROI calculations and institutional grade investment analysis.
+          </p>
+          <Link 
+            to="/calculator" 
+            className="inline-flex items-center space-x-2 px-8 py-4 bg-white text-primary rounded-xl font-medium hover:bg-neutral-50 transition-colors shadow-md"
+          >
+            <span>Start Your Free Analysis</span>
+            <ArrowRight className="w-5 h-5" />
+          </Link>
+        </div>
+      </section>
+
+      <Footer />
     </div>
   );
 }

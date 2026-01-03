@@ -1,6 +1,6 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { TrendingUp, Mail, Lock, AlertCircle } from 'lucide-react';
+import { TrendingUp, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function SignInPage() {
@@ -13,10 +13,8 @@ export default function SignInPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Get redirect path from location state, default to dashboard
   const from = (location.state as any)?.from?.pathname || '/dashboard';
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && user) {
       navigate('/dashboard', { replace: true });
@@ -39,54 +37,61 @@ export default function SignInPage() {
     }
   };
 
-  // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-neutral-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-neutral-200 border-t-[#1e2875] mb-6"></div>
+          <p className="text-neutral-600 text-lg">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-6 py-12">
+      <div className="w-full max-w-md">
         {/* Logo and Header */}
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center space-x-2 mb-6">
-            <TrendingUp className="w-10 h-10 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">YieldPulse</h1>
+        <div className="text-center mb-12">
+          <Link to="/" className="inline-flex items-center space-x-3 mb-10 group">
+            <div className="p-3 bg-[#1e2875] rounded-xl shadow-sm">
+              <TrendingUp className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-2xl font-semibold text-[#1e2875] tracking-tight">
+              YieldPulse
+            </span>
           </Link>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-          <p className="text-gray-600">Sign in to access your saved analyses</p>
+          <h1 className="text-3xl font-bold text-neutral-900 mb-3 tracking-tight">
+            Welcome Back
+          </h1>
+          <p className="text-neutral-600">
+            Sign in to access your saved analyses
+          </p>
         </div>
 
-        {/* Sign In Form */}
-        <div className="bg-white rounded-lg shadow-xl p-8">
+        {/* Sign In Form Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8">
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start space-x-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-800">{error}</p>
+              <p className="text-sm text-red-800 leading-relaxed">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-semibold text-neutral-700 mb-2">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
                 <input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-12 pr-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#1e2875] focus:border-transparent focus:bg-white transition-all"
                   placeholder="you@example.com"
                   disabled={loading}
                 />
@@ -94,18 +99,18 @@ export default function SignInPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-neutral-700 mb-2">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
                 <input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-12 pr-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#1e2875] focus:border-transparent focus:bg-white transition-all"
                   placeholder="••••••••"
                   disabled={loading}
                 />
@@ -115,17 +120,17 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 bg-gradient-to-r from-[#1e2875] to-[#2f3aad] text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
 
           {/* Sign Up Link */}
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
+          <div className="mt-8 pt-6 border-t border-neutral-200 text-center">
+            <p className="text-neutral-600">
               Don't have an account?{' '}
-              <Link to="/auth/signup" className="text-blue-600 font-semibold hover:text-blue-700">
+              <Link to="/auth/signup" className="font-semibold text-[#1e2875] hover:text-[#2f3aad] transition-colors">
                 Sign Up
               </Link>
             </p>
@@ -133,10 +138,21 @@ export default function SignInPage() {
 
           {/* Back to Home */}
           <div className="mt-4 text-center">
-            <Link to="/" className="text-sm text-gray-500 hover:text-gray-700">
-              ← Back to Home
+            <Link 
+              to="/" 
+              className="inline-flex items-center space-x-2 text-sm text-neutral-500 hover:text-neutral-700 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Home</span>
             </Link>
           </div>
+        </div>
+
+        {/* Trust Badge */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-neutral-500">
+            Trusted by property investors across the UAE
+          </p>
         </div>
       </div>
     </div>

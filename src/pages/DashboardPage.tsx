@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { TrendingUp, Calculator, FileText, Plus, LogOut, Trash2, Eye, Calendar } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { TrendingUp, Calculator, FileText, Plus, Trash2, Eye, Calendar, AlertCircle, CheckCircle, XCircle, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { formatCurrency, formatPercent } from '../utils/calculations';
+import { Header } from '../components/Header';
+import { StatCard } from '../components/StatCard';
 
 interface Analysis {
   id: string;
@@ -20,16 +22,57 @@ interface Analysis {
 }
 
 export default function DashboardPage() {
-  const { user, signOut, accessToken } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Payment banner state
+  const [showPaymentBanner, setShowPaymentBanner] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'success' | 'cancelled' | null>(null);
+  const [purchasedAnalysisId, setPurchasedAnalysisId] = useState<string | null>(null);
+
   useEffect(() => {
+    // Check for payment status in URL
+    const payment = searchParams.get('payment');
+    const analysisId = searchParams.get('analysisId');
+    
+    if (payment === 'success') {
+      setPaymentStatus('success');
+      setPurchasedAnalysisId(analysisId);
+      setShowPaymentBanner(true);
+      
+      // Clean URL parameters
+      searchParams.delete('payment');
+      searchParams.delete('analysisId');
+      setSearchParams(searchParams);
+    } else if (payment === 'cancelled') {
+      setPaymentStatus('cancelled');
+      setShowPaymentBanner(true);
+      
+      // Clean URL parameters
+      searchParams.delete('payment');
+      setSearchParams(searchParams);
+    }
+
     fetchAnalyses();
   }, []);
+
+  const dismissBanner = () => {
+    setShowPaymentBanner(false);
+  };
+
+  const viewPurchasedReport = () => {
+    if (!purchasedAnalysisId) return;
+    
+    const analysis = analyses.find(a => a.id === purchasedAnalysisId);
+    if (analysis) {
+      handleViewAnalysis(analysis);
+    }
+  };
 
   const fetchAnalyses = async () => {
     try {
@@ -61,7 +104,6 @@ export default function DashboardPage() {
 
       if (error) throw error;
 
-      // Remove from local state
       setAnalyses(prev => prev.filter(a => a.id !== id));
     } catch (err) {
       console.error('Error deleting analysis:', err);
@@ -72,8 +114,6 @@ export default function DashboardPage() {
   };
 
   const handleViewAnalysis = (analysis: Analysis) => {
-    // Navigate to results page with the analysis data
-    // We need to reconstruct the results object from stored data
     navigate('/results', { 
       state: { 
         analysis,
@@ -82,206 +122,236 @@ export default function DashboardPage() {
     });
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-2">
-              <TrendingUp className="w-8 h-8 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">YieldPulse</h1>
-            </Link>
-            
-            <div className="flex items-center space-x-4">
-              <Link 
-                to="/calculator"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 flex items-center space-x-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>New Analysis</span>
-              </Link>
-              <button
-                onClick={handleSignOut}
-                className="text-gray-600 hover:text-gray-900 flex items-center space-x-2"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-neutral-50">
+      <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="mb-12">
+          <h1 className="text-4xl font-bold text-foreground mb-3 tracking-tight">
             Welcome back, {user?.fullName || user?.email}
-          </h2>
-          <p className="text-gray-600">Manage your saved property analyses</p>
+          </h1>
+          <p className="text-lg text-neutral-600">
+            Manage your saved property analyses and investment reports
+          </p>
         </div>
+
+        {/* Payment Banner */}
+        {showPaymentBanner && (
+          <div className={`rounded-xl shadow-sm border p-6 mb-8 flex items-start justify-between ${
+            paymentStatus === 'success' 
+              ? 'bg-success/10 border-success/30' 
+              : 'bg-warning/10 border-warning/30'
+          }`}>
+            <div className="flex items-start space-x-4 flex-1">
+              {paymentStatus === 'success' ? (
+                <div className="p-3 bg-success/20 rounded-xl flex-shrink-0">
+                  <CheckCircle className="w-6 h-6 text-success" />
+                </div>
+              ) : (
+                <div className="p-3 bg-warning/20 rounded-xl flex-shrink-0">
+                  <XCircle className="w-6 h-6 text-warning" />
+                </div>
+              )}
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground mb-2">
+                  {paymentStatus === 'success' ? 'Premium report unlocked successfully' : 'Payment cancelled'}
+                </h3>
+                <p className="text-neutral-700 text-sm mb-4">
+                  {paymentStatus === 'success' 
+                    ? 'Your premium analysis is now fully accessible with all charts and projections.' 
+                    : 'You can try again anytime from the results page.'}
+                </p>
+                {paymentStatus === 'success' && (
+                  <button
+                    onClick={viewPurchasedReport}
+                    className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-all shadow-sm"
+                  >
+                    <Eye className="w-5 h-5" />
+                    <span>View Report</span>
+                  </button>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={dismissBanner}
+              className="p-2 text-neutral-500 hover:text-neutral-700 rounded-lg transition-colors flex-shrink-0"
+              aria-label="Dismiss notification"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
 
         {/* Stats Overview */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">Total Analyses</span>
-              <FileText className="w-5 h-5 text-blue-600" />
-            </div>
-            <p className="text-3xl font-bold text-gray-900">{analyses.length}</p>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">Premium Reports</span>
-              <TrendingUp className="w-5 h-5 text-green-600" />
-            </div>
-            <p className="text-3xl font-bold text-gray-900">
-              {analyses.filter(a => a.is_paid).length}
-            </p>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">Free Reports</span>
-              <Calculator className="w-5 h-5 text-purple-600" />
-            </div>
-            <p className="text-3xl font-bold text-gray-900">
-              {analyses.filter(a => !a.is_paid).length}
-            </p>
-          </div>
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          <StatCard
+            label="Total Analyses"
+            value={analyses.length}
+            icon={FileText}
+            description="Saved property calculations"
+            variant="navy"
+          />
+          <StatCard
+            label="Premium Reports"
+            value={analyses.filter(a => a.is_paid).length}
+            icon={TrendingUp}
+            description="Full reports purchased"
+            variant="teal"
+          />
+          <StatCard
+            label="Free Reports"
+            value={analyses.filter(a => !a.is_paid).length}
+            icon={Calculator}
+            description="Basic calculations"
+            variant="success"
+          />
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800">{error}</p>
+          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-6 mb-8 flex items-start space-x-3">
+            <AlertCircle className="w-6 h-6 text-destructive flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-foreground mb-1">Error Loading Data</h3>
+              <p className="text-neutral-700 text-sm">{error}</p>
+            </div>
           </div>
         )}
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-            <p className="text-gray-600">Loading your reports...</p>
+          <div className="bg-white rounded-2xl shadow-sm border border-border p-20 text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-border border-t-primary mb-6"></div>
+            <p className="text-neutral-600">Loading your reports...</p>
           </div>
         ) : analyses.length === 0 ? (
           // Empty State
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <Calculator className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Analyses Yet</h3>
-            <p className="text-gray-600 mb-6">
-              Start by calculating your first property ROI
-            </p>
-            <Link
-              to="/calculator"
-              className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Create First Analysis</span>
-            </Link>
+          <div className="bg-white rounded-2xl shadow-sm border border-border p-20 text-center">
+            <div className="max-w-md mx-auto">
+              <div className="w-16 h-16 bg-muted rounded-xl flex items-center justify-center mx-auto mb-6">
+                <Calculator className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-bold text-foreground mb-3">
+                No Analyses Yet
+              </h3>
+              <p className="text-neutral-600 mb-8 leading-relaxed">
+                Start by calculating your first property ROI. Analyze potential investments and save them for future reference.
+              </p>
+              <button
+                onClick={() => navigate('/calculator')}
+                className="inline-flex items-center space-x-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-all shadow-sm"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Create First Analysis</span>
+              </button>
+            </div>
           </div>
         ) : (
-          // Analyses List
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="px-6 py-4 border-b bg-gray-50">
-              <h3 className="text-lg font-semibold text-gray-900">Your Analyses</h3>
+          // Analyses Table
+          <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+            <div className="px-8 py-6 border-b border-border">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-foreground">Your Analyses</h2>
+                <button
+                  onClick={() => navigate('/calculator')}
+                  className="inline-flex items-center space-x-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Analysis</span>
+                </button>
+              </div>
             </div>
             
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-muted/50 border-b border-border">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Property
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Purchase Price
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Gross Yield
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Cash Flow
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Date
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-border">
                   {analyses.map((analysis) => (
-                    <tr key={analysis.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                    <tr key={analysis.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-6 py-5 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-semibold text-foreground">
                             {analysis.portal_source}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-muted-foreground">
                             {analysis.area_sqft.toLocaleString()} sqft
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-gray-900">
+                      <td className="px-6 py-5 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-foreground">
                           {formatCurrency(analysis.purchase_price)}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-gray-900">
+                      <td className="px-6 py-5 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-foreground">
                           {formatPercent(analysis.gross_yield)}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-5 whitespace-nowrap">
                         <div className={`text-sm font-semibold ${
-                          analysis.monthly_cash_flow >= 0 ? 'text-green-600' : 'text-red-600'
+                          analysis.monthly_cash_flow >= 0 ? 'text-success' : 'text-destructive'
                         }`}>
                           {formatCurrency(analysis.monthly_cash_flow)}/mo
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-1 text-sm text-gray-500">
+                      <td className="px-6 py-5 whitespace-nowrap">
+                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                           <Calendar className="w-4 h-4" />
                           <span>{new Date(analysis.created_at).toLocaleDateString()}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-5 whitespace-nowrap">
                         {analysis.is_paid ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-secondary/20 text-secondary border border-secondary/30">
                             Premium
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
                             Free
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-6 py-5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end space-x-2">
                           <button
                             onClick={() => handleViewAnalysis(analysis)}
-                            className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded"
-                            title="View Analysis"
+                            className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                            aria-label="View Analysis"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(analysis.id)}
                             disabled={deletingId === analysis.id}
-                            className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded disabled:opacity-50"
-                            title="Delete Analysis"
+                            className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
+                            aria-label="Delete Analysis"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -297,19 +367,27 @@ export default function DashboardPage() {
 
         {/* CTA for New Analysis */}
         {analyses.length > 0 && (
-          <div className="mt-8 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg shadow-lg p-8 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-bold mb-2">Ready to analyze another property?</h3>
-                <p className="text-blue-100">Compare multiple investments to find the best opportunity</p>
+          <div className="mt-10 bg-gradient-to-br from-primary via-primary-hover to-primary rounded-2xl shadow-xl overflow-hidden relative">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1IiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-30" />
+            
+            <div className="relative p-10 text-primary-foreground">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                  <h3 className="font-bold mb-2">
+                    Ready to analyze another property?
+                  </h3>
+                  <p className="text-primary-foreground/90">
+                    Compare multiple investments to find the best opportunity
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate('/calculator')}
+                  className="flex-shrink-0 inline-flex items-center space-x-3 px-8 py-4 bg-white text-primary rounded-xl font-medium hover:shadow-2xl transition-all"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>New Analysis</span>
+                </button>
               </div>
-              <Link
-                to="/calculator"
-                className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 flex items-center space-x-2"
-              >
-                <Plus className="w-5 h-5" />
-                <span>New Analysis</span>
-              </Link>
             </div>
           </div>
         )}

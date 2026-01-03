@@ -1,9 +1,13 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Calculator, TrendingUp, DollarSign, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calculator, TrendingUp, DollarSign, ArrowRight, Info, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateROI, PropertyInputs, CalculationResults, formatCurrency, formatPercent } from '../utils/calculations';
 import { supabase } from '../utils/supabaseClient';
+import { Header } from '../components/Header';
+import { Section } from '../components/Section';
+import { StatCard } from '../components/StatCard';
 
 export default function CalculatorPage() {
   const navigate = useNavigate();
@@ -40,7 +44,6 @@ export default function CalculatorPage() {
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Prepare inputs for calculation
     const inputs: PropertyInputs = {
       portalSource: formData.portalSource,
       listingUrl: formData.listingUrl,
@@ -61,11 +64,9 @@ export default function CalculatorPage() {
       holdingPeriodYears: 5,
     };
 
-    // Calculate ROI
     const calculatedResults = calculateROI(inputs);
     setResults(calculatedResults);
 
-    // Save to database if user is signed in (direct client insert)
     if (user) {
       setSaving(true);
       try {
@@ -100,89 +101,92 @@ export default function CalculatorPage() {
         setSaving(false);
       }
     } else {
-      // Show sign in prompt for non-authenticated users
       setShowSignInPrompt(true);
     }
 
-    // Navigate to results page with data
     navigate('/results', { state: { inputs, results: calculatedResults } });
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-2">
-              <TrendingUp className="w-8 h-8 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">YieldPulse</h1>
-            </Link>
-            <Link to="/" className="text-gray-600 hover:text-gray-900">
-              ← Back to Home
-            </Link>
+    <div className="min-h-screen bg-neutral-50">
+      <Header />
+
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
+        {/* Page Header */}
+        <div className="mb-12">
+          <div className="flex items-center space-x-4 mb-4">
+            <div className="p-3 bg-primary rounded-xl shadow-sm">
+              <Calculator className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground tracking-tight">UAE Property ROI Calculator</h1>
+              <p className="text-neutral-600 mt-1">Enter your property details to calculate investment returns</p>
+            </div>
           </div>
         </div>
-      </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <div className="flex items-center space-x-3 mb-6">
-            <Calculator className="w-8 h-8 text-blue-600" />
-            <h2 className="text-3xl font-bold text-gray-900">UAE Property ROI Calculator</h2>
+        {/* Sign In Prompt */}
+        {showSignInPrompt && !user && (
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mb-8">
+            <div className="flex items-start space-x-3">
+              <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-foreground mb-2">Save Your Analysis</h3>
+                <p className="text-neutral-700 mb-3">
+                  <Link to="/auth/signin" className="font-medium text-primary hover:underline">Sign in</Link> or{' '}
+                  <Link to="/auth/signup" className="font-medium text-primary hover:underline">create an account</Link> to save your analyses and access them anytime from your dashboard.
+                </p>
+              </div>
+            </div>
           </div>
+        )}
 
-          {showSignInPrompt && !user && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-blue-800">
-                💡 <Link to="/auth/signin" className="font-semibold underline">Sign in</Link> or{' '}
-                <Link to="/auth/signup" className="font-semibold underline">create an account</Link> to save your analyses and access them anytime from your dashboard.
-              </p>
-            </div>
-          )}
-
-          <form onSubmit={handleCalculate} className="space-y-6">
-            {/* Portal & Listing URL */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Portal
-                </label>
-                <select
-                  name="portalSource"
-                  value={formData.portalSource}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option>Bayut</option>
-                  <option>Property Finder</option>
-                  <option>Dubizzle</option>
-                  <option>Other</option>
-                </select>
+        {/* Main Calculator Form */}
+        <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+          <form onSubmit={handleCalculate} className="divide-y divide-border">
+            
+            {/* Property Information Section */}
+            <div className="p-8 lg:p-10">
+              <div className="mb-6">
+                <h2 className="font-semibold text-foreground mb-2">Property Information</h2>
+                <p className="text-sm text-neutral-600">Basic details about the property</p>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Listing URL (optional reference)
-                </label>
-                <input
-                  type="url"
-                  name="listingUrl"
-                  value={formData.listingUrl}
-                  onChange={handleInputChange}
-                  placeholder="https://..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            {/* Property Details */}
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Property Details</h3>
+              
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Purchase Price (AED)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Portal Source
+                  </label>
+                  <select
+                    name="portalSource"
+                    value={formData.portalSource}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  >
+                    <option>Bayut</option>
+                    <option>Property Finder</option>
+                    <option>Dubizzle</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Listing URL <span className="text-neutral-400 font-normal">(optional reference)</span>
+                  </label>
+                  <input
+                    type="url"
+                    name="listingUrl"
+                    value={formData.listingUrl}
+                    onChange={handleInputChange}
+                    placeholder="https://..."
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Purchase Price <span className="text-neutral-500 font-normal">(AED)</span>
                   </label>
                   <input
                     type="number"
@@ -192,13 +196,13 @@ export default function CalculatorPage() {
                     required
                     min="0"
                     step="1000"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Property Size (sqft)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Property Size <span className="text-neutral-500 font-normal">(sqft)</span>
                   </label>
                   <input
                     type="number"
@@ -207,13 +211,23 @@ export default function CalculatorPage() {
                     onChange={handleInputChange}
                     required
                     min="0"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                 </div>
+              </div>
+            </div>
 
+            {/* Rent Section */}
+            <div className="p-8 lg:p-10">
+              <div className="mb-6">
+                <h2 className="font-semibold text-foreground mb-2">Rent Information</h2>
+                <p className="text-sm text-neutral-600">Expected rental income</p>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Annual Rent (AED)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Expected Monthly Rent <span className="text-neutral-500 font-normal">(AED)</span>
                   </label>
                   <input
                     type="number"
@@ -222,20 +236,26 @@ export default function CalculatorPage() {
                     onChange={handleInputChange}
                     required
                     min="0"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Enter monthly rent amount</p>
+                  <p className="mt-2 text-xs text-neutral-500">
+                    Current market rent for similar properties in the area
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Financing */}
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Financing</h3>
+            {/* Financing Section */}
+            <div className="p-8 lg:p-10">
+              <div className="mb-6">
+                <h2 className="font-semibold text-foreground mb-2">Financing</h2>
+                <p className="text-sm text-neutral-600">Mortgage and down payment details</p>
+              </div>
+              
               <div className="grid md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Deposit (%)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Down Payment <span className="text-neutral-500 font-normal">(%)</span>
                   </label>
                   <input
                     type="number"
@@ -246,13 +266,13 @@ export default function CalculatorPage() {
                     min="0"
                     max="100"
                     step="1"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Interest Rate (%)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Interest Rate <span className="text-neutral-500 font-normal">(%)</span>
                   </label>
                   <input
                     type="number"
@@ -263,13 +283,13 @@ export default function CalculatorPage() {
                     min="0"
                     max="100"
                     step="0.1"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Mortgage Term (years)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Mortgage Term <span className="text-neutral-500 font-normal">(years)</span>
                   </label>
                   <input
                     type="number"
@@ -279,19 +299,23 @@ export default function CalculatorPage() {
                     required
                     min="1"
                     max="30"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Operating Expenses */}
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Operating Expenses</h3>
-              <div className="grid md:grid-cols-2 gap-6">
+            {/* Operating Costs Section */}
+            <div className="p-8 lg:p-10">
+              <div className="mb-6">
+                <h2 className="font-semibold text-foreground mb-2">Operating Costs</h2>
+                <p className="text-sm text-neutral-600">Annual expenses and maintenance</p>
+              </div>
+              
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Service Charge (AED per sqft per year)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Service Charge <span className="text-neutral-500 font-normal">(AED/sqft/year)</span>
                   </label>
                   <input
                     type="number"
@@ -301,13 +325,13 @@ export default function CalculatorPage() {
                     required
                     min="0"
                     step="0.1"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Management Fee (%)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Management Fee <span className="text-neutral-500 font-normal">(% of rent)</span>
                   </label>
                   <input
                     type="number"
@@ -318,13 +342,13 @@ export default function CalculatorPage() {
                     min="0"
                     max="100"
                     step="0.1"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Maintenance (%)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Annual Maintenance <span className="text-neutral-500 font-normal">(% of value)</span>
                   </label>
                   <input
                     type="number"
@@ -335,13 +359,13 @@ export default function CalculatorPage() {
                     min="0"
                     max="100"
                     step="0.1"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Insurance (AED per year)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Annual Insurance <span className="text-neutral-500 font-normal">(AED)</span>
                   </label>
                   <input
                     type="number"
@@ -350,13 +374,38 @@ export default function CalculatorPage() {
                     onChange={handleInputChange}
                     required
                     min="0"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Vacancy Rate (%)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Other Annual Costs <span className="text-neutral-500 font-normal">(AED)</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="otherCostsAnnual"
+                    value={formData.otherCostsAnnual}
+                    onChange={handleInputChange}
+                    required
+                    min="0"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Assumptions Section */}
+            <div className="p-8 lg:p-10">
+              <div className="mb-6">
+                <h2 className="font-semibold text-foreground mb-2">Assumptions</h2>
+                <p className="text-sm text-neutral-600">Expected vacancy and market conditions</p>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Vacancy Rate <span className="text-neutral-500 font-normal">(%)</span>
                   </label>
                   <input
                     type="number"
@@ -367,82 +416,69 @@ export default function CalculatorPage() {
                     min="0"
                     max="100"
                     step="1"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Other Costs (AED per year)
-                  </label>
-                  <input
-                    type="number"
-                    name="otherCostsAnnual"
-                    value={formData.otherCostsAnnual}
-                    onChange={handleInputChange}
-                    required
-                    min="0"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <p className="mt-2 text-xs text-neutral-500">
+                    Expected percentage of time property will be vacant
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Submit Button */}
-            <div className="flex justify-end pt-6 border-t">
-              <button
-                type="submit"
-                disabled={saving}
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 shadow-lg flex items-center space-x-2 disabled:opacity-50"
-              >
-                <span>{saving ? 'Calculating...' : 'Calculate ROI'}</span>
-                <ArrowRight className="w-5 h-5" />
-              </button>
+            <div className="p-8 lg:p-10 bg-muted/30">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <p className="text-sm text-neutral-600">
+                  All calculations use UAE specific fees (DLD 4%, agent 2%)
+                </p>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="group inline-flex items-center space-x-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span>{saving ? 'Calculating...' : 'Calculate ROI'}</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
             </div>
           </form>
 
-          {/* Quick Results Preview (shown on same page) */}
+          {/* Quick Results Preview */}
           {results && (
-            <div className="mt-12 pt-8 border-t">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">Quick Results</h3>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="bg-blue-50 p-6 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">Gross Yield</span>
-                    <TrendingUp className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <p className="text-3xl font-bold text-gray-900">{formatPercent(results.grossRentalYield)}</p>
-                </div>
-
-                <div className="bg-green-50 p-6 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">Net Yield</span>
-                    <TrendingUp className="w-5 h-5 text-green-600" />
-                  </div>
-                  <p className="text-3xl font-bold text-gray-900">{formatPercent(results.netRentalYield)}</p>
-                </div>
-
-                <div className="bg-purple-50 p-6 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">Monthly Cash Flow</span>
-                    <DollarSign className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <p className="text-3xl font-bold text-gray-900">{formatCurrency(results.monthlyCashFlow)}</p>
-                </div>
-
-                <div className="bg-orange-50 p-6 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">Cash on Cash Return</span>
-                    <TrendingUp className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <p className="text-3xl font-bold text-gray-900">{formatPercent(results.cashOnCashReturn)}</p>
-                </div>
+            <div className="bg-gradient-to-br from-muted/50 to-white border-t border-border p-8">
+              <h3 className="font-semibold text-foreground mb-6">Quick Results</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard
+                  label="Gross Yield"
+                  value={formatPercent(results.grossRentalYield)}
+                  icon={TrendingUp}
+                  variant="navy"
+                />
+                <StatCard
+                  label="Net Yield"
+                  value={formatPercent(results.netRentalYield)}
+                  icon={TrendingUp}
+                  variant="teal"
+                />
+                <StatCard
+                  label="Monthly Cash Flow"
+                  value={formatCurrency(results.monthlyCashFlow)}
+                  icon={DollarSign}
+                  variant="success"
+                  trend={results.monthlyCashFlow >= 0 ? 'positive' : 'negative'}
+                />
+                <StatCard
+                  label="Cash on Cash Return"
+                  value={formatPercent(results.cashOnCashReturn)}
+                  icon={TrendingUp}
+                  variant="warning"
+                />
               </div>
 
-              <div className="mt-6 text-center">
+              <div className="mt-8 text-center">
                 <button
                   onClick={() => navigate('/results', { state: { inputs: formData, results } })}
-                  className="text-blue-600 font-semibold hover:text-blue-700 flex items-center space-x-2 mx-auto"
+                  className="inline-flex items-center space-x-2 text-primary font-medium hover:text-primary-hover transition-colors"
                 >
                   <span>View Detailed Analysis</span>
                   <ArrowRight className="w-5 h-5" />

@@ -3,7 +3,21 @@
 -- ================================================================
 
 -- ================================================================
--- 1. PROFILES TABLE
+-- 1. HELPER FUNCTION TO CHECK ADMIN STATUS
+-- ================================================================
+-- This function bypasses RLS to prevent infinite recursion
+CREATE OR REPLACE FUNCTION public.is_admin(user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = user_id AND is_admin = TRUE
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ================================================================
+-- 2. PROFILES TABLE
 -- ================================================================
 
 CREATE TABLE IF NOT EXISTS profiles (
@@ -22,6 +36,7 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 
 -- RLS Policies for profiles
 CREATE POLICY "Users can view own profile"
@@ -32,17 +47,16 @@ CREATE POLICY "Users can update own profile"
   ON profiles FOR UPDATE
   USING (auth.uid() = id);
 
+CREATE POLICY "Users can insert own profile"
+  ON profiles FOR INSERT
+  WITH CHECK (auth.uid() = id);
+
 CREATE POLICY "Admins can view all profiles"
   ON profiles FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE id = auth.uid() AND is_admin = TRUE
-    )
-  );
+  USING (public.is_admin(auth.uid()));
 
 -- ================================================================
--- 2. ANALYSES TABLE
+-- 3. ANALYSES TABLE
 -- ================================================================
 
 CREATE TABLE IF NOT EXISTS analyses (
@@ -126,24 +140,14 @@ CREATE POLICY "Users can delete own analyses"
 
 CREATE POLICY "Admins can view all analyses"
   ON analyses FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE id = auth.uid() AND is_admin = TRUE
-    )
-  );
+  USING (public.is_admin(auth.uid()));
 
 CREATE POLICY "Admins can update all analyses"
   ON analyses FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE id = auth.uid() AND is_admin = TRUE
-    )
-  );
+  USING (public.is_admin(auth.uid()));
 
 -- ================================================================
--- 3. PAYMENTS TABLE
+-- 4. PAYMENTS TABLE
 -- ================================================================
 
 CREATE TABLE IF NOT EXISTS payments (
@@ -185,15 +189,10 @@ CREATE POLICY "Users can insert own payments"
 
 CREATE POLICY "Admins can view all payments"
   ON payments FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE id = auth.uid() AND is_admin = TRUE
-    )
-  );
+  USING (public.is_admin(auth.uid()));
 
 -- ================================================================
--- 4. REPORT FILES TABLE
+-- 5. REPORT FILES TABLE
 -- ================================================================
 
 CREATE TABLE IF NOT EXISTS report_files (
@@ -234,15 +233,10 @@ CREATE POLICY "Users can insert own report files"
 
 CREATE POLICY "Admins can view all report files"
   ON report_files FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE id = auth.uid() AND is_admin = TRUE
-    )
-  );
+  USING (public.is_admin(auth.uid()));
 
 -- ================================================================
--- 5. TRIGGER FOR UPDATED_AT TIMESTAMP
+-- 6. TRIGGER FOR UPDATED_AT TIMESTAMP
 -- ================================================================
 
 -- Function to update updated_at timestamp
@@ -269,7 +263,7 @@ CREATE TRIGGER update_analyses_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- ================================================================
--- 6. FUNCTION TO CREATE PROFILE ON USER SIGNUP
+-- 7. FUNCTION TO CREATE PROFILE ON USER SIGNUP
 -- ================================================================
 
 -- This function automatically creates a profile when a user signs up
@@ -294,7 +288,7 @@ CREATE TRIGGER on_auth_user_created
   EXECUTE FUNCTION public.handle_new_user();
 
 -- ================================================================
--- 7. SAMPLE ADMIN USER (OPTIONAL)
+-- 8. SAMPLE ADMIN USER (OPTIONAL)
 -- ================================================================
 
 -- To create an admin user, first create the user via Supabase Auth UI

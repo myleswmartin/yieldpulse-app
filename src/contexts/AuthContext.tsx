@@ -165,11 +165,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Sign out error:', error);
+    try {
+      // Clear user state immediately
+      setUser(null);
+      
+      // Attempt to sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Sign out error:', error);
+        // Don't throw - user state is already cleared
+      }
+    } catch (error) {
+      console.error('Error in signOut:', error);
+      // User state already cleared above
     }
-    setUser(null);
   };
 
   return (
