@@ -2,6 +2,7 @@ import { useState, FormEvent, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TrendingUp, Mail, Lock, User, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { handleError, showSuccess } from '../utils/errorHandling';
 
 export default function SignUpPage() {
   const navigate = useNavigate();
@@ -43,10 +44,25 @@ export default function SignUpPage() {
 
     try {
       await signUp(email, password, fullName);
-      navigate('/dashboard', { replace: true });
+      showSuccess('Account created successfully. Please verify your email.');
+      navigate('/auth/verify-email', { replace: true });
     } catch (err: any) {
-      setError(err.message || 'Failed to create account. Please try again.');
       console.error('Sign up error:', err);
+      
+      const message = err.message?.toLowerCase() || '';
+      
+      if (message.includes('user already registered')) {
+        setError('An account with this email already exists. Try signing in instead.');
+      } else if (message.includes('password')) {
+        setError('Password must be at least 6 characters long');
+      } else {
+        setError('Unable to create account. Please try again.');
+      }
+      
+      // Also show toast for network errors
+      if (message.includes('fetch') || message.includes('network')) {
+        handleError(err, 'Sign Up', () => handleSubmit(e));
+      }
     } finally {
       setLoading(false);
     }
@@ -54,29 +70,29 @@ export default function SignUpPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-neutral-50 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-neutral-200 border-t-[#1e2875] mb-6"></div>
-          <p className="text-neutral-600 text-lg">Loading...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-border border-t-primary mb-4"></div>
+          <p className="text-neutral-600">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-neutral-50 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         {/* Logo and Header */}
         <div className="text-center mb-10">
           <Link to="/" className="inline-flex items-center space-x-3 mb-8 group">
-            <div className="p-3 bg-gradient-to-br from-[#1e2875] to-[#2f3aad] rounded-xl group-hover:scale-105 transition-transform">
-              <TrendingUp className="w-7 h-7 text-white" />
+            <div className="p-3 bg-primary rounded-xl shadow-sm group-hover:scale-105 transition-transform">
+              <TrendingUp className="w-7 h-7 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-[#1e2875] to-[#2f3aad] bg-clip-text text-transparent">
+            <span className="text-2xl font-bold text-primary">
               YieldPulse
             </span>
           </Link>
-          <h1 className="text-3xl font-bold text-neutral-900 mb-3">
+          <h1 className="text-3xl font-bold text-foreground mb-3">
             Create Your Account
           </h1>
           <p className="text-neutral-600 text-lg">

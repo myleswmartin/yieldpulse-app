@@ -6,14 +6,20 @@ interface User {
   email: string;
   fullName?: string;
   isAdmin?: boolean;
+  emailVerified: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  sessionExpired: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resendVerificationEmail: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
+  clearSessionExpired: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,8 +27,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
-  const fetchUserProfile = async (userId: string, email: string) => {
+  const fetchUserProfile = async (userId: string, email: string, emailConfirmed: boolean) => {
     try {
       // Try to fetch profile from database
       const { data: profile, error } = await supabase
@@ -37,7 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser({
           id: userId,
           email: email,
-          fullName: email.split('@')[0], // Fallback to email username
+          fullName: email.split('@')[0],
+          emailVerified: emailConfirmed,
         });
         return;
       }
@@ -47,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: profile.email,
         fullName: profile.full_name,
         isAdmin: profile.is_admin,
+        emailVerified: emailConfirmed,
       });
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
@@ -54,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser({
         id: userId,
         email: email,
+        emailVerified: emailConfirmed,
       });
     }
   };
@@ -70,7 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (session?.user) {
-        await fetchUserProfile(session.user.id, session.user.email || '');
+        const emailConfirmed = session.user.email_confirmed_at !== null;
+        await fetchUserProfile(session.user.id, session.user.email || '', emailConfirmed);
       } else {
         setUser(null);
       }
@@ -89,11 +100,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('Auth state changed:', event);
       
       if (event === 'SIGNED_IN' && session?.user) {
-        await fetchUserProfile(session.user.id, session.user.email || '');
+        const emailConfirmed = session.user.email_confirmed_at !== null;
+        await fetchUserProfile(session.user.id, session.user.email || '', emailConfirmed);
+        setSessionExpired(false);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        await fetchUserProfile(session.user.id, session.user.email || '');
+        const emailConfirmed = session.user.email_confirmed_at !== null;
+        await fetchUserProfile(session.user.id, session.user.email || '', emailConfirmed);
+      } else if (event === 'USER_UPDATED' && session?.user) {
+        // Handle email verification completion
+        const emailConfirmed = session.user.email_confirmed_at !== null;
+        await fetchUserProfile(session.user.id, session.user.email || '', emailConfirmed);
+      } else if (event === 'PASSWORD_RECOVERY') {
+        // Password recovery link clicked - user will be redirected to reset page
+        console.log('Password recovery initiated');
       }
     });
 
@@ -112,12 +133,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     if (data.session?.user) {
-      await fetchUserProfile(data.session.user.id, data.session.user.email || '');
+      const emailConfirmed = data.session.user.email_confirmed_at !== null;
+      await fetchUserProfile(data.session.user.id, data.session.user.email || '', emailConfirmed);
     }
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    // Sign up with Supabase Auth
+    // Get the current app URL for email redirect
+    const redirectUrl = `${window.location.origin}/auth/verify-email`;
+
+    // Sign up with Supabase Auth - email verification required
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -125,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: {
           full_name: fullName,
         },
-        emailRedirectTo: undefined, // No email confirmation for MVP
+        emailRedirectTo: redirectUrl,
       },
     });
 
@@ -155,13 +180,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (profileErr) {
       console.error('Error creating profile:', profileErr);
-      // Continue anyway - user is authenticated
+      // Continue anyway - user is registered
     }
 
-    // If session exists (auto-confirmed), set user
-    if (data.session?.user) {
-      await fetchUserProfile(data.session.user.id, data.session.user.email || '');
-    }
+    // User is created but not confirmed - they need to verify email
+    // Do NOT set user in state - they must verify first
   };
 
   const signOut = async () => {
@@ -181,8 +204,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const resendVerificationEmail = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.user?.email) {
+      throw new Error('No user session found');
+    }
+
+    const redirectUrl = `${window.location.origin}/auth/verify-email`;
+    
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: session.user.email,
+      options: {
+        emailRedirectTo: redirectUrl,
+      },
+    });
+
+    if (error) {
+      console.error('Resend verification error:', error);
+      throw new Error(error.message || 'Failed to resend verification email');
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    const redirectUrl = `${window.location.origin}/auth/reset-password`;
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl,
+    });
+
+    if (error) {
+      console.error('Password reset error:', error);
+      throw new Error(error.message || 'Failed to send password reset email');
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      console.error('Update password error:', error);
+      throw new Error(error.message || 'Failed to update password');
+    }
+  };
+
+  const clearSessionExpired = () => {
+    setSessionExpired(false);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      sessionExpired,
+      signIn, 
+      signUp, 
+      signOut,
+      resendVerificationEmail,
+      resetPassword,
+      updatePassword,
+      clearSessionExpired,
+    }}>
       {children}
     </AuthContext.Provider>
   );

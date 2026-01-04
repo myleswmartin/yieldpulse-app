@@ -2,6 +2,7 @@ import { useState, FormEvent, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { TrendingUp, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { handleError } from '../utils/errorHandling';
 
 export default function SignInPage() {
   const navigate = useNavigate();
@@ -30,8 +31,23 @@ export default function SignInPage() {
       await signIn(email, password);
       navigate(from, { replace: true });
     } catch (err: any) {
-      setError(err.message || 'Failed to sign in. Please check your credentials.');
       console.error('Sign in error:', err);
+      
+      // Parse error message
+      const message = err.message?.toLowerCase() || '';
+      
+      if (message.includes('invalid login credentials') || message.includes('invalid credentials')) {
+        setError('Email or password is incorrect. Please try again.');
+      } else if (message.includes('email not confirmed')) {
+        setError('Please verify your email address before signing in.');
+      } else {
+        setError('Unable to sign in. Please try again.');
+      }
+      
+      // Also show toast for network errors
+      if (err.message?.toLowerCase().includes('fetch') || err.message?.toLowerCase().includes('network')) {
+        handleError(err, 'Sign In', () => handleSubmit(e));
+      }
     } finally {
       setLoading(false);
     }
@@ -39,10 +55,10 @@ export default function SignInPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-neutral-50 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-neutral-200 border-t-[#1e2875] mb-6"></div>
-          <p className="text-neutral-600 text-lg">Loading...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-border border-t-primary mb-4"></div>
+          <p className="text-neutral-600">Loading...</p>
         </div>
       </div>
     );
@@ -54,33 +70,33 @@ export default function SignInPage() {
         {/* Logo and Header */}
         <div className="text-center mb-12">
           <Link to="/" className="inline-flex items-center space-x-3 mb-10 group">
-            <div className="p-3 bg-[#1e2875] rounded-xl shadow-sm">
-              <TrendingUp className="w-6 h-6 text-white" />
+            <div className="p-3 bg-primary rounded-xl shadow-sm">
+              <TrendingUp className="w-6 h-6 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-semibold text-[#1e2875] tracking-tight">
+            <span className="text-2xl font-semibold text-primary tracking-tight">
               YieldPulse
             </span>
           </Link>
-          <h1 className="text-3xl font-bold text-neutral-900 mb-3 tracking-tight">
+          <h1 className="text-3xl font-bold text-foreground mb-3 tracking-tight">
             Welcome Back
           </h1>
           <p className="text-neutral-600">
-            Sign in to access your saved analyses
+            Sign in to access your property analyses
           </p>
         </div>
 
         {/* Sign In Form Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-8">
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-800 leading-relaxed">{error}</p>
+            <div className="mb-6 bg-destructive/10 border border-destructive/30 rounded-xl p-4 flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive leading-relaxed">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-neutral-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-semibold text-foreground mb-2">
                 Email Address
               </label>
               <div className="relative">
@@ -91,7 +107,7 @@ export default function SignInPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-12 pr-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#1e2875] focus:border-transparent focus:bg-white transition-all"
+                  className="w-full pl-12 pr-4 py-3.5 bg-input-background border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   placeholder="you@example.com"
                   disabled={loading}
                 />
@@ -114,6 +130,14 @@ export default function SignInPage() {
                   placeholder="••••••••"
                   disabled={loading}
                 />
+              </div>
+              <div className="mt-2 text-right">
+                <Link 
+                  to="/auth/forgot-password" 
+                  className="text-sm font-medium text-[#1e2875] hover:text-[#2f3aad] transition-colors"
+                >
+                  Forgot password?
+                </Link>
               </div>
             </div>
 

@@ -1,5 +1,5 @@
 import { useLocation, Link } from 'react-router-dom';
-import { TrendingUp, DollarSign, Lock, ArrowLeft, CheckCircle, FileText, Download, GitCompare, Calendar, Info } from 'lucide-react';
+import { TrendingUp, DollarSign, Lock, ArrowLeft, CheckCircle, FileText, Download, GitCompare, Calendar, Info, AlertCircle, Sparkles } from 'lucide-react';
 import { CalculationResults, formatCurrency, formatPercent, PropertyInputs } from '../utils/calculations';
 import { useAuth } from '../contexts/AuthContext';
 import { Header } from '../components/Header';
@@ -7,6 +7,9 @@ import { StatCard } from '../components/StatCard';
 import { useState, useEffect } from 'react';
 import { projectId } from '../../utils/supabase/info';
 import { supabase } from '../utils/supabaseClient';
+import { generatePDF } from '../utils/pdfGenerator';
+import { showSuccess, handleError } from '../utils/errorHandling';
+import { trackPdfDownload, trackPremiumUnlock } from '../utils/analytics';
 import { 
   BarChart, 
   Bar, 
@@ -45,6 +48,8 @@ export default function ResultsPage() {
   const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
   const [checkingPurchaseStatus, setCheckingPurchaseStatus] = useState(false);
   const [creatingCheckout, setCreatingCheckout] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [pdfSnapshot, setPdfSnapshot] = useState<any>(null);
 
   // Check purchase status on mount if we have an analysis ID
   useEffect(() => {
@@ -79,7 +84,13 @@ export default function ResultsPage() {
         const data = await response.json();
         console.log('Purchase status:', data);
         if (data.status === 'paid') {
+          // Only track unlock event if transitioning from unpaid to paid
+          if (!isPremiumUnlocked) {
+            trackPremiumUnlock(analysisId);
+          }
           setIsPremiumUnlocked(true);
+          // Fetch the snapshot for PDF generation
+          fetchPdfSnapshot();
         }
       }
     } catch (error) {
@@ -89,6 +100,56 @@ export default function ResultsPage() {
     }
   };
 
+  const fetchPdfSnapshot = async () => {
+    if (!analysisId || !user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('report_purchases')
+        .select('snapshot, created_at')
+        .eq('analysis_id', analysisId)
+        .eq('status', 'paid')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.error('Error fetching PDF snapshot:', error);
+        return;
+      }
+
+      if (data?.snapshot) {
+        setPdfSnapshot({
+          snapshot: data.snapshot,
+          purchaseDate: data.created_at
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching PDF snapshot:', error);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!pdfSnapshot) {
+      handleError('PDF data not available. Please try again.', 'Download PDF', () => {
+        fetchPdfSnapshot();
+      });
+      return;
+    }
+
+    setGeneratingPDF(true);
+    try {
+      await generatePDF(pdfSnapshot.snapshot, pdfSnapshot.purchaseDate);
+      showSuccess('PDF downloaded successfully!');
+      trackPdfDownload();
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      handleError(error, 'Generate PDF', handleDownloadPDF);
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+  
   const handleUnlockPremium = async () => {
     if (!user) {
       alert('Please sign in to unlock the premium report');
@@ -156,7 +217,7 @@ export default function ResultsPage() {
             <p className="text-neutral-600 text-lg mb-6">No results to display</p>
             <Link 
               to="/calculator" 
-              className="inline-flex items-center space-x-2 px-6 py-3 bg-[#1e2875] text-white rounded-lg font-semibold hover:bg-[#2f3aad] transition-all"
+              className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-all"
             >
               <span>Go to Calculator</span>
               <ArrowLeft className="w-4 h-4 rotate-180" />
@@ -166,6 +227,58 @@ export default function ResultsPage() {
       </div>
     );
   }
+
+  // Calculate sensitivity metrics
+  const calculateSensitivity = () => {
+    if (!displayInputs) return [];
+
+    // Calculate impact of key variables
+    const baseAnnualCashFlow = displayResults.annualCashFlow;
+    
+    // Rent change sensitivity (±10%)
+    const rentIncrease = ((displayInputs.expectedMonthlyRent * 1.1) * 12) - (displayInputs.expectedMonthlyRent * 12);
+    const rentDecrease = (displayInputs.expectedMonthlyRent * 12) - ((displayInputs.expectedMonthlyRent * 0.9) * 12);
+    
+    // Interest rate change sensitivity (±1%)
+    const loanAmount = displayInputs.purchasePrice * (1 - displayInputs.downPaymentPercent / 100);
+    const currentRate = displayInputs.mortgageInterestRate / 100 / 12;
+    const newRateUp = (displayInputs.mortgageInterestRate + 1) / 100 / 12;
+    const newRateDown = (displayInputs.mortgageInterestRate - 1) / 100 / 12;
+    const n = displayInputs.mortgageTermYears * 12;
+    
+    const currentPayment = loanAmount * (currentRate * Math.pow(1 + currentRate, n)) / (Math.pow(1 + currentRate, n) - 1);
+    const paymentUp = loanAmount * (newRateUp * Math.pow(1 + newRateUp, n)) / (Math.pow(1 + newRateUp, n) - 1);
+    const paymentDown = loanAmount * (newRateDown * Math.pow(1 + newRateDown, n)) / (Math.pow(1 + newRateDown, n) - 1);
+    
+    const rateImpactUp = (currentPayment - paymentUp) * 12;
+    const rateImpactDown = (paymentDown - currentPayment) * 12;
+    
+    // Purchase price change sensitivity (±10%)
+    const priceImpact = displayInputs.purchasePrice * 0.1;
+    
+    return [
+      { 
+        factor: 'Monthly Rent', 
+        impact: Math.abs(rentIncrease), 
+        description: '±10% change',
+        ranking: 1
+      },
+      { 
+        factor: 'Interest Rate', 
+        impact: Math.abs(rateImpactUp), 
+        description: '±1% change',
+        ranking: 2
+      },
+      { 
+        factor: 'Purchase Price', 
+        impact: priceImpact * 0.05, // Approximate impact via yield change
+        description: '±10% change',
+        ranking: 3
+      }
+    ].sort((a, b) => b.impact - a.impact);
+  };
+
+  const sensitivityFactors = calculateSensitivity();
 
   // Prepare chart data
   const waterfallData = [
@@ -194,6 +307,22 @@ export default function ResultsPage() {
     year: 'numeric' 
   });
 
+  // Determine investment grade
+  const getInvestmentGrade = () => {
+    const netYield = displayResults.netRentalYield * 100;
+    const cashFlow = displayResults.monthlyCashFlow;
+    
+    if (netYield >= 6 && cashFlow >= 0) {
+      return { grade: 'Strong', color: 'text-success', bg: 'bg-success/10', border: 'border-success/30' };
+    } else if (netYield >= 4 && cashFlow >= -1000) {
+      return { grade: 'Moderate', color: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/30' };
+    } else {
+      return { grade: 'Cautious', color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/30' };
+    }
+  };
+
+  const investmentGrade = getInvestmentGrade();
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <Header />
@@ -202,17 +331,17 @@ export default function ResultsPage() {
         {/* Navigation */}
         <Link 
           to="/calculator" 
-          className="inline-flex items-center space-x-2 text-sm text-neutral-600 hover:text-[#1e2875] mb-8 transition-colors font-medium"
+          className="inline-flex items-center space-x-2 text-sm text-neutral-600 hover:text-primary mb-8 transition-colors font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Calculator</span>
         </Link>
 
         {/* Report Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8 mb-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-8 mb-8">
           <div className="flex items-start justify-between mb-6">
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-neutral-900 mb-1">
+              <h1 className="text-3xl font-bold text-foreground mb-1">
                 Property Investment Report
               </h1>
               <p className="text-neutral-600 mb-3">
@@ -228,19 +357,24 @@ export default function ResultsPage() {
                 </div>
                 {displayInputs?.propertyName && (
                   <div>
-                    <span className="font-medium text-neutral-900">{displayInputs.propertyName}</span>
+                    <span className="font-medium text-foreground">{displayInputs.propertyName}</span>
                   </div>
                 )}
               </div>
             </div>
             <div className="flex items-center space-x-3">
               <button
-                disabled
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-neutral-100 text-neutral-400 rounded-lg text-sm font-medium cursor-not-allowed"
+                onClick={handleDownloadPDF}
+                disabled={!isPremiumUnlocked || generatingPDF || !pdfSnapshot}
+                className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  isPremiumUnlocked && pdfSnapshot
+                    ? 'bg-teal text-white hover:bg-teal/90 shadow-sm'
+                    : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                }`}
               >
                 <Download className="w-4 h-4" />
-                <span>Download PDF</span>
-                <span className="text-xs">(coming next)</span>
+                <span>{generatingPDF ? 'Generating...' : 'Download PDF'}</span>
+                {!isPremiumUnlocked && <span className="text-xs">(premium only)</span>}
               </button>
               <button
                 disabled
@@ -252,7 +386,7 @@ export default function ResultsPage() {
               </button>
             </div>
           </div>
-          <div className="flex items-start space-x-2 text-xs text-neutral-500 bg-neutral-50 p-3 rounded-lg border border-neutral-200">
+          <div className="flex items-start space-x-2 text-xs text-neutral-500 bg-muted/50 p-3 rounded-lg border border-border">
             <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <p>
               This report is for informational purposes only and does not constitute financial, investment, or legal advice. 
@@ -262,21 +396,21 @@ export default function ResultsPage() {
         </div>
 
         {/* Free Section: Executive Summary */}
-        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8 mb-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-8 mb-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+              <h2 className="text-2xl font-bold text-foreground mb-2">
                 Executive Summary
               </h2>
               <p className="text-neutral-600">Key investment metrics at a glance</p>
             </div>
-            <div className="px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
-              <span className="text-sm font-semibold text-emerald-700">Free Preview</span>
+            <div className="px-4 py-2 bg-success/10 border border-success/30 rounded-lg">
+              <span className="text-sm font-medium text-success">Free Preview</span>
             </div>
           </div>
           
           {/* KPI Cards Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             <StatCard
               label="Gross Yield"
               value={formatPercent(displayResults.grossRentalYield)}
@@ -314,38 +448,244 @@ export default function ResultsPage() {
               variant={displayResults.annualCashFlow >= 0 ? 'success' : 'warning'}
               trend={displayResults.annualCashFlow >= 0 ? 'positive' : 'negative'}
             />
+            <StatCard
+              label="Initial Investment"
+              value={formatCurrency(displayResults.totalInitialInvestment)}
+              icon={DollarSign}
+              description="Down payment plus closing costs"
+              variant="navy"
+            />
+          </div>
+
+          {/* What This Means Section */}
+          <div className={`${investmentGrade.bg} border ${investmentGrade.border} rounded-xl p-6`}>
+            <div className="flex items-start space-x-3 mb-4">
+              <Info className={`w-5 h-5 ${investmentGrade.color} flex-shrink-0 mt-0.5`} />
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground mb-2">What This Means</h3>
+                <div className="space-y-3 text-sm text-neutral-700 leading-relaxed">
+                  <p>
+                    <strong className={investmentGrade.color}>Investment Grade: {investmentGrade.grade}</strong>
+                  </p>
+                  
+                  {displayResults.monthlyCashFlow >= 0 ? (
+                    <p>
+                      <strong>Positive Cash Flow:</strong> This property generates {formatCurrency(displayResults.monthlyCashFlow)} per month after all expenses including mortgage, operating costs, and vacancy allowance. This means the property pays for itself and provides additional monthly income.
+                    </p>
+                  ) : (
+                    <p>
+                      <strong>Negative Cash Flow:</strong> This property requires {formatCurrency(Math.abs(displayResults.monthlyCashFlow))} per month to cover the gap between rental income and total expenses. You will need to subsidize the property from other income, but may still benefit from capital appreciation and mortgage paydown.
+                    </p>
+                  )}
+
+                  <p>
+                    <strong>Yield Analysis:</strong> Your gross yield of {formatPercent(displayResults.grossRentalYield)} represents the annual rent as a percentage of purchase price. After accounting for operating expenses, your net yield is {formatPercent(displayResults.netRentalYield)}. For context, typical UAE residential yields range from 4% to 8% gross.
+                  </p>
+
+                  <p>
+                    <strong>Return on Investment:</strong> Your cash on cash return of {formatPercent(displayResults.cashOnCashReturn)} measures the annual cash flow relative to your initial investment of {formatCurrency(displayResults.totalInitialInvestment)}. This shows how efficiently your down payment is working for you.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Metric Definitions */}
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-8 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Understanding the Metrics
+              </h2>
+              <p className="text-neutral-600">Clear definitions of key terms</p>
+            </div>
+            <div className="px-4 py-2 bg-success/10 border border-success/30 rounded-lg">
+              <span className="text-sm font-medium text-success">Free Preview</span>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="border border-border rounded-xl p-5">
+              <h4 className="font-semibold text-foreground mb-2">Gross Yield</h4>
+              <p className="text-sm text-neutral-700 leading-relaxed">
+                Annual rental income divided by purchase price. This is the headline return before any expenses. Use this to quickly compare properties, but always look at net yield for real returns.
+              </p>
+              <p className="text-xs text-neutral-500 mt-2">
+                Formula: (Annual Rent ÷ Purchase Price) × 100
+              </p>
+            </div>
+
+            <div className="border border-border rounded-xl p-5">
+              <h4 className="font-semibold text-foreground mb-2">Net Yield</h4>
+              <p className="text-sm text-neutral-700 leading-relaxed">
+                Annual rental income minus operating expenses (service charges, maintenance, management fees), divided by purchase price. This is your true rental return before mortgage costs.
+              </p>
+              <p className="text-xs text-neutral-500 mt-2">
+                Formula: (Net Operating Income ÷ Purchase Price) × 100
+              </p>
+            </div>
+
+            <div className="border border-border rounded-xl p-5">
+              <h4 className="font-semibold text-foreground mb-2">Cash Flow</h4>
+              <p className="text-sm text-neutral-700 leading-relaxed">
+                Net income after all expenses including mortgage payments, operating costs, and vacancy allowance. Positive cash flow means the property pays for itself. Negative means you subsidize it monthly.
+              </p>
+              <p className="text-xs text-neutral-500 mt-2">
+                Formula: Rental Income - All Expenses - Mortgage
+              </p>
+            </div>
+
+            <div className="border border-border rounded-xl p-5">
+              <h4 className="font-semibold text-foreground mb-2">Cash on Cash Return</h4>
+              <p className="text-sm text-neutral-700 leading-relaxed">
+                Annual cash flow divided by your initial cash investment (down payment plus closing costs). This measures how hard your actual money is working. Higher is better for leveraged returns.
+              </p>
+              <p className="text-xs text-neutral-500 mt-2">
+                Formula: (Annual Cash Flow ÷ Initial Investment) × 100
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Sensitivity Analysis */}
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-8 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Sensitivity Analysis
+              </h2>
+              <p className="text-neutral-600">Key factors that influence your returns</p>
+            </div>
+            <div className="px-4 py-2 bg-success/10 border border-success/30 rounded-lg">
+              <span className="text-sm font-medium text-success">Free Preview</span>
+            </div>
+          </div>
+
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mb-6">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-foreground mb-2">Most Influential Inputs</h4>
+                <p className="text-sm text-neutral-700 leading-relaxed mb-4">
+                  These three factors have the largest impact on your investment returns. Small changes to these inputs can significantly affect your cash flow and yield.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {sensitivityFactors.slice(0, 3).map((factor, index) => (
+              <div key={index} className="border border-border rounded-xl p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm">
+                      {index + 1}
+                    </div>
+                    <h4 className="font-semibold text-foreground">{factor.factor}</h4>
+                  </div>
+                  <span className="text-sm font-medium text-neutral-600">{factor.description}</span>
+                </div>
+                <div className="ml-11">
+                  <p className="text-sm text-neutral-700">
+                    Estimated annual cash flow impact: <strong className="text-primary">{formatCurrency(factor.impact)}</strong>
+                  </p>
+                  {index === 0 && (
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Rental income is the most significant driver. Market research and realistic rent estimates are critical.
+                    </p>
+                  )}
+                  {index === 1 && (
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Interest rate changes affect mortgage payments. Consider fixing your rate to reduce this risk.
+                    </p>
+                  )}
+                  {index === 2 && (
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Purchase price determines your entry point. Negotiate hard and buy below market when possible.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 bg-muted/50 rounded-lg p-4 border border-border">
+            <p className="text-sm text-neutral-700 leading-relaxed">
+              <strong>Risk Management:</strong> Given these sensitivities, ensure your rent estimate is based on recent comparable properties, secure a competitive interest rate, and negotiate the best possible purchase price. Consider stress testing with 10% lower rent or 1% higher interest rates.
+            </p>
           </div>
         </div>
 
         {/* Premium Section */}
-        <div className="relative bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
+        <div className="relative bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
           {/* Premium Header */}
-          <div className="bg-gradient-to-r from-[#1e2875] to-[#2f3aad] px-8 py-6">
+          <div className="bg-gradient-to-r from-primary to-primary-hover px-8 py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-white mb-2">Premium Report Analysis</h2>
-                <p className="text-white/90">Detailed charts, projections, and financial tables</p>
+                <div className="flex items-center space-x-2 mb-2">
+                  <Sparkles className="w-5 h-5 text-primary-foreground" />
+                  <h2 className="text-2xl font-bold text-primary-foreground">Premium Report Analysis</h2>
+                </div>
+                <p className="text-primary-foreground/90">Unlock comprehensive insights and detailed projections</p>
               </div>
               {!isPremiumUnlocked && (
                 <div className="text-right">
-                  <div className="text-4xl font-bold text-white mb-1">AED 49</div>
-                  <div className="text-sm text-white/80">one time unlock</div>
+                  <div className="text-4xl font-bold text-primary-foreground mb-1">AED 49</div>
+                  <div className="text-sm text-primary-foreground/80">one time unlock</div>
                 </div>
               )}
             </div>
           </div>
+
+          {/* What's Included Panel */}
+          {!isPremiumUnlocked && (
+            <div className="bg-muted/30 border-b border-border px-8 py-6">
+              <h3 className="font-semibold text-foreground mb-4">What You Get with Premium</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground text-sm">Visual Analysis Charts</p>
+                    <p className="text-xs text-neutral-600">Interactive cash flow waterfall, yield comparison, and cost breakdown charts</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground text-sm">5 Year Financial Projection</p>
+                    <p className="text-xs text-neutral-600">Year by year breakdown of property value, equity, and returns with growth assumptions</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground text-sm">Detailed Financial Tables</p>
+                    <p className="text-xs text-neutral-600">Complete income statement, cost breakdown, and assumption audit trail</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground text-sm">Line Item Expense Detail</p>
+                    <p className="text-xs text-neutral-600">Exact breakdown of every cost: service charges, maintenance, insurance, and more</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Premium Content */}
           <div className="p-8 space-y-10">
             
             {/* Charts Section */}
             <div>
-              <h3 className="text-xl font-bold text-neutral-900 mb-6">Visual Analysis</h3>
+              <h3 className="text-xl font-bold text-foreground mb-6">Visual Analysis</h3>
               
               <div className="grid lg:grid-cols-2 gap-8 mb-8">
                 {/* Cashflow Waterfall Chart */}
-                <div className="bg-neutral-50 rounded-xl p-6 border border-neutral-200">
-                  <h4 className="font-semibold text-neutral-900 mb-4">Annual Cash Flow Breakdown</h4>
+                <div className="bg-muted/50 rounded-xl p-6 border border-border">
+                  <h4 className="font-semibold text-foreground mb-4">Annual Cash Flow Breakdown</h4>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={waterfallData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -362,8 +702,8 @@ export default function ResultsPage() {
                 </div>
 
                 {/* Yield Comparison Chart */}
-                <div className="bg-neutral-50 rounded-xl p-6 border border-neutral-200">
-                  <h4 className="font-semibold text-neutral-900 mb-4">Yield and Return Comparison</h4>
+                <div className="bg-muted/50 rounded-xl p-6 border border-border">
+                  <h4 className="font-semibold text-foreground mb-4">Yield and Return Comparison</h4>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={yieldComparisonData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -377,8 +717,8 @@ export default function ResultsPage() {
               </div>
 
               {/* Cost Breakdown Pie Chart */}
-              <div className="bg-neutral-50 rounded-xl p-6 border border-neutral-200">
-                <h4 className="font-semibold text-neutral-900 mb-4">Annual Cost Breakdown</h4>
+              <div className="bg-muted/50 rounded-xl p-6 border border-border">
+                <h4 className="font-semibold text-foreground mb-4">Annual Cost Breakdown</h4>
                 <div className="flex items-center justify-center">
                   <ResponsiveContainer width="100%" height={350}>
                     <PieChart>
@@ -407,49 +747,49 @@ export default function ResultsPage() {
             <div className="grid lg:grid-cols-2 gap-8">
               {/* Assumptions Table */}
               <div>
-                <h3 className="text-xl font-bold text-neutral-900 mb-4">Key Assumptions</h3>
-                <div className="bg-neutral-50 rounded-xl border border-neutral-200 overflow-hidden">
+                <h3 className="text-xl font-bold text-foreground mb-4">Key Assumptions</h3>
+                <div className="bg-muted/50 rounded-xl border border-border overflow-hidden">
                   <table className="w-full">
                     <thead>
-                      <tr className="bg-neutral-100">
-                        <th className="text-left py-3 px-4 font-semibold text-neutral-700 text-sm">Assumption</th>
-                        <th className="text-right py-3 px-4 font-semibold text-neutral-700 text-sm">Value</th>
+                      <tr className="bg-muted">
+                        <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Assumption</th>
+                        <th className="text-right py-3 px-4 font-semibold text-foreground text-sm">Value</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-200">
+                    <tbody className="divide-y divide-border">
                       {displayInputs && (
                         <>
                           <tr className="bg-white">
                             <td className="py-3 px-4 text-sm text-neutral-700">Purchase Price</td>
-                            <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{formatCurrency(displayInputs.purchasePrice)}</td>
+                            <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{formatCurrency(displayInputs.purchasePrice)}</td>
                           </tr>
-                          <tr className="bg-neutral-50">
+                          <tr className="bg-muted/50">
                             <td className="py-3 px-4 text-sm text-neutral-700">Down Payment</td>
-                            <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{displayInputs.downPaymentPercent}%</td>
+                            <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.downPaymentPercent}%</td>
                           </tr>
                           <tr className="bg-white">
                             <td className="py-3 px-4 text-sm text-neutral-700">Mortgage Interest Rate</td>
-                            <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{displayInputs.mortgageInterestRate}%</td>
+                            <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.mortgageInterestRate}%</td>
                           </tr>
-                          <tr className="bg-neutral-50">
+                          <tr className="bg-muted/50">
                             <td className="py-3 px-4 text-sm text-neutral-700">Mortgage Term</td>
-                            <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{displayInputs.mortgageTermYears} years</td>
+                            <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.mortgageTermYears} years</td>
                           </tr>
                           <tr className="bg-white">
                             <td className="py-3 px-4 text-sm text-neutral-700">Expected Monthly Rent</td>
-                            <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{formatCurrency(displayInputs.expectedMonthlyRent)}</td>
+                            <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{formatCurrency(displayInputs.expectedMonthlyRent)}</td>
                           </tr>
-                          <tr className="bg-neutral-50">
+                          <tr className="bg-muted/50">
                             <td className="py-3 px-4 text-sm text-neutral-700">Vacancy Rate</td>
-                            <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{displayInputs.vacancyRatePercent}%</td>
+                            <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.vacancyRatePercent}%</td>
                           </tr>
                           <tr className="bg-white">
                             <td className="py-3 px-4 text-sm text-neutral-700">Capital Growth Rate</td>
-                            <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{displayInputs.capitalGrowthPercent}%</td>
+                            <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.capitalGrowthPercent}%</td>
                           </tr>
-                          <tr className="bg-neutral-50">
+                          <tr className="bg-muted/50">
                             <td className="py-3 px-4 text-sm text-neutral-700">Rent Growth Rate</td>
-                            <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{displayInputs.rentGrowthPercent}%</td>
+                            <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.rentGrowthPercent}%</td>
                           </tr>
                         </>
                       )}
@@ -460,56 +800,56 @@ export default function ResultsPage() {
 
               {/* Financial Summary Table */}
               <div>
-                <h3 className="text-xl font-bold text-neutral-900 mb-4">Financial Summary</h3>
-                <div className="bg-neutral-50 rounded-xl border border-neutral-200 overflow-hidden">
+                <h3 className="text-xl font-bold text-foreground mb-4">Financial Summary</h3>
+                <div className="bg-muted/50 rounded-xl border border-border overflow-hidden">
                   <table className="w-full">
                     <thead>
-                      <tr className="bg-neutral-100">
-                        <th className="text-left py-3 px-4 font-semibold text-neutral-700 text-sm">Category</th>
-                        <th className="text-right py-3 px-4 font-semibold text-neutral-700 text-sm">Annual Amount</th>
+                      <tr className="bg-muted">
+                        <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Category</th>
+                        <th className="text-right py-3 px-4 font-semibold text-foreground text-sm">Annual Amount</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-200">
+                    <tbody className="divide-y divide-border">
                       <tr className="bg-white">
-                        <td className="py-3 px-4 text-sm font-semibold text-neutral-900" colSpan={2}>Income</td>
+                        <td className="py-3 px-4 text-sm font-semibold text-foreground" colSpan={2}>Income</td>
                       </tr>
-                      <tr className="bg-neutral-50">
+                      <tr className="bg-muted/50">
                         <td className="py-3 px-4 text-sm text-neutral-700 pl-8">Gross Rental Income</td>
-                        <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{formatCurrency(displayResults.grossAnnualRentalIncome)}</td>
+                        <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{formatCurrency(displayResults.grossAnnualRentalIncome)}</td>
                       </tr>
                       <tr className="bg-white">
                         <td className="py-3 px-4 text-sm text-neutral-700 pl-8">Effective Rental Income</td>
-                        <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{formatCurrency(displayResults.effectiveAnnualRentalIncome)}</td>
+                        <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{formatCurrency(displayResults.effectiveAnnualRentalIncome)}</td>
                       </tr>
-                      <tr className="bg-neutral-50">
-                        <td className="py-3 px-4 text-sm font-semibold text-neutral-900" colSpan={2}>Operating Expenses</td>
+                      <tr className="bg-muted/50">
+                        <td className="py-3 px-4 text-sm font-semibold text-foreground" colSpan={2}>Operating Expenses</td>
                       </tr>
                       <tr className="bg-white">
                         <td className="py-3 px-4 text-sm text-neutral-700 pl-8">Service Charge</td>
-                        <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{formatCurrency(displayResults.annualServiceCharge)}</td>
+                        <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{formatCurrency(displayResults.annualServiceCharge)}</td>
                       </tr>
-                      <tr className="bg-neutral-50">
+                      <tr className="bg-muted/50">
                         <td className="py-3 px-4 text-sm text-neutral-700 pl-8">Maintenance</td>
-                        <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{formatCurrency(displayResults.annualMaintenanceCosts)}</td>
+                        <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{formatCurrency(displayResults.annualMaintenanceCosts)}</td>
                       </tr>
                       <tr className="bg-white">
                         <td className="py-3 px-4 text-sm text-neutral-700 pl-8">Property Management</td>
-                        <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{formatCurrency(displayResults.annualPropertyManagementFee)}</td>
+                        <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{formatCurrency(displayResults.annualPropertyManagementFee)}</td>
                       </tr>
-                      <tr className="bg-neutral-50">
-                        <td className="py-3 px-4 text-sm font-semibold text-neutral-900" colSpan={2}>Results</td>
+                      <tr className="bg-muted/50">
+                        <td className="py-3 px-4 text-sm font-semibold text-foreground" colSpan={2}>Results</td>
                       </tr>
                       <tr className="bg-white">
                         <td className="py-3 px-4 text-sm text-neutral-700 pl-8">Net Operating Income</td>
-                        <td className="py-3 px-4 text-sm text-right font-semibold text-[#14b8a6]">{formatCurrency(displayResults.netOperatingIncome)}</td>
+                        <td className="py-3 px-4 text-sm text-right font-semibold text-teal">{formatCurrency(displayResults.netOperatingIncome)}</td>
                       </tr>
-                      <tr className="bg-neutral-50">
+                      <tr className="bg-muted/50">
                         <td className="py-3 px-4 text-sm text-neutral-700 pl-8">Annual Mortgage Payment</td>
-                        <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">{formatCurrency(displayResults.annualMortgagePayment)}</td>
+                        <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{formatCurrency(displayResults.annualMortgagePayment)}</td>
                       </tr>
                       <tr className="bg-white">
-                        <td className="py-3 px-4 text-sm font-semibold text-neutral-900 pl-8">Annual Cash Flow</td>
-                        <td className={`py-3 px-4 text-sm text-right font-bold ${displayResults.annualCashFlow >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        <td className="py-3 px-4 text-sm font-semibold text-foreground pl-8">Annual Cash Flow</td>
+                        <td className={`py-3 px-4 text-sm text-right font-bold ${displayResults.annualCashFlow >= 0 ? 'text-success' : 'text-destructive'}`}>
                           {formatCurrency(displayResults.annualCashFlow)}
                         </td>
                       </tr>
@@ -522,20 +862,24 @@ export default function ResultsPage() {
 
           {/* Locked Overlay */}
           {!isPremiumUnlocked && (
-            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center">
-              <div className="text-center max-w-md px-6">
-                <div className="w-20 h-20 bg-[#1e2875] rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
-                  <Lock className="w-10 h-10 text-white" />
+            <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex items-center justify-center">
+              <div className="text-center max-w-lg px-6">
+                <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
+                  <Lock className="w-10 h-10 text-primary-foreground" />
                 </div>
-                <h3 className="text-2xl font-bold text-neutral-900 mb-3">
-                  Unlock Premium Report
+                <h3 className="text-2xl font-bold text-foreground mb-3">
+                  Unlock Complete Analysis
                 </h3>
-                <p className="text-neutral-600 mb-6 leading-relaxed">
-                  Get access to detailed charts, 5 year projections, sensitivity analysis, and comprehensive financial tables for AED 49
+                <p className="text-neutral-700 mb-6 leading-relaxed">
+                  Get instant access to interactive charts, detailed financial tables, 5 year projections, and complete cost breakdowns to make a confident investment decision.
                 </p>
+                <div className="bg-muted/50 rounded-lg p-4 mb-6 border border-border">
+                  <p className="text-sm font-medium text-foreground mb-2">One time payment. Lifetime access to this report.</p>
+                  <p className="text-xs text-neutral-600">View anytime from your dashboard. No recurring fees.</p>
+                </div>
                 <button 
-                  disabled={creatingCheckout}
-                  className="inline-flex items-center space-x-2 px-8 py-4 bg-[#1e2875] text-white rounded-xl font-semibold shadow-lg hover:bg-[#2f3aad] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={creatingCheckout || !user}
+                  className="inline-flex items-center space-x-2 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleUnlockPremium}
                 >
                   <Lock className="w-5 h-5" />
@@ -543,7 +887,7 @@ export default function ResultsPage() {
                 </button>
                 {!user && (
                   <p className="text-sm text-neutral-500 mt-4">
-                    Please sign in to unlock premium reports
+                    <Link to="/auth/signin" className="text-primary hover:underline font-medium">Sign in</Link> to unlock premium reports
                   </p>
                 )}
               </div>
@@ -553,13 +897,13 @@ export default function ResultsPage() {
 
         {/* Sign In Prompt for Non Authenticated Users */}
         {!user && (
-          <div className="mt-8 bg-emerald-50 border border-emerald-200 rounded-xl p-8">
+          <div className="mt-8 bg-success/10 border border-success/30 rounded-xl p-8">
             <div className="flex items-start space-x-4">
-              <div className="p-3 bg-emerald-100 rounded-xl flex-shrink-0">
-                <CheckCircle className="w-6 h-6 text-emerald-600" />
+              <div className="p-3 bg-success/20 rounded-xl flex-shrink-0">
+                <CheckCircle className="w-6 h-6 text-success" />
               </div>
               <div className="flex-1">
-                <h3 className="text-xl font-semibold text-neutral-900 mb-2">
+                <h3 className="text-xl font-semibold text-foreground mb-2">
                   Save Your Analysis
                 </h3>
                 <p className="text-neutral-700 mb-6 leading-relaxed">
@@ -568,7 +912,7 @@ export default function ResultsPage() {
                 </p>
                 <Link 
                   to="/auth/signin"
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-[#1e2875] text-white rounded-lg font-semibold hover:bg-[#2f3aad] transition-all"
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-all"
                 >
                   <span>Sign In to Save</span>
                   <ArrowLeft className="w-4 h-4 rotate-180" />
@@ -582,7 +926,7 @@ export default function ResultsPage() {
         <div className="mt-10 text-center">
           <Link 
             to="/calculator"
-            className="inline-flex items-center space-x-2 text-neutral-600 hover:text-[#1e2875] font-semibold transition-colors"
+            className="inline-flex items-center space-x-2 text-neutral-600 hover:text-primary font-medium transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             <span>Calculate Another Property</span>

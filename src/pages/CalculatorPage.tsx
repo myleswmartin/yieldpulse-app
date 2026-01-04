@@ -1,13 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calculator, TrendingUp, DollarSign, ArrowRight, Info, AlertCircle } from 'lucide-react';
+import { Calculator, TrendingUp, DollarSign, ArrowRight, Info, AlertCircle, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateROI, PropertyInputs, CalculationResults, formatCurrency, formatPercent } from '../utils/calculations';
 import { supabase } from '../utils/supabaseClient';
 import { Header } from '../components/Header';
-import { Section } from '../components/Section';
 import { StatCard } from '../components/StatCard';
+import { Tooltip } from '../components/Tooltip';
+import { showSuccess, showInfo, handleError } from '../utils/errorHandling';
+
+interface FieldWarning {
+  field: string;
+  message: string;
+  severity: 'warning' | 'info';
+}
 
 export default function CalculatorPage() {
   const navigate = useNavigate();
@@ -15,6 +22,7 @@ export default function CalculatorPage() {
   const [results, setResults] = useState<CalculationResults | null>(null);
   const [saving, setSaving] = useState(false);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+  const [warnings, setWarnings] = useState<FieldWarning[]>([]);
 
   const [formData, setFormData] = useState({
     portalSource: 'Bayut',
@@ -33,12 +41,84 @@ export default function CalculatorPage() {
     otherCostsAnnual: 1000,
   });
 
+  const validateAndWarn = (name: string, value: number): string | null => {
+    const newWarnings: FieldWarning[] = warnings.filter(w => w.field !== name);
+
+    switch (name) {
+      case 'purchasePrice':
+        if (value < 300000) {
+          newWarnings.push({ field: name, message: 'Purchase price is unusually low for UAE property. Typical range: AED 500K to AED 50M+', severity: 'warning' });
+        } else if (value > 50000000) {
+          newWarnings.push({ field: name, message: 'Very high value property. Ensure all costs are proportionally accurate.', severity: 'info' });
+        }
+        break;
+      
+      case 'expectedMonthlyRent':
+        const annualRent = value * 12;
+        const currentYield = (annualRent / formData.purchasePrice) * 100;
+        if (currentYield < 2) {
+          newWarnings.push({ field: name, message: `Gross yield of ${currentYield.toFixed(1)}% is below typical UAE range (4-8%). Consider reviewing rent or purchase price.`, severity: 'warning' });
+        } else if (currentYield > 12) {
+          newWarnings.push({ field: name, message: `Gross yield of ${currentYield.toFixed(1)}% is unusually high. Verify rent estimate is realistic.`, severity: 'warning' });
+        }
+        break;
+
+      case 'downPaymentPercent':
+        if (value < 20) {
+          newWarnings.push({ field: name, message: 'UAE banks typically require minimum 20% down payment for expats, 15% for UAE nationals.', severity: 'info' });
+        } else if (value > 50) {
+          newWarnings.push({ field: name, message: 'High down payment reduces leverage and may impact cash on cash returns.', severity: 'info' });
+        }
+        break;
+
+      case 'mortgageInterestRate':
+        if (value < 3) {
+          newWarnings.push({ field: name, message: 'Interest rate below 3% is uncommon in UAE. Current market rates typically 4.5% to 6.5%.', severity: 'warning' });
+        } else if (value > 8) {
+          newWarnings.push({ field: name, message: 'Interest rate above 8% is high for UAE mortgages. Verify with your bank.', severity: 'warning' });
+        }
+        break;
+
+      case 'serviceChargePerSqft':
+        if (value < 5) {
+          newWarnings.push({ field: name, message: 'Service charge below AED 5/sqft is very low. Check with developer or community.', severity: 'warning' });
+        } else if (value > 30) {
+          newWarnings.push({ field: name, message: 'Service charge above AED 30/sqft is high. Common range is AED 10-25/sqft.', severity: 'info' });
+        }
+        break;
+
+      case 'propertyManagementFeePercent':
+        if (value > 10) {
+          newWarnings.push({ field: name, message: 'Property management fees above 10% are high. Typical UAE range is 5-8% of annual rent.', severity: 'warning' });
+        }
+        break;
+
+      case 'vacancyRatePercent':
+        if (value > 15) {
+          newWarnings.push({ field: name, message: 'Vacancy rate above 15% significantly impacts returns. UAE average is 5-10%.', severity: 'warning' });
+        } else if (value === 0) {
+          newWarnings.push({ field: name, message: 'Zero vacancy is optimistic. Consider 5% for conservative estimates.', severity: 'info' });
+        }
+        break;
+    }
+
+    setWarnings(newWarnings);
+    return null;
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    const numValue = name === 'portalSource' || name === 'listingUrl' ? value : parseFloat(value) || 0;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'portalSource' || name === 'listingUrl' ? value : parseFloat(value) || 0
+      [name]: numValue
     }));
+
+    // Validate numeric fields
+    if (name !== 'portalSource' && name !== 'listingUrl') {
+      validateAndWarn(name, numValue as number);
+    }
   };
 
   const handleCalculate = async (e: React.FormEvent) => {
@@ -70,7 +150,7 @@ export default function CalculatorPage() {
     if (user) {
       setSaving(true);
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('analyses')
           .insert({
             portal_source: inputs.portalSource,
@@ -90,13 +170,23 @@ export default function CalculatorPage() {
             cash_on_cash_return: calculatedResults.cashOnCashReturn,
             calculation_results: calculatedResults,
             is_paid: false,
-          });
+          })
+          .select();
 
         if (error) {
           console.error('Failed to save analysis:', error);
+          handleError('Failed to save analysis to your dashboard. You can still view results below.');
+        } else if (data && data.length > 0) {
+          showSuccess('Analysis saved successfully');
+          
+          // Auto-hide success message after 10 seconds
+          setTimeout(() => {
+            setSaveSuccess(false);
+          }, 10000);
         }
       } catch (error) {
         console.error('Error saving analysis:', error);
+        handleError('An unexpected error occurred while saving. Please try again or contact support.');
       } finally {
         setSaving(false);
       }
@@ -106,6 +196,77 @@ export default function CalculatorPage() {
 
     navigate('/results', { state: { inputs, results: calculatedResults } });
   };
+
+  const handleRetrySave = async () => {
+    if (!results || !user) return;
+
+    setSaving(true);
+
+    const inputs: PropertyInputs = {
+      portalSource: formData.portalSource,
+      listingUrl: formData.listingUrl,
+      areaSqft: formData.areaSqft,
+      purchasePrice: formData.purchasePrice,
+      downPaymentPercent: formData.downPaymentPercent,
+      mortgageInterestRate: formData.mortgageInterestRate,
+      mortgageTermYears: formData.mortgageTermYears,
+      expectedMonthlyRent: formData.expectedMonthlyRent,
+      serviceChargeAnnual: formData.serviceChargePerSqft * formData.areaSqft,
+      annualMaintenancePercent: formData.annualMaintenancePercent,
+      propertyManagementFeePercent: formData.propertyManagementFeePercent,
+      dldFeePercent: 4,
+      agentFeePercent: 2,
+      capitalGrowthPercent: 5,
+      rentGrowthPercent: 3,
+      vacancyRatePercent: formData.vacancyRatePercent,
+      holdingPeriodYears: 5,
+    };
+
+    try {
+      const { error } = await supabase
+        .from('analyses')
+        .insert({
+          portal_source: inputs.portalSource,
+          listing_url: inputs.listingUrl,
+          area_sqft: inputs.areaSqft,
+          purchase_price: inputs.purchasePrice,
+          down_payment_percent: inputs.downPaymentPercent,
+          mortgage_interest_rate: inputs.mortgageInterestRate,
+          mortgage_term_years: inputs.mortgageTermYears,
+          expected_monthly_rent: inputs.expectedMonthlyRent,
+          service_charge_annual: inputs.serviceChargeAnnual,
+          annual_maintenance_percent: inputs.annualMaintenancePercent,
+          property_management_fee_percent: inputs.propertyManagementFeePercent,
+          gross_yield: results.grossRentalYield,
+          net_yield: results.netRentalYield,
+          monthly_cash_flow: results.monthlyCashFlow,
+          cash_on_cash_return: results.cashOnCashReturn,
+          calculation_results: results,
+          is_paid: false,
+        });
+
+      if (error) {
+        handleError('Failed to save analysis. Please try again later.');
+      } else {
+        showSuccess('Analysis saved successfully');
+        setTimeout(() => setSaveSuccess(false), 10000);
+      }
+    } catch (error) {
+      handleError('An unexpected error occurred. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Calculate key assumptions for summary panel
+  const totalMonthlyPayment = results ? (
+    results.annualMortgagePayment / 12 +
+    results.totalAnnualOperatingExpenses / 12
+  ) : 0;
+
+  const effectiveYield = results ? (
+    ((formData.expectedMonthlyRent * 12) * (1 - formData.vacancyRatePercent / 100)) / formData.purchasePrice * 100
+  ) : 0;
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -141,6 +302,26 @@ export default function CalculatorPage() {
           </div>
         )}
 
+        {/* Field Warnings */}
+        {warnings.length > 0 && (
+          <div className="bg-warning/10 border border-warning/30 rounded-xl p-5 mb-8 space-y-3">
+            <div className="flex items-start space-x-3">
+              <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium text-warning mb-2">Input Guidance</p>
+                <ul className="space-y-2">
+                  {warnings.map((warning, idx) => (
+                    <li key={idx} className="text-sm text-warning/90">
+                      • {warning.message}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-warning/70 mt-3">These are guidance notes only. You can proceed with your inputs.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Main Calculator Form */}
         <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
           <form onSubmit={handleCalculate} className="divide-y divide-border">
@@ -149,7 +330,7 @@ export default function CalculatorPage() {
             <div className="p-8 lg:p-10">
               <div className="mb-6">
                 <h2 className="font-semibold text-foreground mb-2">Property Information</h2>
-                <p className="text-sm text-neutral-600">Basic details about the property</p>
+                <p className="text-sm text-neutral-600">Basic details about the property you are analyzing</p>
               </div>
               
               <div className="grid md:grid-cols-2 gap-6">
@@ -168,11 +349,12 @@ export default function CalculatorPage() {
                     <option>Dubizzle</option>
                     <option>Other</option>
                   </select>
+                  <p className="mt-1.5 text-xs text-neutral-500">Where did you find this listing?</p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    Listing URL <span className="text-neutral-400 font-normal">(optional reference)</span>
+                    Listing URL <span className="text-neutral-400 font-normal">(optional)</span>
                   </label>
                   <input
                     type="url"
@@ -182,11 +364,13 @@ export default function CalculatorPage() {
                     placeholder="https://..."
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
+                  <p className="mt-1.5 text-xs text-neutral-500">Link to the property listing for your reference</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Purchase Price <span className="text-neutral-500 font-normal">(AED)</span>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                    <span>Purchase Price <span className="text-neutral-500 font-normal">(AED)</span></span>
+                    <Tooltip content="The asking price or agreed purchase price of the property. This is the most significant factor affecting your returns." />
                   </label>
                   <input
                     type="number"
@@ -198,6 +382,7 @@ export default function CalculatorPage() {
                     step="1000"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
+                  <p className="mt-1.5 text-xs text-neutral-500">Total property cost before fees</p>
                 </div>
 
                 <div>
@@ -213,6 +398,7 @@ export default function CalculatorPage() {
                     min="0"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
+                  <p className="mt-1.5 text-xs text-neutral-500">Built up area in square feet</p>
                 </div>
               </div>
             </div>
@@ -221,13 +407,14 @@ export default function CalculatorPage() {
             <div className="p-8 lg:p-10">
               <div className="mb-6">
                 <h2 className="font-semibold text-foreground mb-2">Rent Information</h2>
-                <p className="text-sm text-neutral-600">Expected rental income</p>
+                <p className="text-sm text-neutral-600">Expected rental income from the property</p>
               </div>
               
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Expected Monthly Rent <span className="text-neutral-500 font-normal">(AED)</span>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                    <span>Expected Monthly Rent <span className="text-neutral-500 font-normal">(AED)</span></span>
+                    <Tooltip content="Current market rent for similar properties in the area. Check recent listings on Bayut or Property Finder for comparable units. This is the second most influential factor after purchase price." />
                   </label>
                   <input
                     type="number"
@@ -239,7 +426,7 @@ export default function CalculatorPage() {
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                   <p className="mt-2 text-xs text-neutral-500">
-                    Current market rent for similar properties in the area
+                    Market rent for similar properties. Typical UAE yields: 4% to 8%.
                   </p>
                 </div>
               </div>
@@ -254,8 +441,9 @@ export default function CalculatorPage() {
               
               <div className="grid md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Down Payment <span className="text-neutral-500 font-normal">(%)</span>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                    <span>Down Payment <span className="text-neutral-500 font-normal">(%)</span></span>
+                    <Tooltip content="Percentage of purchase price paid upfront. UAE banks require minimum 20% for expats, 15% for nationals. Higher down payment means less leverage but lower debt service." />
                   </label>
                   <input
                     type="number"
@@ -268,11 +456,13 @@ export default function CalculatorPage() {
                     step="1"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
+                  <p className="mt-1.5 text-xs text-neutral-500">Default: 20% (UAE minimum for expats)</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Interest Rate <span className="text-neutral-500 font-normal">(%)</span>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                    <span>Interest Rate <span className="text-neutral-500 font-normal">(%)</span></span>
+                    <Tooltip content="Annual mortgage interest rate. Current UAE rates typically range from 4.5% to 6.5% depending on your bank and profile. This significantly impacts monthly payments and returns." />
                   </label>
                   <input
                     type="number"
@@ -285,11 +475,13 @@ export default function CalculatorPage() {
                     step="0.1"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
+                  <p className="mt-1.5 text-xs text-neutral-500">Default: 5.5% (current UAE market average)</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Mortgage Term <span className="text-neutral-500 font-normal">(years)</span>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                    <span>Mortgage Term <span className="text-neutral-500 font-normal">(years)</span></span>
+                    <Tooltip content="Length of mortgage in years. UAE maximum is typically 25 years for expats, 30 years for nationals. Longer terms reduce monthly payments but increase total interest paid." />
                   </label>
                   <input
                     type="number"
@@ -301,6 +493,7 @@ export default function CalculatorPage() {
                     max="30"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
+                  <p className="mt-1.5 text-xs text-neutral-500">Default: 25 years (UAE standard)</p>
                 </div>
               </div>
             </div>
@@ -309,13 +502,14 @@ export default function CalculatorPage() {
             <div className="p-8 lg:p-10">
               <div className="mb-6">
                 <h2 className="font-semibold text-foreground mb-2">Operating Costs</h2>
-                <p className="text-sm text-neutral-600">Annual expenses and maintenance</p>
+                <p className="text-sm text-neutral-600">Annual expenses and maintenance for the property</p>
               </div>
               
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Service Charge <span className="text-neutral-500 font-normal">(AED/sqft/year)</span>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                    <span>Service Charge <span className="text-neutral-500 font-normal">(AED/sqft/year)</span></span>
+                    <Tooltip content="Annual community or building service charge per square foot. Covers maintenance of common areas, security, and amenities. Check with developer or building management." />
                   </label>
                   <input
                     type="number"
@@ -327,11 +521,13 @@ export default function CalculatorPage() {
                     step="0.1"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
+                  <p className="mt-1.5 text-xs text-neutral-500">Default: AED 15/sqft (typical UAE range: 10-25)</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Management Fee <span className="text-neutral-500 font-normal">(% of rent)</span>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                    <span>Management Fee <span className="text-neutral-500 font-normal">(% of rent)</span></span>
+                    <Tooltip content="Property management company fee if you hire professional management. Covers tenant sourcing, rent collection, maintenance coordination. Optional if self managing." />
                   </label>
                   <input
                     type="number"
@@ -344,11 +540,13 @@ export default function CalculatorPage() {
                     step="0.1"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
+                  <p className="mt-1.5 text-xs text-neutral-500">Default: 5% (UAE standard: 5-8% of annual rent)</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Annual Maintenance <span className="text-neutral-500 font-normal">(% of value)</span>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                    <span>Annual Maintenance <span className="text-neutral-500 font-normal">(% of value)</span></span>
+                    <Tooltip content="Annual maintenance and repair budget as percentage of property value. Covers appliance repairs, painting, wear and tear. Typically 0.5% to 2% depending on property age." />
                   </label>
                   <input
                     type="number"
@@ -361,11 +559,13 @@ export default function CalculatorPage() {
                     step="0.1"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
+                  <p className="mt-1.5 text-xs text-neutral-500">Default: 1% (standard maintenance reserve)</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Annual Insurance <span className="text-neutral-500 font-normal">(AED)</span>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                    <span>Annual Insurance <span className="text-neutral-500 font-normal">(AED)</span></span>
+                    <Tooltip content="Property and contents insurance. Typically required by mortgage lender. Cost varies by property value and coverage level." />
                   </label>
                   <input
                     type="number"
@@ -376,6 +576,7 @@ export default function CalculatorPage() {
                     min="0"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
+                  <p className="mt-1.5 text-xs text-neutral-500">Default: AED 2,000 (typical for AED 1.5M property)</p>
                 </div>
 
                 <div>
@@ -391,6 +592,7 @@ export default function CalculatorPage() {
                     min="0"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
+                  <p className="mt-1.5 text-xs text-neutral-500">Miscellaneous costs (chiller, inspections, etc.)</p>
                 </div>
               </div>
             </div>
@@ -398,14 +600,15 @@ export default function CalculatorPage() {
             {/* Assumptions Section */}
             <div className="p-8 lg:p-10">
               <div className="mb-6">
-                <h2 className="font-semibold text-foreground mb-2">Assumptions</h2>
+                <h2 className="font-semibold text-foreground mb-2">Risk Assumptions</h2>
                 <p className="text-sm text-neutral-600">Expected vacancy and market conditions</p>
               </div>
               
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Vacancy Rate <span className="text-neutral-500 font-normal">(%)</span>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                    <span>Vacancy Rate <span className="text-neutral-500 font-normal">(%)</span></span>
+                    <Tooltip content="Expected percentage of time property will be vacant between tenants. Even well managed properties experience some vacancy. Conservative estimate is 5-10% for UAE market." />
                   </label>
                   <input
                     type="number"
@@ -419,22 +622,62 @@ export default function CalculatorPage() {
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                   <p className="mt-2 text-xs text-neutral-500">
-                    Expected percentage of time property will be vacant
+                    Default: 5% (conservative assumption for UAE market)
                   </p>
                 </div>
               </div>
             </div>
 
+            {/* Assumptions Summary Panel */}
+            {formData.purchasePrice > 0 && formData.expectedMonthlyRent > 0 && (
+              <div className="p-8 lg:p-10 bg-primary/5 border-t border-border">
+                <div className="flex items-start space-x-3 mb-4">
+                  <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">Key Assumptions Summary</h3>
+                    <p className="text-sm text-neutral-600 mb-4">Review these key drivers before calculating</p>
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white rounded-lg p-4 border border-border">
+                    <p className="text-xs text-neutral-500 mb-1">Initial Investment</p>
+                    <p className="font-semibold text-foreground">{formatCurrency(formData.purchasePrice * formData.downPaymentPercent / 100)}</p>
+                    <p className="text-xs text-neutral-500 mt-1">{formData.downPaymentPercent}% down + closing costs</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-border">
+                    <p className="text-xs text-neutral-500 mb-1">Gross Yield Est.</p>
+                    <p className="font-semibold text-foreground">{((formData.expectedMonthlyRent * 12 / formData.purchasePrice) * 100).toFixed(2)}%</p>
+                    <p className="text-xs text-neutral-500 mt-1">Before expenses</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-border">
+                    <p className="text-xs text-neutral-500 mb-1">Loan Amount</p>
+                    <p className="font-semibold text-foreground">{formatCurrency(formData.purchasePrice * (100 - formData.downPaymentPercent) / 100)}</p>
+                    <p className="text-xs text-neutral-500 mt-1">at {formData.mortgageInterestRate}% for {formData.mortgageTermYears} years</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-border">
+                    <p className="text-xs text-neutral-500 mb-1">Service Charge</p>
+                    <p className="font-semibold text-foreground">{formatCurrency(formData.serviceChargePerSqft * formData.areaSqft)}</p>
+                    <p className="text-xs text-neutral-500 mt-1">per year</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Submit Button */}
             <div className="p-8 lg:p-10 bg-muted/30">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <p className="text-sm text-neutral-600">
-                  All calculations use UAE specific fees (DLD 4%, agent 2%)
-                </p>
+                <div className="text-sm text-neutral-600">
+                  <p className="font-medium mb-1">Calculation includes:</p>
+                  <ul className="text-xs space-y-0.5">
+                    <li>• Dubai Land Department (DLD) fee: 4%</li>
+                    <li>• Real estate agent commission: 2%</li>
+                    <li>• 5 year projection with 5% capital growth, 3% rent growth</li>
+                  </ul>
+                </div>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="group inline-flex items-center space-x-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="group inline-flex items-center space-x-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   <span>{saving ? 'Calculating...' : 'Calculate ROI'}</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

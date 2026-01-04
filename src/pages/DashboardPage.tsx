@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { TrendingUp, Calculator, FileText, Plus, Trash2, Eye, Calendar, AlertCircle, CheckCircle, XCircle, X } from 'lucide-react';
+import { TrendingUp, Calculator, FileText, Plus, Trash2, Eye, Calendar, AlertCircle, CheckCircle, XCircle, X, ChevronDown, ChevronUp, Lock, Unlock, Filter, ArrowUpDown, Info, ArrowUp, ArrowDown, GitCompare } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { formatCurrency, formatPercent } from '../utils/calculations';
-import { Header } from '../components/Header';
-import { StatCard } from '../components/StatCard';
 
 interface Analysis {
   id: string;
   portal_source: string;
   listing_url: string;
   purchase_price: number;
+  expected_monthly_rent: number;
+  down_payment_percent: number;
+  mortgage_interest_rate: number;
   area_sqft: number;
   gross_yield: number;
   net_yield: number;
@@ -19,7 +20,11 @@ interface Analysis {
   cash_on_cash_return: number;
   is_paid: boolean;
   created_at: string;
+  updated_at: string;
 }
+
+type FilterType = 'all' | 'free' | 'premium';
+type SortType = 'newest' | 'yield' | 'cashflow';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -27,8 +32,17 @@ export default function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Filter and sort state
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [sort, setSort] = useState<SortType>('newest');
+
+  // Comparison mode state
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
 
   // Payment banner state
   const [showPaymentBanner, setShowPaymentBanner] = useState(false);
@@ -59,6 +73,7 @@ export default function DashboardPage() {
     }
 
     fetchAnalyses();
+    trackPageView('Dashboard');
   }, []);
 
   const dismissBanner = () => {
@@ -86,16 +101,15 @@ export default function DashboardPage() {
       setAnalyses(data || []);
     } catch (err) {
       console.error('Error fetching analyses:', err);
-      setError('Failed to load your reports. Please try again.');
+      handleError('Failed to load your reports. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this analysis?')) return;
-
     setDeletingId(id);
+    
     try {
       const { error } = await supabase
         .from('analyses')
@@ -105,12 +119,18 @@ export default function DashboardPage() {
       if (error) throw error;
 
       setAnalyses(prev => prev.filter(a => a.id !== id));
+      setDeleteConfirmId(null);
+      showSuccess('Analysis deleted successfully.');
     } catch (err) {
       console.error('Error deleting analysis:', err);
-      alert('Failed to delete analysis. Please try again.');
+      handleError('Failed to delete analysis. Please try again.');
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const retryDelete = (id: string) => {
+    handleDelete(id);
   };
 
   const handleViewAnalysis = (analysis: Analysis) => {
@@ -122,6 +142,81 @@ export default function DashboardPage() {
     });
   };
 
+  const toggleRow = (id: string) => {
+    setExpandedRow(expandedRow === id ? null : id);
+  };
+
+  // Filter and sort logic
+  const getFilteredAndSortedAnalyses = () => {
+    let filtered = analyses;
+
+    // Apply filter
+    if (filter === 'free') {
+      filtered = analyses.filter(a => !a.is_paid);
+    } else if (filter === 'premium') {
+      filtered = analyses.filter(a => a.is_paid);
+    }
+
+    // Apply sort
+    const sorted = [...filtered].sort((a, b) => {
+      if (sort === 'newest') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else if (sort === 'yield') {
+        return b.gross_yield - a.gross_yield;
+      } else if (sort === 'cashflow') {
+        return b.monthly_cash_flow - a.monthly_cash_flow;
+      }
+      return 0;
+    });
+
+    return sorted;
+  };
+
+  const filteredAnalyses = getFilteredAndSortedAnalyses();
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return 'Today';
+    } else if (diffDays === 1) {
+      return 'Yesterday';
+    } else if (diffDays < 7) {
+      return `${diffDays} days ago`;
+    } else {
+      return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+  };
+
+  // Comparison mode handlers
+  const toggleReportSelection = (analysisId: string) => {
+    if (selectedForComparison.includes(analysisId)) {
+      setSelectedForComparison(selectedForComparison.filter(id => id !== analysisId));
+    } else {
+      if (selectedForComparison.length >= 5) {
+        showInfo('Maximum 5 reports', 'You can compare up to 5 premium reports at once.');
+        return;
+      }
+      setSelectedForComparison([...selectedForComparison, analysisId]);
+    }
+  };
+
+  const handleStartComparison = () => {
+    if (selectedForComparison.length < 2) {
+      showInfo('Minimum 2 reports required', 'Please select at least 2 premium reports to compare.');
+      return;
+    }
+    navigate('/comparison', { state: { selectedIds: selectedForComparison } });
+  };
+
+  const cancelComparisonMode = () => {
+    setComparisonMode(false);
+    setSelectedForComparison([]);
+  };
+  
   return (
     <div className="min-h-screen bg-neutral-50">
       <Header />
@@ -133,7 +228,7 @@ export default function DashboardPage() {
             Welcome back, {user?.fullName || user?.email}
           </h1>
           <p className="text-lg text-neutral-600">
-            Manage your saved property analyses and investment reports
+            Your property investment control center
           </p>
         </div>
 
@@ -197,25 +292,54 @@ export default function DashboardPage() {
             label="Premium Reports"
             value={analyses.filter(a => a.is_paid).length}
             icon={TrendingUp}
-            description="Full reports purchased"
+            description="Full reports unlocked"
             variant="teal"
           />
           <StatCard
             label="Free Reports"
             value={analyses.filter(a => !a.is_paid).length}
             icon={Calculator}
-            description="Basic calculations"
+            description="Preview analyses"
             variant="success"
           />
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-6 mb-8 flex items-start space-x-3">
-            <AlertCircle className="w-6 h-6 text-destructive flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-foreground mb-1">Error Loading Data</h3>
-              <p className="text-neutral-700 text-sm">{error}</p>
+        {/* Comparison Mode Banner */}
+        {comparisonMode && analyses.length > 0 && (
+          <div className="mb-8 bg-teal/10 border border-teal/30 rounded-xl p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-teal/20 rounded-lg">
+                  <GitCompare className="w-6 h-6 text-teal" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">Comparison Mode</h3>
+                  <p className="text-sm text-neutral-700">
+                    Select 2 to 5 premium reports to compare. 
+                    {selectedForComparison.length > 0 && (
+                      <span className="font-medium text-teal ml-2">
+                        {selectedForComparison.length} selected
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleStartComparison}
+                  disabled={selectedForComparison.length < 2}
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-teal text-white rounded-lg font-medium hover:bg-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                >
+                  <GitCompare className="w-5 h-5" />
+                  <span>Compare {selectedForComparison.length > 0 ? `(${selectedForComparison.length})` : ''}</span>
+                </button>
+                <button
+                  onClick={cancelComparisonMode}
+                  className="px-4 py-3 text-neutral-600 hover:text-foreground transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -227,40 +351,165 @@ export default function DashboardPage() {
             <p className="text-neutral-600">Loading your reports...</p>
           </div>
         ) : analyses.length === 0 ? (
-          // Empty State
-          <div className="bg-white rounded-2xl shadow-sm border border-border p-20 text-center">
-            <div className="max-w-md mx-auto">
-              <div className="w-16 h-16 bg-muted rounded-xl flex items-center justify-center mx-auto mb-6">
-                <Calculator className="w-8 h-8 text-muted-foreground" />
+          // Empty State - Instructional
+          <div className="bg-gradient-to-br from-white to-muted/30 rounded-2xl shadow-sm border border-border overflow-hidden">
+            <div className="p-12 md:p-16 text-center">
+              <div className="max-w-2xl mx-auto">
+                {/* Icon */}
+                <div className="relative mb-8">
+                  <div className="w-24 h-24 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
+                    <Calculator className="w-12 h-12 text-primary" />
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-teal rounded-full flex items-center justify-center shadow-lg">
+                    <Plus className="w-5 h-5 text-white" />
+                  </div>
+                </div>
+
+                {/* Heading */}
+                <h3 className="text-2xl font-bold text-foreground mb-4">
+                  Your Investment Dashboard Awaits
+                </h3>
+                <p className="text-lg text-neutral-700 mb-8 leading-relaxed">
+                  Calculate your first property ROI to begin building your investment portfolio analysis library
+                </p>
+
+                {/* What Gets Saved */}
+                <div className="bg-white rounded-xl border border-border p-6 mb-8 text-left">
+                  <h4 className="font-semibold text-foreground mb-4 flex items-center space-x-2">
+                    <Info className="w-5 h-5 text-primary" />
+                    <span>What You'll Save</span>
+                  </h4>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="flex items-start space-x-3">
+                      <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-foreground text-sm">Your Assumptions</p>
+                        <p className="text-xs text-neutral-600">Purchase price, rent, financing terms, and all operating costs</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-foreground text-sm">Calculated Results</p>
+                        <p className="text-xs text-neutral-600">Yields, cash flow, ROI metrics, and investment grade</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-foreground text-sm">Access Anytime</p>
+                        <p className="text-xs text-neutral-600">View, compare, and review your analyses from any device</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-foreground text-sm">Premium Upgrades</p>
+                        <p className="text-xs text-neutral-600">Unlock detailed charts and projections for AED 49 per property</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <button
+                  onClick={() => navigate('/calculator')}
+                  className="inline-flex items-center space-x-3 px-10 py-5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-all shadow-lg hover:shadow-xl text-lg"
+                >
+                  <Calculator className="w-6 h-6" />
+                  <span>Create Your First Analysis</span>
+                </button>
+
+                <p className="text-sm text-neutral-500 mt-6">
+                  Takes 3 minutes • Free to calculate • Save for later comparison
+                </p>
               </div>
-              <h3 className="font-bold text-foreground mb-3">
-                No Analyses Yet
-              </h3>
-              <p className="text-neutral-600 mb-8 leading-relaxed">
-                Start by calculating your first property ROI. Analyze potential investments and save them for future reference.
-              </p>
-              <button
-                onClick={() => navigate('/calculator')}
-                className="inline-flex items-center space-x-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-all shadow-sm"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Create First Analysis</span>
-              </button>
             </div>
           </div>
         ) : (
           // Analyses Table
           <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
             <div className="px-8 py-6 border-b border-border">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-foreground">Your Analyses</h2>
-                <button
-                  onClick={() => navigate('/calculator')}
-                  className="inline-flex items-center space-x-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm shadow-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>New Analysis</span>
-                </button>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-semibold text-foreground mb-1">Your Analyses</h2>
+                  <p className="text-sm text-neutral-600">
+                    {filteredAnalyses.length} {filteredAnalyses.length === 1 ? 'property' : 'properties'} 
+                    {filter !== 'all' && ` (${filter})`}
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  {/* Filter */}
+                  <div className="flex items-center space-x-2 bg-muted/50 rounded-lg p-1">
+                    <button
+                      onClick={() => setFilter('all')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                        filter === 'all' 
+                          ? 'bg-white text-foreground shadow-sm' 
+                          : 'text-neutral-600 hover:text-foreground'
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setFilter('free')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                        filter === 'free' 
+                          ? 'bg-white text-foreground shadow-sm' 
+                          : 'text-neutral-600 hover:text-foreground'
+                      }`}
+                    >
+                      Free
+                    </button>
+                    <button
+                      onClick={() => setFilter('premium')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                        filter === 'premium' 
+                          ? 'bg-white text-foreground shadow-sm' 
+                          : 'text-neutral-600 hover:text-foreground'
+                      }`}
+                    >
+                      Premium
+                    </button>
+                  </div>
+
+                  {/* Sort */}
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as SortType)}
+                    className="px-4 py-2 bg-muted/50 border border-border rounded-lg text-sm font-medium text-foreground focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="yield">Highest Yield</option>
+                    <option value="cashflow">Highest Cash Flow</option>
+                  </select>
+
+                  {/* Compare Reports Button */}
+                  {analyses.filter(a => a.is_paid).length >= 2 && !comparisonMode && (
+                    <button
+                      onClick={() => {
+                        setComparisonMode(true);
+                        setSelectedForComparison([]);
+                      }}
+                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-teal/10 text-teal border border-teal/30 rounded-lg font-medium hover:bg-teal/20 transition-colors text-sm shadow-sm"
+                    >
+                      <GitCompare className="w-4 h-4" />
+                      <span>Compare Reports</span>
+                    </button>
+                  )}
+
+                  {/* New Analysis Button */}
+                  {!comparisonMode && (
+                    <button
+                      onClick={() => navigate('/calculator')}
+                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm shadow-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>New Analysis</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
             
@@ -268,6 +517,22 @@ export default function DashboardPage() {
               <table className="w-full">
                 <thead className="bg-muted/50 border-b border-border">
                   <tr>
+                    {comparisonMode && (
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-16">
+                        <input
+                          type="checkbox"
+                          checked={selectedForComparison.length === filteredAnalyses.filter(a => a.is_paid).length && filteredAnalyses.filter(a => a.is_paid).length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedForComparison(filteredAnalyses.filter(a => a.is_paid).map(a => a.id));
+                            } else {
+                              setSelectedForComparison([]);
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-ring"
+                        />
+                      </th>
+                    )}
                     <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Property
                     </th>
@@ -278,13 +543,18 @@ export default function DashboardPage() {
                       Gross Yield
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Cash Flow
+                      Monthly Cash Flow
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Date
+                      Created
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Status
+                      <div className="flex items-center space-x-1">
+                        <span>Status</span>
+                        <Tooltip content="Premium analyses include full charts, projections, and detailed financial tables. Free analyses show executive summary only.">
+                          <Info className="w-3 h-3" />
+                        </Tooltip>
+                      </div>
                     </th>
                     <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Actions
@@ -292,72 +562,205 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {analyses.map((analysis) => (
-                    <tr key={analysis.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-6 py-5 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-semibold text-foreground">
-                            {analysis.portal_source}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {analysis.area_sqft.toLocaleString()} sqft
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-foreground">
-                          {formatCurrency(analysis.purchase_price)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-foreground">
-                          {formatPercent(analysis.gross_yield)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap">
-                        <div className={`text-sm font-semibold ${
-                          analysis.monthly_cash_flow >= 0 ? 'text-success' : 'text-destructive'
-                        }`}>
-                          {formatCurrency(analysis.monthly_cash_flow)}/mo
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap">
-                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                          <Calendar className="w-4 h-4" />
-                          <span>{new Date(analysis.created_at).toLocaleDateString()}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap">
-                        {analysis.is_paid ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-secondary/20 text-secondary border border-secondary/30">
-                            Premium
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
-                            Free
-                          </span>
+                  {filteredAnalyses.map((analysis) => (
+                    <>
+                      <tr key={analysis.id} className="hover:bg-muted/20 transition-colors">
+                        {comparisonMode && (
+                          <td className="px-6 py-5">
+                            <input
+                              type="checkbox"
+                              checked={selectedForComparison.includes(analysis.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedForComparison([...selectedForComparison, analysis.id]);
+                                } else {
+                                  setSelectedForComparison(selectedForComparison.filter(id => id !== analysis.id));
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-ring"
+                            />
+                          </td>
                         )}
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                          <button
-                            onClick={() => handleViewAnalysis(analysis)}
-                            className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                            aria-label="View Analysis"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(analysis.id)}
-                            disabled={deletingId === analysis.id}
-                            className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
-                            aria-label="Delete Analysis"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        <td className="px-6 py-5">
+                          <div>
+                            <div className="text-sm font-semibold text-foreground">
+                              {analysis.portal_source}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {analysis.area_sqft.toLocaleString()} sqft
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="text-sm font-semibold text-foreground">
+                            {formatCurrency(analysis.purchase_price)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="text-sm font-semibold text-foreground">
+                            {formatPercent(analysis.gross_yield)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="flex items-center space-x-2">
+                            <span className={`text-sm font-semibold ${
+                              analysis.monthly_cash_flow >= 0 ? 'text-success' : 'text-destructive'
+                            }`}>
+                              {formatCurrency(analysis.monthly_cash_flow)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">/mo</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="text-sm text-muted-foreground">
+                            {formatDate(analysis.created_at)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          {analysis.is_paid ? (
+                            <div className="flex items-center space-x-2">
+                              <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-teal/20 text-teal border border-teal/30">
+                                <Unlock className="w-3 h-3" />
+                                <span>Premium</span>
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2">
+                              <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+                                <Lock className="w-3 h-3" />
+                                <span>Free</span>
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="flex items-center justify-end space-x-2">
+                            {/* Expand/Collapse */}
+                            <button
+                              onClick={() => toggleRow(analysis.id)}
+                              className="p-2 text-neutral-500 hover:bg-muted/50 rounded-lg transition-colors"
+                              aria-label={expandedRow === analysis.id ? "Collapse details" : "Expand details"}
+                            >
+                              {expandedRow === analysis.id ? (
+                                <ChevronUp className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </button>
+
+                            {/* View */}
+                            <button
+                              onClick={() => handleViewAnalysis(analysis)}
+                              className="inline-flex items-center space-x-1.5 px-4 py-2 text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors font-medium text-sm"
+                              aria-label="View Analysis"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span>View</span>
+                            </button>
+
+                            {/* Delete */}
+                            {deleteConfirmId === analysis.id ? (
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => handleDelete(analysis.id)}
+                                  disabled={deletingId === analysis.id}
+                                  className="px-3 py-2 bg-destructive text-destructive-foreground rounded-lg text-xs font-medium hover:bg-destructive/90 transition-colors disabled:opacity-50"
+                                >
+                                  {deletingId === analysis.id ? 'Deleting...' : 'Confirm'}
+                                </button>
+                                <button
+                                  onClick={() => setDeleteConfirmId(null)}
+                                  className="px-3 py-2 bg-muted text-foreground rounded-lg text-xs font-medium hover:bg-muted/80 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setDeleteConfirmId(analysis.id)}
+                                className="p-2 text-neutral-400 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                                aria-label="Delete Analysis"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expandable Row - Assumptions Snapshot */}
+                      {expandedRow === analysis.id && (
+                        <tr className="bg-muted/10">
+                          <td colSpan={7} className="px-6 py-5">
+                            <div className="flex items-start space-x-6">
+                              {/* Assumptions Snapshot */}
+                              <div className="flex-1">
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                                  Key Assumptions
+                                </h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                  <div>
+                                    <p className="text-xs text-neutral-500 mb-1">Purchase Price</p>
+                                    <p className="text-sm font-semibold text-foreground">{formatCurrency(analysis.purchase_price)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-neutral-500 mb-1">Monthly Rent</p>
+                                    <p className="text-sm font-semibold text-foreground">
+                                      {analysis.expected_monthly_rent ? formatCurrency(analysis.expected_monthly_rent) : 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-neutral-500 mb-1">Down Payment</p>
+                                    <p className="text-sm font-semibold text-foreground">
+                                      {analysis.down_payment_percent ? `${analysis.down_payment_percent}%` : 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-neutral-500 mb-1">Interest Rate</p>
+                                    <p className="text-sm font-semibold text-foreground">
+                                      {analysis.mortgage_interest_rate ? `${analysis.mortgage_interest_rate}%` : 'N/A'}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Premium Upgrade or Status */}
+                              {!analysis.is_paid ? (
+                                <div className="flex-shrink-0 bg-white border border-border rounded-lg p-4 max-w-xs">
+                                  <div className="flex items-start space-x-3 mb-3">
+                                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                      <Lock className="w-4 h-4 text-primary" />
+                                    </div>
+                                    <div>
+                                      <h5 className="font-semibold text-foreground text-sm mb-1">Unlock Premium</h5>
+                                      <p className="text-xs text-neutral-600 leading-relaxed">
+                                        Get detailed charts, 5 year projections, and complete financial tables for this analysis
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => handleViewAnalysis(analysis)}
+                                    className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors"
+                                  >
+                                    Upgrade for AED 49
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex-shrink-0 bg-teal/10 border border-teal/30 rounded-lg p-4 max-w-xs">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <Unlock className="w-5 h-5 text-teal" />
+                                    <h5 className="font-semibold text-foreground text-sm">Premium Unlocked</h5>
+                                  </div>
+                                  <p className="text-xs text-neutral-700 leading-relaxed">
+                                    This analysis includes full access to charts, projections, and detailed financial tables
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   ))}
                 </tbody>
               </table>
@@ -373,11 +776,11 @@ export default function DashboardPage() {
             <div className="relative p-10 text-primary-foreground">
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
-                  <h3 className="font-bold mb-2">
-                    Ready to analyze another property?
+                  <h3 className="text-xl font-bold mb-2">
+                    Compare Another Investment
                   </h3>
                   <p className="text-primary-foreground/90">
-                    Compare multiple investments to find the best opportunity
+                    Build your portfolio by analyzing multiple properties side by side
                   </p>
                 </div>
                 <button

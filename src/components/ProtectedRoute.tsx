@@ -13,10 +13,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Show loading state while checking authentication
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-border border-t-primary mb-6"></div>
+          <p className="text-neutral-600">Loading...</p>
         </div>
       </div>
     );
@@ -25,6 +25,11 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Redirect to sign in if not authenticated
   if (!user) {
     return <Navigate to="/auth/signin" state={{ from: location }} replace />;
+  }
+
+  // Check if email is verified - if not, redirect to verification page
+  if (!user.emailVerified) {
+    return <Navigate to="/auth/verify-email" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;
