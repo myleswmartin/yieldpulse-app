@@ -5,11 +5,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { Header } from '../components/Header';
 import { StatCard } from '../components/StatCard';
 import { useState, useEffect } from 'react';
-import { projectId } from '../../utils/supabase/info';
 import { supabase } from '../utils/supabaseClient';
 import { generatePDF } from '../utils/pdfGenerator';
 import { showSuccess, handleError } from '../utils/errorHandling';
 import { trackPdfDownload, trackPremiumUnlock } from '../utils/analytics';
+import { checkPurchaseStatus, createCheckoutSession, saveAnalysis } from '../utils/apiClient';
 import { 
   BarChart, 
   Bar, 
@@ -26,6 +26,47 @@ import {
   Line
 } from 'recharts';
 
+// ================================================================
+// HELPER FUNCTION: Build PropertyInputs from saved analysis record
+// ================================================================
+function buildPropertyInputsFromAnalysis(analysis: any): Partial<PropertyInputs> | null {
+  if (!analysis) return null;
+  
+  // Safe number parser: returns undefined if value is null/undefined/unparseable
+  const parseNumber = (value: any): number | undefined => {
+    if (value === null || value === undefined) return undefined;
+    const parsed = Number(value);
+    return isNaN(parsed) ? undefined : parsed;
+  };
+
+  // Safe string parser: returns undefined if empty or null
+  const parseString = (value: any): string | undefined => {
+    if (!value) return undefined;
+    return String(value);
+  };
+
+  try {
+    // Map ONLY the 11 confirmed core columns from analyses table
+    // No fabricated defaults, no non-null assertions
+    return {
+      portalSource: parseString(analysis.portal_source),
+      listingUrl: parseString(analysis.listing_url),
+      areaSqft: parseNumber(analysis.area_sqft),
+      purchasePrice: parseNumber(analysis.purchase_price),
+      downPaymentPercent: parseNumber(analysis.down_payment_percent),
+      mortgageInterestRate: parseNumber(analysis.mortgage_interest_rate),
+      mortgageTermYears: parseNumber(analysis.mortgage_term_years),
+      expectedMonthlyRent: parseNumber(analysis.expected_monthly_rent),
+      serviceChargeAnnual: parseNumber(analysis.service_charge_annual),
+      annualMaintenancePercent: parseNumber(analysis.annual_maintenance_percent),
+      propertyManagementFeePercent: parseNumber(analysis.property_management_fee_percent),
+    };
+  } catch (error) {
+    console.error('Error building PropertyInputs from analysis:', error);
+    return null;
+  }
+}
+
 export default function ResultsPage() {
   const location = useLocation();
   const { user } = useAuth();
@@ -34,15 +75,42 @@ export default function ResultsPage() {
   const inputs = location.state?.inputs as PropertyInputs | null;
   const savedAnalysis = location.state?.analysis;
   const fromDashboard = location.state?.fromDashboard;
+  const passedAnalysisId = location.state?.analysisId;
+  const isSavedFromCalculator = location.state?.isSaved || false;
 
-  let displayResults = results;
-  let displayInputs = inputs;
-  let analysisId = savedAnalysis?.id;
-  
-  if (savedAnalysis && !results) {
-    displayResults = savedAnalysis.calculation_results as CalculationResults;
-    displayInputs = savedAnalysis.property_inputs as PropertyInputs;
+  // ================================================================
+  // DETERMINE DISPLAY INPUTS & RESULTS WITH ROBUST PRECEDENCE
+  // ================================================================
+  let displayInputs: Partial<PropertyInputs> | null = null;
+  let displayResults: CalculationResults | null = null;
+
+  // Inputs precedence: direct inputs > build from analysis > null
+  if (inputs) {
+    displayInputs = inputs;
+  } else if (savedAnalysis) {
+    displayInputs = buildPropertyInputsFromAnalysis(savedAnalysis);
   }
+
+  // Results precedence: direct results > analysis.calculation_results > null
+  if (results) {
+    displayResults = results;
+  } else if (savedAnalysis?.calculation_results) {
+    try {
+      displayResults = savedAnalysis.calculation_results as CalculationResults;
+    } catch (error) {
+      console.error('Error parsing calculation_results:', error);
+    }
+  }
+
+  // ================================================================
+  // SAVE STATE TRACKING - CRITICAL FOR GATING
+  // ================================================================
+  // Convert analysisId to state so it can update after save
+  const [analysisId, setAnalysisId] = useState<string | null>(
+    passedAnalysisId || savedAnalysis?.id || null
+  );
+  const [isSaved, setIsSaved] = useState(isSavedFromCalculator || !!analysisId);
+  const [saving, setSaving] = useState(false);
 
   // Premium unlock state
   const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
@@ -54,81 +122,46 @@ export default function ResultsPage() {
   // Check purchase status on mount if we have an analysis ID
   useEffect(() => {
     if (analysisId && user) {
-      checkPurchaseStatus();
+      checkPaymentStatus();
     }
   }, [analysisId, user]);
 
-  const checkPurchaseStatus = async () => {
+  const checkPaymentStatus = async () => {
     if (!analysisId || !user) return;
 
     setCheckingPurchaseStatus(true);
+
     try {
-      // Get user access token
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        console.error('No access token available');
+      const { data, error, requestId } = await checkPurchaseStatus(analysisId);
+
+      if (error) {
+        console.error('Error checking purchase status:', error);
+        handleError(
+          error.error || 'Failed to check purchase status',
+          'Check Purchase Status',
+          () => checkPaymentStatus(),
+          requestId
+        );
         return;
       }
 
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-ef294769/purchases/status?analysisId=${analysisId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
+      if (data?.isPaid) {
+        // Only track unlock event if transitioning from unpaid to paid
+        if (!isPremiumUnlocked) {
+          trackPremiumUnlock(analysisId);
         }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Purchase status:', data);
-        if (data.status === 'paid') {
-          // Only track unlock event if transitioning from unpaid to paid
-          if (!isPremiumUnlocked) {
-            trackPremiumUnlock(analysisId);
-          }
-          setIsPremiumUnlocked(true);
-          // Fetch the snapshot for PDF generation
-          fetchPdfSnapshot();
-        }
+        setIsPremiumUnlocked(true);
+        // Fetch the snapshot for PDF generation
+        fetchPdfSnapshot();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error checking purchase status:', error);
+      handleError(error.message || 'An unexpected error occurred', 'Check Purchase Status');
     } finally {
       setCheckingPurchaseStatus(false);
     }
   };
-
-  const fetchPdfSnapshot = async () => {
-    if (!analysisId || !user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('report_purchases')
-        .select('snapshot, created_at')
-        .eq('analysis_id', analysisId)
-        .eq('status', 'paid')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error) {
-        console.error('Error fetching PDF snapshot:', error);
-        return;
-      }
-
-      if (data?.snapshot) {
-        setPdfSnapshot({
-          snapshot: data.snapshot,
-          purchaseDate: data.created_at
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching PDF snapshot:', error);
-    }
-  };
-
+  
   const handleDownloadPDF = async () => {
     if (!pdfSnapshot) {
       handleError('PDF data not available. Please try again.', 'Download PDF', () => {
@@ -164,44 +197,100 @@ export default function ResultsPage() {
     setCreatingCheckout(true);
     
     try {
-      // Get user access token
-      const { data: { session } } = await supabase.auth.getSession();
+      const currentOrigin = window.location.origin;
       
-      if (!session?.access_token) {
-        alert('Please sign in again to continue');
+      const { data, error, requestId } = await createCheckoutSession({
+        analysisId,
+        origin: currentOrigin,
+      });
+
+      if (error) {
+        console.error('Error creating checkout session:', error);
+        handleError(
+          error.error || 'Failed to create checkout session',
+          'Create Checkout',
+          () => handleUnlockPremium(),
+          requestId
+        );
         return;
       }
 
-      const currentOrigin = window.location.origin;
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-ef294769/stripe/checkout-session`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            analysisId,
-            origin: currentOrigin,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create checkout session');
+      if (data?.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
       }
-
-      const { url } = await response.json();
-      
-      // Redirect to Stripe Checkout
-      window.location.href = url;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating checkout session:', error);
-      alert('Failed to initiate payment. Please try again.');
+      handleError(error.message || 'Failed to initiate payment. Please try again.', 'Create Checkout');
     } finally {
       setCreatingCheckout(false);
+    }
+  };
+  
+  const fetchPdfSnapshot = async () => {
+    if (!analysisId || !user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('report_purchases')
+        .select('snapshot, created_at')
+        .eq('analysis_id', analysisId)
+        .eq('status', 'paid')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.error('Error fetching PDF snapshot:', error);
+        return;
+      }
+
+      if (data?.snapshot) {
+        setPdfSnapshot({
+          snapshot: data.snapshot,
+          purchaseDate: data.created_at
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching PDF snapshot:', error);
+    }
+  };
+  
+  const handleSaveReport = async () => {
+    if (!user || !inputs || !results) return;
+
+    setSaving(true);
+    
+    try {
+      const { data, error, requestId } = await saveAnalysis({
+        inputs,
+        results,
+      });
+
+      if (error) {
+        handleError(
+          error.error || 'Failed to save report. Please try again.',
+          'Save Report',
+          () => handleSaveReport(),
+          requestId
+        );
+        return;
+      }
+
+      if (data?.id) {
+        setAnalysisId(data.id);  // Update state with new analysisId
+        setIsSaved(true);
+        showSuccess('Report saved successfully! You can now unlock premium features.');
+        // Auto-check purchase status for newly saved report
+        checkPaymentStatus();
+      }
+    } catch (error: any) {
+      handleError(
+        error.message || 'An unexpected error occurred while saving.',
+        'Save Report'
+      );
+    } finally {
+      setSaving(false);
     }
   };
   
@@ -394,6 +483,31 @@ export default function ResultsPage() {
             </p>
           </div>
         </div>
+
+        {/* SAVE ENFORCEMENT BANNER - Show if authenticated but not saved */}
+        {user && !isSaved && !analysisId && inputs && results && (
+          <div className="bg-warning/10 border border-warning/30 rounded-xl p-6 mb-8">
+            <div className="flex items-start space-x-4">
+              <AlertCircle className="w-6 h-6 text-warning flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground mb-2">
+                  Save Report to Continue
+                </h3>
+                <p className="text-neutral-700 mb-4 leading-relaxed">
+                  You must save this report to your dashboard before you can unlock premium features or compare properties.
+                </p>
+                <button
+                  onClick={handleSaveReport}
+                  disabled={saving}
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>{saving ? 'Saving...' : 'Save Report to Dashboard'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Free Section: Executive Summary */}
         <div className="bg-white rounded-2xl shadow-sm border border-border p-8 mb-8">
@@ -779,18 +893,24 @@ export default function ResultsPage() {
                             <td className="py-3 px-4 text-sm text-neutral-700">Expected Monthly Rent</td>
                             <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{formatCurrency(displayInputs.expectedMonthlyRent)}</td>
                           </tr>
-                          <tr className="bg-muted/50">
-                            <td className="py-3 px-4 text-sm text-neutral-700">Vacancy Rate</td>
-                            <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.vacancyRatePercent}%</td>
-                          </tr>
-                          <tr className="bg-white">
-                            <td className="py-3 px-4 text-sm text-neutral-700">Capital Growth Rate</td>
-                            <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.capitalGrowthPercent}%</td>
-                          </tr>
-                          <tr className="bg-muted/50">
-                            <td className="py-3 px-4 text-sm text-neutral-700">Rent Growth Rate</td>
-                            <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.rentGrowthPercent}%</td>
-                          </tr>
+                          {displayInputs.vacancyRatePercent !== undefined && (
+                            <tr className="bg-muted/50">
+                              <td className="py-3 px-4 text-sm text-neutral-700">Vacancy Rate</td>
+                              <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.vacancyRatePercent}%</td>
+                            </tr>
+                          )}
+                          {displayInputs.capitalGrowthPercent !== undefined && (
+                            <tr className="bg-white">
+                              <td className="py-3 px-4 text-sm text-neutral-700">Capital Growth Rate</td>
+                              <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.capitalGrowthPercent}%</td>
+                            </tr>
+                          )}
+                          {displayInputs.rentGrowthPercent !== undefined && (
+                            <tr className="bg-muted/50">
+                              <td className="py-3 px-4 text-sm text-neutral-700">Rent Growth Rate</td>
+                              <td className="py-3 px-4 text-sm text-right font-medium text-foreground">{displayInputs.rentGrowthPercent}%</td>
+                            </tr>
+                          )}
                         </>
                       )}
                     </tbody>
@@ -878,12 +998,20 @@ export default function ResultsPage() {
                   <p className="text-xs text-neutral-600">View anytime from your dashboard. No recurring fees.</p>
                 </div>
                 <button 
-                  disabled={creatingCheckout || !user}
-                  className="inline-flex items-center space-x-2 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={creatingCheckout || !user || !analysisId}
+                  className={`inline-flex items-center space-x-2 px-8 py-4 rounded-xl font-medium shadow-lg transition-all ${
+                    !analysisId 
+                      ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed' 
+                      : 'bg-primary text-primary-foreground hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed'
+                  }`}
                   onClick={handleUnlockPremium}
                 >
                   <Lock className="w-5 h-5" />
-                  <span>{creatingCheckout ? 'Processing...' : 'Unlock for AED 49'}</span>
+                  <span>
+                    {!analysisId && 'Save Report First'}
+                    {analysisId && !user && 'Sign In to Unlock'}
+                    {analysisId && user && (creatingCheckout ? 'Processing...' : 'Unlock for AED 49')}
+                  </span>
                 </button>
                 {!user && (
                   <p className="text-sm text-neutral-500 mt-4">

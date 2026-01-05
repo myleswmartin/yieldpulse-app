@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TrendingUp, Calculator, FileText, Plus, Trash2, Eye, Calendar, AlertCircle, CheckCircle, XCircle, X, ChevronDown, ChevronUp, Lock, Unlock, Filter, ArrowUpDown, Info, ArrowUp, ArrowDown, GitCompare } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../utils/supabaseClient';
+import { getUserAnalyses, deleteAnalysis } from '../utils/apiClient';
 import { formatCurrency, formatPercent } from '../utils/calculations';
+import { Header } from '../components/Header';
+import { showSuccess, showInfo, handleError } from '../utils/errorHandling';
+import { trackPageView } from '../utils/analytics';
 
 interface Analysis {
   id: string;
@@ -91,17 +94,18 @@ export default function DashboardPage() {
 
   const fetchAnalyses = async () => {
     try {
-      const { data, error } = await supabase
-        .from('analyses')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error, requestId } = await getUserAnalyses();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching analyses:', error);
+        handleError(error.error || 'Failed to load your reports. Please try again.', 'Load Dashboard', () => fetchAnalyses(), requestId);
+        return;
+      }
 
       setAnalyses(data || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching analyses:', err);
-      handleError('Failed to load your reports. Please try again.');
+      handleError(err.message || 'Failed to load your reports. Please try again.', 'Load Dashboard');
     } finally {
       setLoading(false);
     }
@@ -111,19 +115,20 @@ export default function DashboardPage() {
     setDeletingId(id);
     
     try {
-      const { error } = await supabase
-        .from('analyses')
-        .delete()
-        .eq('id', id);
+      const { error, requestId } = await deleteAnalysis(id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting analysis:', error);
+        handleError(error.error || 'Failed to delete analysis. Please try again.', 'Delete Analysis', () => retryDelete(id), requestId);
+        return;
+      }
 
       setAnalyses(prev => prev.filter(a => a.id !== id));
       setDeleteConfirmId(null);
       showSuccess('Analysis deleted successfully.');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting analysis:', err);
-      handleError('Failed to delete analysis. Please try again.');
+      handleError(err.message || 'Failed to delete analysis. Please try again.', 'Delete Analysis');
     } finally {
       setDeletingId(null);
     }
@@ -136,8 +141,9 @@ export default function DashboardPage() {
   const handleViewAnalysis = (analysis: Analysis) => {
     navigate('/results', { 
       state: { 
-        analysis,
-        fromDashboard: true 
+        fromDashboard: true,
+        analysisId: analysis.id,
+        analysis: analysis
       } 
     });
   };
@@ -795,6 +801,67 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Helper Components
+interface StatCardProps {
+  label: string;
+  value: number;
+  icon: React.ElementType;
+  description: string;
+  variant: 'navy' | 'teal' | 'success';
+}
+
+function StatCard({ label, value, icon: Icon, description, variant }: StatCardProps) {
+  const variantStyles = {
+    navy: 'from-primary to-primary-hover text-primary-foreground',
+    teal: 'from-teal to-teal/80 text-white',
+    success: 'from-success to-success/80 text-white',
+  };
+
+  return (
+    <div className={`rounded-xl shadow-sm border border-border overflow-hidden bg-gradient-to-br ${variantStyles[variant]}`}>
+      <div className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="p-3 bg-white/20 rounded-lg">
+            <Icon className="w-6 h-6" />
+          </div>
+        </div>
+        <div className="mb-2">
+          <div className="text-3xl font-bold mb-1">{value}</div>
+          <div className="text-sm font-medium opacity-90">{label}</div>
+        </div>
+        <div className="text-xs opacity-75">{description}</div>
+      </div>
+    </div>
+  );
+}
+
+interface TooltipProps {
+  content: string;
+  children: React.ReactNode;
+}
+
+function Tooltip({ content, children }: TooltipProps) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div className="relative inline-block">
+      <div
+        onMouseEnter={() => setIsVisible(true)}
+        onMouseLeave={() => setIsVisible(false)}
+        className="cursor-help"
+      >
+        {children}
+      </div>
+      {isVisible && (
+        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap shadow-lg">
+          {content}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+        </div>
+      )}
     </div>
   );
 }

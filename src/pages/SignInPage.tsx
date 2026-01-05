@@ -7,12 +7,30 @@ import { handleError } from '../utils/errorHandling';
 export default function SignInPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, user, loading: authLoading } = useAuth();
+  
+  // Safely access useAuth with error boundary
+  let authContext;
+  try {
+    authContext = useAuth();
+  } catch (err) {
+    console.error('AuthContext not available, reloading page...');
+    // Force a full page reload to reinitialize the context
+    window.location.reload();
+    return <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-border border-t-primary mb-4"></div>
+        <p className="text-neutral-600">Initializing...</p>
+      </div>
+    </div>;
+  }
+  
+  const { signIn, user, loading: authLoading } = authContext;
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
 
   const from = (location.state as any)?.from?.pathname || '/dashboard';
 
@@ -21,6 +39,15 @@ export default function SignInPage() {
       navigate('/dashboard', { replace: true });
     }
   }, [user, authLoading, navigate]);
+
+  const handleDemoMode = () => {
+    console.log('🎭 Entering demo mode - bypassing authentication');
+    setDemoMode(true);
+    // Store demo flag in session storage
+    sessionStorage.setItem('yieldpulse-demo-mode', 'true');
+    // Navigate to calculator instead of dashboard since demo doesn't have auth
+    navigate('/calculator', { replace: true });
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -159,6 +186,19 @@ export default function SignInPage() {
               </Link>
             </p>
           </div>
+
+          {/* Demo Mode - Development Only */}
+          {import.meta.env.DEV && (
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={handleDemoMode}
+                className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors underline"
+              >
+                Continue without signing in (Demo)
+              </button>
+            </div>
+          )}
 
           {/* Back to Home */}
           <div className="mt-4 text-center">

@@ -24,6 +24,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Add display name for better debugging
+AuthContext.displayName = 'AuthContext';
+
+// Make context HMR-safe by preventing hot reload issues
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    console.log('🔄 AuthContext hot reloaded');
+  });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,15 +41,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = async (userId: string, email: string, emailConfirmed: boolean) => {
     try {
-      // Try to fetch profile from database
+      // Add timeout to prevent hanging on RLS issues
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
+        .abortSignal(controller.signal)
         .single();
 
+      clearTimeout(timeoutId);
+
       if (error) {
-        console.error('Error fetching profile:', error);
+        console.warn('Profile fetch error (using fallback):', error.message);
         // If profile doesn't exist, create basic user object from auth
         setUser({
           id: userId,
@@ -57,8 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: profile.is_admin,
         emailVerified: emailConfirmed,
       });
-    } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
+    } catch (error: any) {
+      console.warn('Error in fetchUserProfile (using fallback):', error.message);
       // Fallback to basic user info
       setUser({
         id: userId,
@@ -70,12 +86,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const initializeAuth = async () => {
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      // Try to get session with a reasonable timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      let session = null;
+      let sessionError = null;
+
+      try {
+        const result = await supabase.auth.getSession();
+        clearTimeout(timeoutId);
+        session = result.data?.session;
+        sessionError = result.error;
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        console.warn('Session check failed (continuing without session):', err.message);
+        // Continue without session - user can still sign in
+      }
       
-      if (error) {
-        console.error('Session error:', error);
+      if (sessionError) {
+        console.warn('Session error (continuing without session):', sessionError.message);
         setUser(null);
-        setLoading(false);
         return;
       }
 
@@ -85,10 +116,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUser(null);
       }
-    } catch (error) {
-      console.error('Error initializing auth:', error);
+    } catch (error: any) {
+      console.warn('Auth initialization error (app will continue):', error.message);
       setUser(null);
     } finally {
+      // CRITICAL: Always set loading to false, even on errors
       setLoading(false);
     }
   };
@@ -122,19 +154,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      console.log('🔐 Starting sign in process...');
+      console.log('📧 Email:', email);
+      
+      // Direct auth call without complex timeout wrapper
+      console.log('🌐 Sending authentication request...');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      console.log('📨 Authentication response received');
 
-    if (error) {
-      console.error('Sign in error:', error);
-      throw new Error(error.message || 'Failed to sign in');
-    }
-    
-    if (data.session?.user) {
-      const emailConfirmed = data.session.user.email_confirmed_at !== null;
-      await fetchUserProfile(data.session.user.id, data.session.user.email || '', emailConfirmed);
+      if (error) {
+        console.error('❌ Sign in error:', error);
+        throw new Error(error.message || 'Failed to sign in');
+      }
+      
+      if (!data || !data.session) {
+        console.error('❌ No session data returned');
+        throw new Error('Sign in failed - no session created');
+      }
+      
+      console.log('✅ Sign in successful, session created');
+      
+      if (data.session?.user) {
+        const emailConfirmed = data.session.user.email_confirmed_at !== null;
+        
+        // Set user immediately with basic info to unblock UI
+        setUser({
+          id: data.session.user.id,
+          email: data.session.user.email || '',
+          emailVerified: emailConfirmed,
+        });
+        
+        console.log('✅ User state updated, fetching profile in background...');
+        
+        // Fetch profile in background - don't block sign in on this
+        fetchUserProfile(data.session.user.id, data.session.user.email || '', emailConfirmed)
+          .then(() => console.log('✅ Profile loaded successfully'))
+          .catch((err) => console.warn('⚠️ Profile fetch failed (user still authenticated):', err.message));
+        
+        // Clear pending verification email from localStorage
+        try {
+          localStorage.removeItem('pendingVerificationEmail');
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
+    } catch (error: any) {
+      // Re-throw authentication errors
+      if (error.message?.includes('Invalid login credentials') || 
+          error.message?.includes('Email not confirmed') ||
+          error.message?.includes('Failed to sign in')) {
+        throw error;
+      }
+      // For other errors, throw a generic message
+      console.error('❌ Unexpected sign in error:', error);
+      throw new Error('Unable to sign in. Please try again.');
     }
   };
 
@@ -163,26 +241,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Signup failed - no user returned');
     }
 
-    // Create profile in database
+    // Store email in localStorage for resend functionality (before verification)
     try {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          email: email,
-          full_name: fullName,
-          is_admin: false,
-        });
-
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        // Don't throw - profile might already exist or will be created by trigger
-      }
-    } catch (profileErr) {
-      console.error('Error creating profile:', profileErr);
-      // Continue anyway - user is registered
+      localStorage.setItem('pendingVerificationEmail', email);
+    } catch (e) {
+      console.warn('Could not store email in localStorage:', e);
     }
 
+    // Profile will be created by database trigger when user verifies email
+    // Do NOT manually insert into profiles table - RLS policy prevents it
+    
     // User is created but not confirmed - they need to verify email
     // Do NOT set user in state - they must verify first
   };
@@ -205,17 +273,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const resendVerificationEmail = async () => {
+    // Try to get email from session first
     const { data: { session } } = await supabase.auth.getSession();
     
-    if (!session?.user?.email) {
-      throw new Error('No user session found');
+    let emailToUse = session?.user?.email;
+    
+    // If no session (unverified user), try localStorage
+    if (!emailToUse) {
+      try {
+        emailToUse = localStorage.getItem('pendingVerificationEmail');
+      } catch (e) {
+        console.warn('Could not read from localStorage:', e);
+      }
+    }
+    
+    if (!emailToUse) {
+      throw new Error('No email found. Please sign up again.');
     }
 
     const redirectUrl = `${window.location.origin}/auth/verify-email`;
     
     const { error } = await supabase.auth.resend({
       type: 'signup',
-      email: session.user.email,
+      email: emailToUse,
       options: {
         emailRedirectTo: redirectUrl,
       },

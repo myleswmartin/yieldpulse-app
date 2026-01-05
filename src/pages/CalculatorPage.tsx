@@ -4,7 +4,7 @@ import { Calculator, TrendingUp, DollarSign, ArrowRight, Info, AlertCircle, Chec
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateROI, PropertyInputs, CalculationResults, formatCurrency, formatPercent } from '../utils/calculations';
-import { supabase } from '../utils/supabaseClient';
+import { saveAnalysis } from '../utils/apiClient';
 import { Header } from '../components/Header';
 import { StatCard } from '../components/StatCard';
 import { Tooltip } from '../components/Tooltip';
@@ -150,51 +150,62 @@ export default function CalculatorPage() {
     if (user) {
       setSaving(true);
       try {
-        const { data, error } = await supabase
-          .from('analyses')
-          .insert({
-            portal_source: inputs.portalSource,
-            listing_url: inputs.listingUrl,
-            area_sqft: inputs.areaSqft,
-            purchase_price: inputs.purchasePrice,
-            down_payment_percent: inputs.downPaymentPercent,
-            mortgage_interest_rate: inputs.mortgageInterestRate,
-            mortgage_term_years: inputs.mortgageTermYears,
-            expected_monthly_rent: inputs.expectedMonthlyRent,
-            service_charge_annual: inputs.serviceChargeAnnual,
-            annual_maintenance_percent: inputs.annualMaintenancePercent,
-            property_management_fee_percent: inputs.propertyManagementFeePercent,
-            gross_yield: calculatedResults.grossRentalYield,
-            net_yield: calculatedResults.netRentalYield,
-            monthly_cash_flow: calculatedResults.monthlyCashFlow,
-            cash_on_cash_return: calculatedResults.cashOnCashReturn,
-            calculation_results: calculatedResults,
-            is_paid: false,
-          })
-          .select();
+        const { data, error, requestId } = await saveAnalysis({
+          inputs,
+          results: calculatedResults,
+        });
 
         if (error) {
           console.error('Failed to save analysis:', error);
-          handleError('Failed to save analysis to your dashboard. You can still view results below.');
-        } else if (data && data.length > 0) {
-          showSuccess('Analysis saved successfully');
-          
-          // Auto-hide success message after 10 seconds
-          setTimeout(() => {
-            setSaveSuccess(false);
-          }, 10000);
+          handleError(
+            error.error || 'Failed to save analysis. Please try again before viewing results.',
+            'Save Analysis',
+            () => handleCalculate(e),
+            requestId
+          );
+          setSaving(false);
+          return; // CRITICAL: Block navigation if save fails
         }
-      } catch (error) {
+
+        if (data?.id) {
+          showSuccess('Analysis saved successfully');
+          // Navigate WITH analysisId only on successful save
+          navigate('/results', { 
+            state: { 
+              inputs, 
+              results: calculatedResults, 
+              analysisId: data.id,
+              isSaved: true 
+            } 
+          });
+        } else {
+          handleError('Analysis saved but no ID returned. Please try again.');
+          setSaving(false);
+          return;
+        }
+      } catch (error: any) {
         console.error('Error saving analysis:', error);
-        handleError('An unexpected error occurred while saving. Please try again or contact support.');
+        handleError(
+          error.message || 'An unexpected error occurred while saving. Please try again.',
+          'Save Analysis',
+          () => handleCalculate(e)
+        );
+        setSaving(false);
+        return; // CRITICAL: Block navigation on error
       } finally {
         setSaving(false);
       }
     } else {
+      // Unauthenticated users: navigate with in-memory state only
       setShowSignInPrompt(true);
+      navigate('/results', { 
+        state: { 
+          inputs, 
+          results: calculatedResults,
+          isSaved: false 
+        } 
+      });
     }
-
-    navigate('/results', { state: { inputs, results: calculatedResults } });
   };
 
   const handleRetrySave = async () => {
@@ -223,36 +234,18 @@ export default function CalculatorPage() {
     };
 
     try {
-      const { error } = await supabase
-        .from('analyses')
-        .insert({
-          portal_source: inputs.portalSource,
-          listing_url: inputs.listingUrl,
-          area_sqft: inputs.areaSqft,
-          purchase_price: inputs.purchasePrice,
-          down_payment_percent: inputs.downPaymentPercent,
-          mortgage_interest_rate: inputs.mortgageInterestRate,
-          mortgage_term_years: inputs.mortgageTermYears,
-          expected_monthly_rent: inputs.expectedMonthlyRent,
-          service_charge_annual: inputs.serviceChargeAnnual,
-          annual_maintenance_percent: inputs.annualMaintenancePercent,
-          property_management_fee_percent: inputs.propertyManagementFeePercent,
-          gross_yield: results.grossRentalYield,
-          net_yield: results.netRentalYield,
-          monthly_cash_flow: results.monthlyCashFlow,
-          cash_on_cash_return: results.cashOnCashReturn,
-          calculation_results: results,
-          is_paid: false,
-        });
+      const { error, requestId } = await saveAnalysis({
+        inputs,
+        results,
+      });
 
       if (error) {
-        handleError('Failed to save analysis. Please try again later.');
+        handleError(error.error || 'Failed to save analysis. Please try again later.', 'Retry Save', undefined, requestId);
       } else {
         showSuccess('Analysis saved successfully');
-        setTimeout(() => setSaveSuccess(false), 10000);
       }
-    } catch (error) {
-      handleError('An unexpected error occurred. Please try again.');
+    } catch (error: any) {
+      handleError(error.message || 'An unexpected error occurred. Please try again.', 'Retry Save');
     } finally {
       setSaving(false);
     }

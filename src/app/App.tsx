@@ -54,46 +54,55 @@ function AnalyticsTracker() {
   return null;
 }
 
+// Separate the routes into a component to ensure AuthProvider wraps everything
+function AppRoutes() {
+  return (
+    <>
+      <AnalyticsTracker />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/calculator" element={<CalculatorPage />} />
+        <Route path="/results" element={<ResultsPage />} />
+        <Route path="/auth/signin" element={<SignInPage />} />
+        <Route path="/auth/signup" element={<SignUpPage />} />
+        <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/how-it-works" element={<HowItWorksPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+        <Route path="/disclaimer" element={<DisclaimerPage />} />
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/comparison" 
+          element={
+            <ProtectedRoute>
+              <ComparisonPage />
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+      <ToastContainer />
+      <EnvironmentIndicator />
+    </>
+  );
+}
+
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AnalyticsTracker />
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/calculator" element={<CalculatorPage />} />
-          <Route path="/results" element={<ResultsPage />} />
-          <Route path="/auth/signin" element={<SignInPage />} />
-          <Route path="/auth/signup" element={<SignUpPage />} />
-          <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
-          <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/how-it-works" element={<HowItWorksPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-          <Route path="/terms-of-service" element={<TermsOfServicePage />} />
-          <Route path="/disclaimer" element={<DisclaimerPage />} />
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/comparison" 
-            element={
-              <ProtectedRoute>
-                <ComparisonPage />
-              </ProtectedRoute>
-            } 
-          />
-        </Routes>
-        <ToastContainer />
-        <EnvironmentIndicator />
-      </Router>
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </Router>
   );
 }

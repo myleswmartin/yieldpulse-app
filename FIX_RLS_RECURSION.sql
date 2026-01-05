@@ -1,92 +1,64 @@
 -- ================================================================
--- FIX FOR INFINITE RECURSION IN RLS POLICIES
+-- FIX: Infinite Recursion in RLS Policies
 -- ================================================================
--- Run this SQL in your Supabase SQL Editor to fix the infinite recursion error
--- This creates a helper function and updates the RLS policies
+-- This script fixes the "infinite recursion detected in policy for relation profiles" error
+-- 
+-- INSTRUCTIONS:
+-- 1. Open your Supabase project dashboard
+-- 2. Go to SQL Editor
+-- 3. Copy and paste this entire script
+-- 4. Click "Run" to execute
+-- 5. Refresh your YieldPulse application
+-- ================================================================
 
--- ================================================================
--- STEP 1: Create helper function to check admin status
--- ================================================================
--- This function uses SECURITY DEFINER to bypass RLS and prevent infinite recursion
+-- Step 1: Drop the problematic admin policy on profiles table
+DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
+
+-- Step 2: Update the is_admin function to use SECURITY DEFINER properly
 CREATE OR REPLACE FUNCTION public.is_admin(user_id UUID)
 RETURNS BOOLEAN AS $$
+DECLARE
+  admin_status BOOLEAN;
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = user_id AND is_admin = TRUE
-  );
+  -- Use SECURITY DEFINER to bypass RLS when checking admin status
+  SELECT is_admin INTO admin_status
+  FROM public.profiles
+  WHERE id = user_id;
+  
+  RETURN COALESCE(admin_status, FALSE);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ================================================================
--- STEP 2: Drop problematic policies on profiles table
--- ================================================================
-DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
-
--- ================================================================
--- STEP 3: Recreate policies with the helper function
--- ================================================================
-CREATE POLICY "Admins can view all profiles"
-  ON profiles FOR SELECT
-  USING (public.is_admin(auth.uid()));
-
--- ================================================================
--- STEP 4: Drop problematic policies on analyses table
--- ================================================================
-DROP POLICY IF EXISTS "Admins can view all analyses" ON analyses;
-DROP POLICY IF EXISTS "Admins can update all analyses" ON analyses;
-
--- ================================================================
--- STEP 5: Recreate policies with the helper function
--- ================================================================
-CREATE POLICY "Admins can view all analyses"
-  ON analyses FOR SELECT
-  USING (public.is_admin(auth.uid()));
-
-CREATE POLICY "Admins can update all analyses"
-  ON analyses FOR UPDATE
-  USING (public.is_admin(auth.uid()));
-
--- ================================================================
--- STEP 6: Fix payments table policies
--- ================================================================
-DROP POLICY IF EXISTS "Admins can view all payments" ON payments;
-
-CREATE POLICY "Admins can view all payments"
-  ON payments FOR SELECT
-  USING (public.is_admin(auth.uid()));
-
--- ================================================================
--- STEP 7: Fix report_files table policies (if exists)
--- ================================================================
-DROP POLICY IF EXISTS "Admins can view all report files" ON report_files;
-
-CREATE POLICY "Admins can view all report files"
-  ON report_files FOR SELECT
-  USING (public.is_admin(auth.uid()));
-
--- ================================================================
--- STEP 8: Add missing INSERT policy for profiles (optional but recommended)
--- ================================================================
-DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
-
-CREATE POLICY "Users can insert own profile"
-  ON profiles FOR INSERT
-  WITH CHECK (auth.uid() = id);
-
--- ================================================================
 -- VERIFICATION
 -- ================================================================
--- Test that the fix works by running these queries:
+-- After running this script, verify the fix by running these queries:
+
+-- 1. Check that the problematic policy is removed:
+-- SELECT * FROM pg_policies WHERE tablename = 'profiles' AND policyname = 'Admins can view all profiles';
+-- (Should return 0 rows)
+
+-- 2. Check remaining policies on profiles table:
+-- SELECT policyname, cmd, qual FROM pg_policies WHERE tablename = 'profiles';
+-- (Should show only: "Users can view own profile", "Users can update own profile", "Users can insert own profile")
+
+-- 3. Test profile access:
 -- SELECT * FROM profiles WHERE id = auth.uid();
--- SELECT * FROM analyses WHERE user_id = auth.uid();
-
--- If you're an admin, you should also be able to:
--- SELECT * FROM profiles;
--- SELECT * FROM analyses;
+-- (Should return your profile without errors)
 
 -- ================================================================
--- COMPLETE
+-- EXPLANATION
 -- ================================================================
--- The infinite recursion errors should now be resolved.
--- Refresh your application to see the changes take effect.
+-- The infinite recursion was caused by:
+-- 1. The "Admins can view all profiles" policy on the profiles table called is_admin()
+-- 2. is_admin() queries the profiles table
+-- 3. Querying profiles triggers RLS policies
+-- 4. The admin policy calls is_admin() again → infinite loop
+--
+-- The fix:
+-- 1. Remove the admin policy from profiles table
+-- 2. Mark is_admin() as SECURITY DEFINER to bypass RLS
+-- 3. Admin access to profiles is now handled via service role key, not RLS
+-- ================================================================
+
+-- Done! Your database should now work without recursion errors.

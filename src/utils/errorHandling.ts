@@ -5,6 +5,7 @@ export interface AppError {
   userMessage: string;
   isNetworkError: boolean;
   canRetry: boolean;
+  requestId?: string;
 }
 
 /**
@@ -108,16 +109,21 @@ export function parseError(error: any): AppError {
 /**
  * Handles an error and shows appropriate user feedback
  */
-export function handleError(error: any, context?: string, onRetry?: () => void) {
-  console.error(`Error${context ? ` in ${context}` : ''}:`, error);
+export function handleError(error: any, context?: string, onRetry?: () => void, requestId?: string) {
+  console.error(`Error${context ? ` in ${context}` : ''}${requestId ? ` [${requestId}]` : ''}:`, error);
   
   const appError = parseError(error);
+  
+  // Build description with requestId if available
+  const description = requestId 
+    ? `${appError.userMessage}\n\nRequest ID: ${requestId}`
+    : appError.userMessage;
   
   if (appError.isNetworkError) {
     showToast({
       type: 'network-error',
       message: 'Connection Issue',
-      description: appError.userMessage,
+      description,
       action: onRetry ? {
         label: 'Retry',
         onClick: onRetry,
@@ -128,7 +134,7 @@ export function handleError(error: any, context?: string, onRetry?: () => void) 
     showToast({
       type: 'error',
       message: context || 'Error',
-      description: appError.userMessage,
+      description,
       action: appError.canRetry && onRetry ? {
         label: 'Try Again',
         onClick: onRetry,

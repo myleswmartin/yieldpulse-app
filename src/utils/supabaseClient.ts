@@ -12,6 +12,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase configuration. Please check environment variables.');
 }
 
+console.log('🔧 Supabase Configuration:', {
+  url: supabaseUrl,
+  keyPrefix: supabaseAnonKey.substring(0, 20) + '...',
+  projectId: projectId
+});
+
 let supabaseClient;
 
 try {
@@ -20,7 +26,25 @@ try {
       persistSession: true,
       storageKey: 'yieldpulse-auth',
       autoRefreshToken: true,
-      detectSessionInUrl: false,
+      detectSessionInUrl: true, // CRITICAL: Required for email verification redirect to work
+    },
+    global: {
+      headers: {
+        'x-client-info': 'yieldpulse-web',
+      },
+      fetch: (url, options = {}) => {
+        // Add timeout to all fetch requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+        
+        return fetch(url, {
+          ...options,
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeoutId));
+      },
+    },
+    db: {
+      schema: 'public',
     },
   });
   console.log('✅ Supabase client initialized successfully');

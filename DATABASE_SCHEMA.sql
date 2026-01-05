@@ -3,16 +3,19 @@
 -- ================================================================
 
 -- ================================================================
--- 1. HELPER FUNCTION TO CHECK ADMIN STATUS
+-- 1. HELPER FUNCTIONS
 -- ================================================================
--- This function bypasses RLS to prevent infinite recursion
+
+-- Helper function to check if a user is an admin
+-- DEPRECATED: This function causes infinite recursion with RLS policies
+-- Admin access should be handled via service role key on the backend
+-- Keeping for backward compatibility but recommend removing admin policies
 CREATE OR REPLACE FUNCTION public.is_admin(user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = user_id AND is_admin = TRUE
-  );
+  -- Always return FALSE to prevent infinite recursion
+  -- Admin operations should use service role key instead
+  RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -51,9 +54,8 @@ CREATE POLICY "Users can insert own profile"
   ON profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "Admins can view all profiles"
-  ON profiles FOR SELECT
-  USING (public.is_admin(auth.uid()));
+-- REMOVED: "Admins can view all profiles" policy to prevent infinite recursion
+-- Admin access should be handled through SECURITY DEFINER functions or service role
 
 -- ================================================================
 -- 3. ANALYSES TABLE
@@ -61,7 +63,7 @@ CREATE POLICY "Admins can view all profiles"
 
 CREATE TABLE IF NOT EXISTS analyses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   
   -- Property Details
   property_name TEXT,
@@ -138,13 +140,8 @@ CREATE POLICY "Users can delete own analyses"
   ON analyses FOR DELETE
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Admins can view all analyses"
-  ON analyses FOR SELECT
-  USING (public.is_admin(auth.uid()));
-
-CREATE POLICY "Admins can update all analyses"
-  ON analyses FOR UPDATE
-  USING (public.is_admin(auth.uid()));
+-- REMOVED admin policies to prevent infinite recursion
+-- Admin access should use service role key via backend
 
 -- ================================================================
 -- 4. PAYMENTS TABLE
@@ -152,7 +149,7 @@ CREATE POLICY "Admins can update all analyses"
 
 CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   analysis_id UUID REFERENCES analyses(id) ON DELETE CASCADE,
   
   amount_aed NUMERIC(10,2) NOT NULL DEFAULT 49.00,
@@ -187,9 +184,8 @@ CREATE POLICY "Users can insert own payments"
   ON payments FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Admins can view all payments"
-  ON payments FOR SELECT
-  USING (public.is_admin(auth.uid()));
+-- REMOVED admin policies to prevent infinite recursion
+-- Admin access should use service role key via backend
 
 -- ================================================================
 -- 5. REPORT FILES TABLE
@@ -198,7 +194,7 @@ CREATE POLICY "Admins can view all payments"
 CREATE TABLE IF NOT EXISTS report_files (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   analysis_id UUID REFERENCES analyses(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   
   file_name TEXT NOT NULL,
   file_path TEXT NOT NULL,
@@ -231,9 +227,8 @@ CREATE POLICY "Users can insert own report files"
   ON report_files FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Admins can view all report files"
-  ON report_files FOR SELECT
-  USING (public.is_admin(auth.uid()));
+-- REMOVED admin policies to prevent infinite recursion
+-- Admin access should use service role key via backend
 
 -- ================================================================
 -- 6. TRIGGER FOR UPDATED_AT TIMESTAMP

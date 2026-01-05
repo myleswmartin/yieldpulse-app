@@ -18,6 +18,17 @@ export default function VerifyEmailPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.email) {
         setEmail(session.user.email);
+        return;
+      }
+      
+      // If no session, try localStorage (for unverified users)
+      try {
+        const pendingEmail = localStorage.getItem('pendingVerificationEmail');
+        if (pendingEmail) {
+          setEmail(pendingEmail);
+        }
+      } catch (e) {
+        console.warn('Could not read from localStorage:', e);
       }
     };
 
@@ -49,13 +60,34 @@ export default function VerifyEmailPage() {
     setCheckingVerification(true);
 
     try {
-      // Refresh the session to check if email is now verified
-      const { data: { session }, error } = await supabase.auth.refreshSession();
+      // First, try to get the current session (user may not have one yet if they haven't clicked email link)
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
       
-      if (error) {
-        throw error;
+      // If there's no session at all, user hasn't clicked the verification link yet
+      if (!currentSession) {
+        showInfo('Email not verified yet', 'Please check your inbox and click the verification link first.');
+        setCheckingVerification(false);
+        return;
       }
 
+      // If we have a session, refresh it to get the latest verification status
+      const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (refreshError) {
+        // If refresh fails, fall back to checking current session
+        console.warn('Session refresh failed, using current session:', refreshError);
+        if (currentSession?.user?.email_confirmed_at) {
+          showSuccess('Email verified successfully');
+          setTimeout(() => {
+            window.location.href = '/calculator';
+          }, 1000);
+        } else {
+          showInfo('Email not verified yet', 'Please check your inbox and click the verification link.');
+        }
+        return;
+      }
+
+      // Check if email is now verified
       if (session?.user?.email_confirmed_at) {
         // Email is verified! Force a page reload to update auth context
         showSuccess('Email verified successfully');
@@ -67,7 +99,12 @@ export default function VerifyEmailPage() {
       }
     } catch (error: any) {
       console.error('Check verification error:', error);
-      handleError(error, 'Check Verification');
+      // Don't show error for missing session - it's expected before email verification
+      if (error.message?.includes('Auth session missing')) {
+        showInfo('Email not verified yet', 'Please check your inbox and click the verification link first.');
+      } else {
+        handleError(error, 'Check Verification');
+      }
     } finally {
       setCheckingVerification(false);
     }
