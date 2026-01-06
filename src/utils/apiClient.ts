@@ -20,23 +20,40 @@ export interface ApiResponse<T = any> {
  */
 async function getAccessToken(): Promise<string | null> {
   const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
+  if (session?.access_token) return session.access_token;
+
+  // Fallback: read from persisted storageKey used in supabaseClient (yieldpulse-auth)
+  try {
+    const raw = localStorage.getItem('yieldpulse-auth');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return parsed?.currentSession?.access_token || null;
+    }
+  } catch (e) {
+    console.warn('Could not read persisted session from localStorage:', (e as Error).message);
+  }
+
+  return null;
 }
 
 /**
  * Makes authenticated API call to Edge Function
  */
-async function apiCall<T = any>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<ApiResponse<T>> {
+async function apiCall<T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   try {
     const accessToken = await getAccessToken();
-    
+
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
       ...options.headers,
+      // Supabase Functions require apikey header for browser calls.
+      apikey: publicAnonKey,
+      "x-client-info": "yieldpulse-web",
     };
+
+    // Only set Content-Type when a body is present to avoid unnecessary preflights.
+    if (options.body && !("Content-Type" in headers)) {
+      headers["Content-Type"] = "application/json";
+    }
 
     // Add Authorization header if user is authenticated
     if (accessToken) {
@@ -107,7 +124,7 @@ export interface SaveAnalysisRequest {
 
 /**
  * Save a new analysis (requires authentication)
- * Endpoint: POST /make-server-ef294769/analyses
+ * Endpoint: POST /analyses
  */
 export async function saveAnalysis(payload: SaveAnalysisRequest): Promise<ApiResponse> {
   return apiCall('/analyses', {
@@ -118,7 +135,7 @@ export async function saveAnalysis(payload: SaveAnalysisRequest): Promise<ApiRes
 
 /**
  * Get all analyses for current user (requires authentication)
- * Endpoint: GET /make-server-ef294769/analyses/user/me
+ * Endpoint: GET /analyses/user/me
  */
 export async function getUserAnalyses(): Promise<ApiResponse> {
   return apiCall('/analyses/user/me', {
@@ -128,7 +145,7 @@ export async function getUserAnalyses(): Promise<ApiResponse> {
 
 /**
  * Delete an analysis by ID (requires authentication)
- * Endpoint: DELETE /make-server-ef294769/analyses/:id
+ * Endpoint: DELETE /analyses/:id
  */
 export async function deleteAnalysis(analysisId: string): Promise<ApiResponse> {
   return apiCall(`/analyses/${analysisId}`, {
@@ -142,7 +159,7 @@ export async function deleteAnalysis(analysisId: string): Promise<ApiResponse> {
 
 /**
  * Check if analysis has been purchased (requires authentication)
- * Endpoint: GET /make-server-ef294769/purchases/status?analysisId={id}
+ * Endpoint: GET /purchases/status?analysisId={id}
  */
 export async function checkPurchaseStatus(analysisId: string): Promise<ApiResponse> {
   return apiCall(`/purchases/status?analysisId=${analysisId}`, {
@@ -157,7 +174,7 @@ export interface CreateCheckoutRequest {
 
 /**
  * Create Stripe checkout session (requires authentication)
- * Endpoint: POST /make-server-ef294769/stripe/checkout-session
+ * Endpoint: POST /stripe/checkout-session
  */
 export async function createCheckoutSession(payload: CreateCheckoutRequest): Promise<ApiResponse> {
   return apiCall('/stripe/checkout-session', {

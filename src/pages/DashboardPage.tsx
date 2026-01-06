@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TrendingUp, Calculator, FileText, Plus, Trash2, Eye, Calendar, AlertCircle, CheckCircle, XCircle, X, ChevronDown, ChevronUp, Lock, Unlock, Filter, ArrowUpDown, Info, ArrowUp, ArrowDown, GitCompare } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserAnalyses, deleteAnalysis } from '../utils/apiClient';
+import { getUserAnalyses, deleteAnalysis, checkPurchaseStatus } from '../utils/apiClient';
 import { formatCurrency, formatPercent } from '../utils/calculations';
 import { Header } from '../components/Header';
 import { showSuccess, showInfo, handleError } from '../utils/errorHandling';
@@ -22,6 +22,7 @@ interface Analysis {
   monthly_cash_flow: number;
   cash_on_cash_return: number;
   is_paid: boolean;
+  paid_status?: 'paid' | 'free' | 'checking';
   created_at: string;
   updated_at: string;
 }
@@ -98,11 +99,54 @@ export default function DashboardPage() {
 
       if (error) {
         console.error('Error fetching analyses:', error);
-        handleError(error.error || 'Failed to load your reports. Please try again.', 'Load Dashboard', () => fetchAnalyses(), requestId);
+        handleError(
+          error.error || 'Failed to load your reports. Please try again.',
+          'Load Dashboard',
+          () => fetchAnalyses(),
+          requestId
+        );
         return;
       }
 
-      setAnalyses(data || []);
+      const list = (data || []).map((a) => ({
+        ...a,
+        paid_status: a.is_paid ? 'paid' : 'checking',
+      }));
+
+      setAnalyses(list);
+
+      // Sync paid status against purchase records (in case analyses table is stale)
+      const pending = list.filter((a) => a.paid_status === 'checking');
+      if (pending.length > 0) {
+        const results = await Promise.all(
+          pending.map((a) => checkPurchaseStatus(a.id))
+        );
+
+        const paidIds = new Set<string>();
+        const freeIds = new Set<string>();
+
+        results.forEach((res, idx) => {
+          if (!res.error && res.data?.isPaid) {
+            paidIds.add(pending[idx].id);
+          } else {
+            freeIds.add(pending[idx].id);
+          }
+        });
+
+        if (paidIds.size > 0 || freeIds.size > 0) {
+          setAnalyses((prev) =>
+            prev.map((a) => {
+              if (paidIds.has(a.id)) {
+                return { ...a, is_paid: true, paid_status: 'paid' };
+              }
+              if (freeIds.has(a.id)) {
+                return { ...a, paid_status: 'free' };
+              }
+              return a;
+            })
+          );
+        }
+      }
     } catch (err: any) {
       console.error('Error fetching analyses:', err);
       handleError(err.message || 'Failed to load your reports. Please try again.', 'Load Dashboard');
@@ -158,9 +202,9 @@ export default function DashboardPage() {
 
     // Apply filter
     if (filter === 'free') {
-      filtered = analyses.filter(a => !a.is_paid);
+      filtered = analyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "free");
     } else if (filter === 'premium') {
-      filtered = analyses.filter(a => a.is_paid);
+      filtered = analyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid");
     }
 
     // Apply sort
@@ -296,14 +340,14 @@ export default function DashboardPage() {
           />
           <StatCard
             label="Premium Reports"
-            value={analyses.filter(a => a.is_paid).length}
+            value={analyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid").length}
             icon={TrendingUp}
             description="Full reports unlocked"
             variant="teal"
           />
           <StatCard
             label="Free Reports"
-            value={analyses.filter(a => !a.is_paid).length}
+            value={analyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "free").length}
             icon={Calculator}
             description="Preview analyses"
             variant="success"
@@ -334,7 +378,7 @@ export default function DashboardPage() {
                 <button
                   onClick={handleStartComparison}
                   disabled={selectedForComparison.length < 2}
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-teal text-white rounded-lg font-medium hover:bg-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-teal text-black cursor-pointer rounded-lg font-medium hover:bg-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   <GitCompare className="w-5 h-5" />
                   <span>Compare {selectedForComparison.length > 0 ? `(${selectedForComparison.length})` : ''}</span>
@@ -450,7 +494,7 @@ export default function DashboardPage() {
                   <div className="flex items-center space-x-2 bg-muted/50 rounded-lg p-1">
                     <button
                       onClick={() => setFilter('all')}
-                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      className={`px-4 py-2 rounded-md text-sm cursor-pointer font-medium transition-all ${
                         filter === 'all' 
                           ? 'bg-white text-foreground shadow-sm' 
                           : 'text-neutral-600 hover:text-foreground'
@@ -460,7 +504,7 @@ export default function DashboardPage() {
                     </button>
                     <button
                       onClick={() => setFilter('free')}
-                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      className={`px-4 py-2 rounded-md text-sm cursor-pointer font-medium transition-all ${
                         filter === 'free' 
                           ? 'bg-white text-foreground shadow-sm' 
                           : 'text-neutral-600 hover:text-foreground'
@@ -470,7 +514,7 @@ export default function DashboardPage() {
                     </button>
                     <button
                       onClick={() => setFilter('premium')}
-                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      className={`px-4 py-2 rounded-md text-sm cursor-pointer font-medium transition-all ${
                         filter === 'premium' 
                           ? 'bg-white text-foreground shadow-sm' 
                           : 'text-neutral-600 hover:text-foreground'
@@ -484,21 +528,21 @@ export default function DashboardPage() {
                   <select
                     value={sort}
                     onChange={(e) => setSort(e.target.value as SortType)}
-                    className="px-4 py-2 bg-muted/50 border border-border rounded-lg text-sm font-medium text-foreground focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                    className="px-4 py-2 bg-muted/50 border border-border rounded-lg cursor-pointer text-sm font-medium text-foreground focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   >
-                    <option value="newest">Newest First</option>
-                    <option value="yield">Highest Yield</option>
-                    <option value="cashflow">Highest Cash Flow</option>
+                    <option className='cursor-pointer' value="newest">Newest First</option>
+                        <option className='cursor-pointer' value="yield">Highest Yield</option>
+                        <option className='cursor-pointer' value="cashflow">Highest Cash Flow</option>
                   </select>
 
                   {/* Compare Reports Button */}
-                  {analyses.filter(a => a.is_paid).length >= 2 && !comparisonMode && (
+                  {analyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid").length >= 2 && !comparisonMode && (
                     <button
                       onClick={() => {
                         setComparisonMode(true);
                         setSelectedForComparison([]);
                       }}
-                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-teal/10 text-teal border border-teal/30 rounded-lg font-medium hover:bg-teal/20 transition-colors text-sm shadow-sm"
+                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-teal/10 text-teal border border-teal/30 rounded-lg cursor-pointer font-medium hover:bg-teal/20 transition-colors text-sm shadow-sm"
                     >
                       <GitCompare className="w-4 h-4" />
                       <span>Compare Reports</span>
@@ -509,7 +553,7 @@ export default function DashboardPage() {
                   {!comparisonMode && (
                     <button
                       onClick={() => navigate('/calculator')}
-                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm shadow-sm"
+                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-primary cursor-pointer text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm shadow-sm"
                     >
                       <Plus className="w-4 h-4" />
                       <span>New Analysis</span>
@@ -527,10 +571,10 @@ export default function DashboardPage() {
                       <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-16">
                         <input
                           type="checkbox"
-                          checked={selectedForComparison.length === filteredAnalyses.filter(a => a.is_paid).length && filteredAnalyses.filter(a => a.is_paid).length > 0}
+                          checked={selectedForComparison.length === filteredAnalyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid").length && filteredAnalyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid").length > 0}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedForComparison(filteredAnalyses.filter(a => a.is_paid).map(a => a.id));
+                              setSelectedForComparison(filteredAnalyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid").map(a => a.id));
                             } else {
                               setSelectedForComparison([]);
                             }
@@ -623,11 +667,18 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td className="px-6 py-5">
-                          {analysis.is_paid ? (
+                          {(analysis.paid_status ?? (analysis.is_paid ? 'paid' : 'free')) === 'paid' ? (
                             <div className="flex items-center space-x-2">
                               <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-teal/20 text-teal border border-teal/30">
                                 <Unlock className="w-3 h-3" />
                                 <span>Premium</span>
+                              </span>
+                            </div>
+                          ) : (analysis.paid_status === 'checking') ? (
+                            <div className="flex items-center space-x-2">
+                              <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                <Info className="w-3 h-3" />
+                                <span>Checking...</span>
                               </span>
                             </div>
                           ) : (
@@ -816,24 +867,40 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon: Icon, description, variant }: StatCardProps) {
   const variantStyles = {
-    navy: 'from-primary to-primary-hover text-primary-foreground',
-    teal: 'from-teal to-teal/80 text-white',
-    success: 'from-success to-success/80 text-white',
+    navy: {
+      card: 'from-primary to-primary-hover text-white',
+      chip: 'bg-white/20 text-white',
+      label: 'text-white/90',
+      desc: 'text-white/70',
+    },
+    teal: {
+      card: 'from-teal/30 to-teal/10 text-slate-900',
+      chip: 'bg-teal/25 text-teal',
+      label: 'text-slate-900',
+      desc: 'text-slate-700',
+    },
+    success: {
+      card: 'from-success/30 to-success/10 text-slate-900',
+      chip: 'bg-success/25 text-success',
+      label: 'text-slate-900',
+      desc: 'text-slate-700',
+    },
   };
+  const styles = variantStyles[variant];
 
   return (
-    <div className={`rounded-xl shadow-sm border border-border overflow-hidden bg-gradient-to-br ${variantStyles[variant]}`}>
+    <div className={`rounded-xl shadow-sm border border-border overflow-hidden bg-gradient-to-br ${styles.card}`}>
       <div className="p-6">
         <div className="flex items-start justify-between mb-4">
-          <div className="p-3 bg-white/20 rounded-lg">
+          <div className={`p-3 rounded-lg ${styles.chip}`}>
             <Icon className="w-6 h-6" />
           </div>
         </div>
         <div className="mb-2">
           <div className="text-3xl font-bold mb-1">{value}</div>
-          <div className="text-sm font-medium opacity-90">{label}</div>
+          <div className={`text-sm font-medium ${styles.label}`}>{label}</div>
         </div>
-        <div className="text-xs opacity-75">{description}</div>
+        <div className={`text-xs ${styles.desc}`}>{description}</div>
       </div>
     </div>
   );

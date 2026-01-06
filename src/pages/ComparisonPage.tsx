@@ -148,7 +148,7 @@ export default function ComparisonPage() {
         <div className="mb-8">
           <button
             onClick={() => navigate('/dashboard')}
-            className="inline-flex items-center space-x-2 text-neutral-600 hover:text-foreground transition-colors mb-4"
+            className="inline-flex cursor-pointer items-center space-x-2 text-neutral-600 hover:text-foreground transition-colors mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="font-medium">Back to Dashboard</span>

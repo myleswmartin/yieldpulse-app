@@ -34,7 +34,7 @@ fi
 echo "📂 Creating project structure..."
 
 # Create directory structure
-mkdir -p "$PROJECT_DIR"/{public,src/{app/components/{figma,ui},contexts,styles,utils},supabase/functions/server,utils/supabase}
+mkdir -p "$PROJECT_DIR"/{public,src/{app/components/{figma,ui},contexts,styles,utils},supabase/functions/{make-server-ef294769,stripe-webhook},utils/supabase}
 
 echo "📝 Extracting files..."
 

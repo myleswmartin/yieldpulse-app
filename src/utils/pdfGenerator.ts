@@ -93,6 +93,85 @@ function addPageFooter(doc: jsPDF, isFirstPage: boolean = false): void {
   doc.text('YieldPulse powered by Constructive', pageWidth / 2, footerY + 4, { align: 'center' });
 }
 
+
+
+type NormalizedResults = {
+  grossYield: number;
+  netYield: number;
+  cashOnCashReturn: number;
+  monthlyCashFlow: number;
+  annualCashFlow: number;
+  monthlyMortgagePayment: number;
+  totalOperatingCosts: number;
+  monthlyIncome: number;
+  annualIncome: number;
+};
+
+const pickNumber = (...values: Array<unknown>): number | undefined => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+};
+
+const normalizeResults = (snapshot: ReportSnapshot): NormalizedResults => {
+  const raw = (snapshot.results || {}) as Record<string, unknown>;
+
+  const grossYield = pickNumber(raw.grossYield, raw.grossRentalYield, raw.gross_yield) ?? 0;
+  const netYield = pickNumber(raw.netYield, raw.netRentalYield, raw.net_yield) ?? 0;
+  const cashOnCashReturn = pickNumber(raw.cashOnCashReturn, raw.cash_on_cash_return) ?? 0;
+  const monthlyCashFlow = pickNumber(raw.monthlyCashFlow, raw.monthly_cash_flow) ?? 0;
+  const annualCashFlow =
+    pickNumber(raw.annualCashFlow, raw.annual_cash_flow) ?? (monthlyCashFlow * 12);
+
+  const monthlyMortgagePayment = pickNumber(raw.monthlyMortgagePayment, raw.monthly_mortgage_payment);
+  const annualMortgagePayment = pickNumber(raw.annualMortgagePayment, raw.annual_mortgage_payment);
+  const resolvedMonthlyMortgagePayment =
+    monthlyMortgagePayment ?? (annualMortgagePayment ? annualMortgagePayment / 12 : 0);
+
+  const totalOperatingCosts = (() => {
+    const direct = pickNumber(
+      raw.totalOperatingCosts,
+      raw.totalAnnualOperatingExpenses,
+      raw.total_annual_operating_expenses,
+    );
+    if (direct !== undefined) return direct;
+
+    const serviceCharge = pickNumber(raw.annualServiceCharge, raw.annual_service_charge);
+    const maintenance = pickNumber(raw.annualMaintenanceCosts, raw.annual_maintenance_costs);
+    const pmFee = pickNumber(raw.annualPropertyManagementFee, raw.annual_property_management_fee);
+
+    if (serviceCharge !== undefined || maintenance !== undefined || pmFee !== undefined) {
+      return (serviceCharge || 0) + (maintenance || 0) + (pmFee || 0);
+    }
+    return 0;
+  })();
+
+  const monthlyIncome =
+    pickNumber(
+      raw.monthlyIncome,
+      raw.expectedMonthlyRent,
+      raw.expected_monthly_rent,
+      snapshot.inputs.expected_monthly_rent,
+    ) ?? 0;
+  const annualIncome =
+    pickNumber(raw.annualIncome, raw.grossAnnualRentalIncome, raw.gross_annual_rental_income) ??
+    (monthlyIncome * 12);
+
+  return {
+    grossYield,
+    netYield,
+    cashOnCashReturn,
+    monthlyCashFlow,
+    annualCashFlow,
+    monthlyMortgagePayment: resolvedMonthlyMortgagePayment,
+    totalOperatingCosts,
+    monthlyIncome,
+    annualIncome,
+  };
+};
 export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string): Promise<void> {
   // Create PDF document
   const doc = new jsPDF('p', 'mm', 'a4');
@@ -116,6 +195,8 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
     month: 'long',
     year: 'numeric'
   });
+  const results = normalizeResults(snapshot);
+
 
   // ==================== COVER PAGE ====================
   
@@ -233,11 +314,11 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
 
   // Summary metrics in a 2x3 grid
   const metrics = [
-    { label: 'Gross Yield', value: formatPercent(snapshot.results.grossYield) },
-    { label: 'Net Yield', value: formatPercent(snapshot.results.netYield) },
-    { label: 'Cash on Cash Return', value: formatPercent(snapshot.results.cashOnCashReturn) },
-    { label: 'Monthly Cash Flow', value: formatCurrency(snapshot.results.monthlyCashFlow) },
-    { label: 'Annual Cash Flow', value: formatCurrency(snapshot.results.annualCashFlow) },
+    { label: 'Gross Yield', value: formatPercent(results.grossYield) },
+    { label: 'Net Yield', value: formatPercent(results.netYield) },
+    { label: 'Cash on Cash Return', value: formatPercent(results.cashOnCashReturn) },
+    { label: 'Monthly Cash Flow', value: formatCurrency(results.monthlyCashFlow) },
+    { label: 'Annual Cash Flow', value: formatCurrency(results.annualCashFlow) },
   ];
 
   const colWidth = (pageWidth - 30) / 2;
@@ -384,18 +465,18 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
   
   yPosition += 12;
 
-  const monthlyIncome = snapshot.results.monthlyIncome || snapshot.inputs.expected_monthly_rent;
-  const annualIncome = snapshot.results.annualIncome || (monthlyIncome * 12);
+  const monthlyIncome = results.monthlyIncome;
+  const annualIncome = results.annualIncome;
 
   autoTable(doc, {
     startY: yPosition,
     head: [['Category', 'Monthly Amount', 'Annual Amount']],
     body: [
       ['Rental Income', formatCurrency(monthlyIncome), formatCurrency(annualIncome)],
-      ['Mortgage Payment', formatCurrency(snapshot.results.monthlyMortgagePayment), formatCurrency(snapshot.results.monthlyMortgagePayment * 12)],
-      ['Operating Costs', formatCurrency(snapshot.results.totalOperatingCosts / 12), formatCurrency(snapshot.results.totalOperatingCosts)],
+      ['Mortgage Payment', formatCurrency(results.monthlyMortgagePayment), formatCurrency(results.monthlyMortgagePayment * 12)],
+      ['Operating Costs', formatCurrency(results.totalOperatingCosts / 12), formatCurrency(results.totalOperatingCosts)],
       ['', '', ''],
-      ['Net Cash Flow', formatCurrency(snapshot.results.monthlyCashFlow), formatCurrency(snapshot.results.annualCashFlow)],
+      ['Net Cash Flow', formatCurrency(results.monthlyCashFlow), formatCurrency(results.annualCashFlow)],
     ],
     theme: 'striped',
     headStyles: {

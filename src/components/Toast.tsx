@@ -137,7 +137,7 @@ export function ToastContainer() {
         <div
           key={toast.id}
           style={{ top: `${1 + index * 6}rem` }}
-          className="fixed right-4 z-50"
+          className="fixed bg-white right-4 z-50"
         >
           <Toast {...toast} onDismiss={() => removeToast(toast.id)} />
         </div>

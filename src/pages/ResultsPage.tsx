@@ -25,6 +25,7 @@ import {
   ComposedChart,
   Line
 } from 'recharts';
+import { Button } from '@/app/components/ui/button';
 
 // ================================================================
 // HELPER FUNCTION: Build PropertyInputs from saved analysis record
@@ -452,19 +453,21 @@ export default function ResultsPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <button
+              <Button
                 onClick={handleDownloadPDF}
                 disabled={!isPremiumUnlocked || generatingPDF || !pdfSnapshot}
-                className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
                   isPremiumUnlocked && pdfSnapshot
-                    ? 'bg-teal text-white hover:bg-teal/90 shadow-sm'
-                    : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                    ? 'bg-teal-600 text-white hover:bg-teal-700 border-teal-700/30 shadow-sm'
+                    : 'bg-neutral-200 text-neutral-600 border-neutral-300 cursor-not-allowed'
                 }`}
               >
                 <Download className="w-4 h-4" />
                 <span>{generatingPDF ? 'Generating...' : 'Download PDF'}</span>
-                {!isPremiumUnlocked && <span className="text-xs">(premium only)</span>}
-              </button>
+                {!isPremiumUnlocked && (
+                  <span className="text-xs text-neutral-500">(premium only)</span>
+                )}
+              </Button>
               <button
                 disabled
                 className="inline-flex items-center space-x-2 px-4 py-2 bg-neutral-100 text-neutral-400 rounded-lg text-sm font-medium cursor-not-allowed"

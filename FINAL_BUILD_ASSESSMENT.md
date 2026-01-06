@@ -351,7 +351,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 ## 5. Stripe Integration Safety Check ✅
 
 ### Test Mode Configuration ✅
-**File:** `/supabase/functions/server/index.tsx`
+**File:** `/supabase/functions/make-server-ef294769/index.ts`
 
 ```typescript
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
@@ -366,7 +366,7 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
 - ✅ Production will use `sk_live_...` via env variable
 
 ### Checkout Session Creation ✅
-**File:** `/supabase/functions/server/index.tsx` (route: `/stripe/checkout-session`)
+**File:** `/supabase/functions/make-server-ef294769/index.ts` (route: `/stripe/checkout-session`)
 
 **Steps:**
 1. Frontend sends POST request to `/stripe/checkout-session`
@@ -678,12 +678,12 @@ if (!isVisible) return null;
 **Required Environment Variables:**
 - ✅ `SUPABASE_URL` - Base URL for Supabase project
 - ✅ `SUPABASE_ANON_KEY` - Public anon key (safe for frontend)
-- ✅ `SUPABASE_SERVICE_ROLE_KEY` - Service role key (server-side only)
+- ✅ `SERVICE_ROLE_KEY` - Service role key (server-side only)
 - ✅ `SUPABASE_DB_URL` - Database connection string (server-side only)
 
 **Verification:**
 - ✅ `SUPABASE_ANON_KEY` used in frontend (public, safe)
-- ✅ `SUPABASE_SERVICE_ROLE_KEY` never in frontend code
+- ✅ `SERVICE_ROLE_KEY` never in frontend code
 - ✅ Service role key only in server files
 - ✅ No hardcoded credentials in repository
 

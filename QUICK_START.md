@@ -102,17 +102,19 @@ Before starting, ensure you have:
    ```
    (Find project ref in Supabase settings)
 
-2. **Deploy the Function**
+2. **Deploy the Functions**
    ```bash
    supabase functions deploy make-server-ef294769
+   supabase functions deploy stripe-webhook --no-verify-jwt
    ```
 
 3. **Set Environment Variables**
    ```bash
-   supabase secrets set SUPABASE_URL=https://xxx.supabase.co
-   supabase secrets set SUPABASE_ANON_KEY=your_anon_key
-   supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+   supabase secrets set SERVICE_ROLE_KEY=your_service_role_key
+   supabase secrets set STRIPE_SECRET_KEY=sk_test_or_live_key
+   supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_your_webhook_signing_secret
    ```
+   - `SUPABASE_URL` and `SUPABASE_ANON_KEY` are injected automatically by Supabase (do not set as secrets).
 
 **Verification:**
 - [ ] Function deployed successfully
@@ -250,8 +252,9 @@ pnpm build
 
 **Fix:**
 ```bash
-# Re-deploy function
-supabase functions deploy make-server-ef294769 --no-verify-jwt
+# Re-deploy functions
+supabase functions deploy make-server-ef294769
+supabase functions deploy stripe-webhook --no-verify-jwt
 
 # Check logs for errors
 supabase functions logs make-server-ef294769

@@ -184,10 +184,10 @@ All critical flow requirements have been met:
 
 ### Production Configuration
 
-- [ ] Stripe webhook configured: `/make-server-ef294769/stripe/webhook`
+- [ ] Stripe webhook configured: `/stripe-webhook`
 - [ ] Edge Function environment variables set:
   - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `SERVICE_ROLE_KEY`
   - `STRIPE_SECRET_KEY`
   - `STRIPE_WEBHOOK_SECRET`
 - [ ] Database RLS policies enabled on:

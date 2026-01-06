@@ -79,7 +79,7 @@ A production-ready web application for UAE property investors to:
 **TL;DR:**
 1. Sync Figma Make → GitHub
 2. Execute `DATABASE_SCHEMA.sql` in Supabase
-3. Deploy Edge Function: `supabase functions deploy make-server-ef294769`
+3. Deploy Edge Functions: `supabase functions deploy make-server-ef294769` and `supabase functions deploy stripe-webhook --no-verify-jwt`
 4. Configure Vercel environment variables
 5. Deploy to Vercel
 6. Test using [DEPLOYMENT_VERIFICATION.md](DEPLOYMENT_VERIFICATION.md)
@@ -148,7 +148,8 @@ yieldpulse/
 
 ## 🔌 API Endpoints
 
-All endpoints prefixed with: `/make-server-ef294769`
+API endpoints prefixed with: `/make-server-ef294769`  
+Stripe webhook endpoint: `/stripe-webhook`
 
 ### Authentication
 - `POST /auth/signup` - Create account
@@ -219,10 +220,11 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 
 ### Edge Function (Supabase)
 ```env
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
+SERVICE_ROLE_KEY=eyJ...
+STRIPE_SECRET_KEY=sk_test_or_live_key
+STRIPE_WEBHOOK_SECRET=whsec_...
 ```
+`SUPABASE_URL` and `SUPABASE_ANON_KEY` are injected automatically by Supabase (do not set them as secrets).
 
 **Never commit these to Git!**
 
@@ -416,8 +418,10 @@ pnpm preview          # Preview production build
 # Supabase
 supabase login                                          # Login to Supabase
 supabase link --project-ref YOUR_REF                   # Link project
-supabase functions deploy make-server-ef294769         # Deploy function
-supabase functions logs make-server-ef294769           # View logs
+supabase functions deploy make-server-ef294769         # Deploy API function
+supabase functions deploy stripe-webhook --no-verify-jwt # Deploy public webhook
+supabase functions logs make-server-ef294769           # View API logs
+supabase functions logs stripe-webhook                 # View webhook logs
 
 # Vercel
 vercel                                                  # Deploy to Vercel

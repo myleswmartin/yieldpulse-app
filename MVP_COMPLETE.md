@@ -135,7 +135,7 @@ The MVP is now fully implemented with all authentication, data persistence, and 
 - `/src/pages/HomePage.tsx` - Added auth-aware navigation
 - `/src/pages/CalculatorPage.tsx` - Enhanced sign-in prompts
 - `/src/pages/ResultsPage.tsx` - Handle saved analyses viewing
-- `/supabase/functions/server/index.tsx` - Added POST /analyses endpoint (already done)
+- `/supabase/functions/make-server-ef294769/index.ts` - Added POST /analyses endpoint (already done)
 
 ---
 
@@ -367,9 +367,10 @@ All calculations auto-save to `analyses` table:
    - Paste contents of `DATABASE_SCHEMA.sql`
    - Execute
 
-3. **Deploy Edge Function** (if not already)
+3. **Deploy Edge Functions** (if not already)
    ```bash
    supabase functions deploy make-server-ef294769
+   supabase functions deploy stripe-webhook --no-verify-jwt
    ```
 
 4. **Verify environment variables in Vercel**

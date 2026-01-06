@@ -46,7 +46,7 @@ yieldpulse/
     └── functions/
         └── server/
             ├── index.tsx
-            └── kv_store.tsx (PROTECTED - DO NOT EDIT)
+            └── kv_store.ts (PROTECTED - DO NOT EDIT)
 ```
 
 ---
@@ -743,13 +743,13 @@ export const projectId = 'vnydwzctqmzlmacvnbos';
 export const publicAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZueWR3emN0cW16bG1hY3ZuYm9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU3NzE2NDEsImV4cCI6MjA1MTM0NzY0MX0.z4YGcZi_tsgfv2bXmwJKOL80m4xo3LbPJdpQaNaC9uc';
 ```
 
-### /supabase/functions/server/index.tsx
+### /supabase/functions/make-server-ef294769/index.ts
 ```typescript
 import { Hono } from 'npm:hono@4.6.13';
 import { cors } from 'npm:hono/cors';
 import { logger } from 'npm:hono/logger';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import * as kv from './kv_store.tsx';
+import * as kv from './kv_store.ts';
 
 const app = new Hono();
 
@@ -764,7 +764,7 @@ app.use('*', logger(console.log));
 
 // Initialize Supabase admin client
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabaseServiceKey = Deno.env.get('SERVICE_ROLE_KEY')!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 // Helper: Get authenticated user
@@ -1125,7 +1125,7 @@ git push -u origin main
 
 ## ⚠️ IMPORTANT NOTES
 
-1. **Protected Files**: DO NOT modify `/supabase/functions/server/kv_store.tsx`
+1. **Protected Files**: DO NOT modify `/supabase/functions/make-server-ef294769/kv_store.ts`
 
 2. **UI Components**: The shadcn/ui components folder contains 50+ files. They are already in the Figma Make workspace. If you need their contents, they can be extracted separately.
 

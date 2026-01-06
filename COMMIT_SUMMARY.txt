@@ -47,8 +47,8 @@ UI COMPONENTS:
   ✓ src/app/components/ui/ [50+ shadcn components]
 
 BACKEND:
-  ✓ supabase/functions/server/index.tsx
-  ✓ supabase/functions/server/kv_store.tsx (PROTECTED)
+  ✓ supabase/functions/make-server-ef294769/index.ts
+  ✓ supabase/functions/make-server-ef294769/kv_store.ts (PROTECTED)
   ✓ utils/supabase/info.tsx
 
 PUBLIC:

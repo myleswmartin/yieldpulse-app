@@ -2,7 +2,7 @@
 
 ## Files Changed
 
-1. `/supabase/functions/server/index.tsx` - Added Stripe routes with proper auth
+1. `/supabase/functions/make-server-ef294769/index.ts` - Added Stripe routes with proper auth
 2. `/src/pages/ResultsPage.tsx` - Updated to use user JWT access token
 3. `/src/contexts/AuthContext.tsx` - Fixed sign out reliability
 4. `/src/components/Header.tsx` - Fixed sign out navigation
@@ -124,7 +124,7 @@ app.post("/make-server-ef294769/stripe/checkout-session", async (c) => {
     // STEP 2: Use service role client for database operations
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")! // SERVICE ROLE for DB writes
+      Deno.env.get("SERVICE_ROLE_KEY")! // SERVICE ROLE for DB writes
     );
 
     // Fetch analysis owned by user
@@ -230,7 +230,7 @@ app.post("/make-server-ef294769/stripe/checkout-session", async (c) => {
 ### 3. Webhook Verification with Raw Body
 
 ```typescript
-app.post("/make-server-ef294769/stripe/webhook", async (c) => {
+app.post("/stripe-webhook", async (c) => {
   try {
     const signature = c.req.header("stripe-signature");
     
@@ -258,7 +258,7 @@ app.post("/make-server-ef294769/stripe/webhook", async (c) => {
 
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        Deno.env.get("SERVICE_ROLE_KEY")!
       );
 
       // Idempotency check
@@ -335,7 +335,7 @@ app.get("/make-server-ef294769/purchases/status", async (c) => {
     // Use service role client for database query
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SERVICE_ROLE_KEY")!
     );
 
     const { data: purchases, error } = await supabase

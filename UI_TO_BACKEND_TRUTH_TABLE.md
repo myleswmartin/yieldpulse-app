@@ -262,7 +262,7 @@
 3. Backend creates/reuses `report_purchases` row with `status: 'pending'` + immutable `snapshot` (JSONB)
 4. Backend creates Stripe Checkout Session, returns URL
 5. User completes payment on Stripe
-6. Stripe webhook calls `/make-server-ef294769/stripe/webhook`
+6. Stripe webhook calls `/stripe-webhook`
 7. Webhook updates `report_purchases.status = 'paid'`, sets `purchased_at`
 8. User redirected to `/dashboard?payment=success&analysisId={id}`
 9. ResultsPage checks `/purchases/status` again, sees `status: 'paid'`, unlocks premium features
@@ -403,7 +403,7 @@
 | **Idempotency** | SEMI-IDEMPOTENT:<br>- Checks for existing paid purchase → returns error<br>- Reuses pending purchase if created within 30 mins<br>- Creates new purchase otherwise |
 | **Critical Notes** | - **Origin allowlist enforced:** localhost, figma.site, vercel.app<br>- Creates immutable `snapshot` (JSONB) with inputs, results, metadata<br>- Sets `status: 'pending'`, `amount_aed: 49`<br>- Stripe session includes metadata: user_id, analysis_id, purchase_id<br>- Success URL: `/dashboard?payment=success&analysisId={id}`<br>- Cancel URL: `/results?payment=cancelled` |
 
-#### POST `/make-server-ef294769/stripe/webhook`
+#### POST `/stripe-webhook`
 | Property | Value |
 |----------|-------|
 | **Auth Required** | No (Stripe signature verified) |
@@ -509,7 +509,7 @@ User (authenticated)
     → Creates Stripe Checkout Session
   → User redirected to Stripe
   → User completes payment
-  → Stripe sends webhook to /stripe/webhook
+  → Stripe sends webhook to /stripe-webhook
     → Verifies signature
     → Updates report_purchases.status = 'paid'
     → Updates analyses.is_paid = true
@@ -578,7 +578,7 @@ VITE_SUPABASE_ANON_KEY={anon_key}
 ```bash
 SUPABASE_URL={project}.supabase.co
 SUPABASE_ANON_KEY={anon_key}
-SUPABASE_SERVICE_ROLE_KEY={service_role_key}  # CRITICAL: Never expose to frontend
+SERVICE_ROLE_KEY={service_role_key}  # CRITICAL: Never expose to frontend
 STRIPE_SECRET_KEY=sk_live_... or sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ENVIRONMENT=production  # or development
@@ -662,7 +662,7 @@ ENVIRONMENT=production  # or development
 - [ ] Run `/DATABASE_MIGRATION_STRIPE.sql` for payment tables
 - [ ] Configure Supabase Email Authentication (SMTP or provider)
 - [ ] Set up Stripe account, obtain live keys
-- [ ] Configure Stripe webhook endpoint: `{edge-function-url}/make-server-ef294769/stripe/webhook`
+- [ ] Configure Stripe webhook endpoint: `{edge-function-url}/stripe-webhook`
 - [ ] Add webhook secret to `STRIPE_WEBHOOK_SECRET` env var
 - [ ] Test email verification flow end-to-end
 - [ ] Test payment flow with Stripe test mode

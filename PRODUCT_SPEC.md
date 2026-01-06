@@ -699,7 +699,7 @@ Since this is a prototype:
 - State management for multi-step flow
 
 ### Backend (Supabase Edge Functions)
-- Hono web server at `/supabase/functions/server/index.tsx`
+- Hono web server at `/supabase/functions/make-server-ef294769/index.ts`
 - Routes:
   - POST `/make-server-ef294769/auth/signup`
   - POST `/make-server-ef294769/analyses/create`

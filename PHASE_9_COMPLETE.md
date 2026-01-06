@@ -196,7 +196,7 @@ export interface ReportSnapshot {
 **No changes to:**
 - ✅ `/src/pages/ResultsPage.tsx`
 - ✅ `/src/utils/calculations.ts`
-- ✅ `/supabase/functions/server/`
+- ✅ `/supabase/functions/make-server-ef294769/`
 - ✅ Database schema
 - ✅ RLS policies
 - ✅ Stripe integration

@@ -599,7 +599,7 @@ The application successfully delivers a valuable free tool (ROI calculator) whil
 4. `/src/pages/ResultsPage.tsx` - Saved analysis support
 
 ### Updated Files (1)
-1. `/supabase/functions/server/index.tsx` - Added POST /analyses
+1. `/supabase/functions/make-server-ef294769/index.ts` - Added POST /analyses
 
 ### Documentation Files (9)
 1. `README.md` - Project overview
