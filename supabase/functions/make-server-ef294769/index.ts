@@ -62,9 +62,20 @@ app.onError((err, c) => {
 // Helpers
 // ------------------------------------------------------------
 const getAccessToken = (c: any): string | undefined => {
-  const authHeader =
-    c.req.header("authorization") ?? c.req.header("Authorization");
-  if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
+  const authHeader = c.req.header("Authorization");
+  if (authHeader?.startsWith("Bearer ")) return authHeader.split(" ")[1];
+
+  // Safely attempt cookie access (may not exist without cookie middleware)
+  try {
+    const cookieFn = (c.req as any)?.cookie;
+    if (typeof cookieFn === 'function') {
+      const cookieToken = cookieFn.call(c.req, "sb-access-token");
+      if (cookieToken) return cookieToken;
+    }
+  } catch {
+    // ignore cookie access errors
+  }
+
   return undefined;
 };
 
@@ -90,6 +101,37 @@ const requireUser = async (c: any) => {
   }
 
   return { user: data.user, accessToken, error: null };
+};
+
+const requireAdmin = async (c: any) => {
+  const { user, accessToken, error } = await requireUser(c);
+  if (!user) return { user: null, accessToken: null, error: error || "Unauthorized" };
+
+  if (!serviceRoleKey) {
+    console.error('SERVICE_ROLE_KEY missing for admin check');
+    return { user: null, accessToken: null, error: 'Server misconfigured' };
+  }
+
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data: profile, error: profileError } = await adminClient
+    .from('profiles')
+    .select('id, is_admin')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error('Admin check failed:', profileError.message);
+    return { user: null, accessToken: null, error: 'Admin check failed' };
+  }
+
+  if (!profile?.is_admin) {
+    return { user: null, accessToken: null, error: 'Forbidden' };
+  }
+
+  return { user, accessToken, error: null };
 };
 
 // Stripe: lazy init (won't boot-crash if key missing until route is hit)
@@ -640,6 +682,305 @@ app.post("/stripe/checkout-session", async (c) => {
   } catch (err) {
     console.error("Checkout session error:", err);
     return c.json({ error: "Failed to create checkout session" }, 500);
+  }
+});
+
+// ================================================================
+// ADMIN ROUTES
+// ================================================================
+
+app.get('/admin/stats', async (c) => {
+  try {
+    const { user, error } = await requireAdmin(c);
+    if (!user) return c.json({ error: error || 'Unauthorized' }, error === 'Forbidden' ? 403 : 401);
+
+    if (!serviceRoleKey) {
+      return c.json({ error: 'SERVICE_ROLE_KEY missing' }, 500);
+    }
+
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const [{ count: totalUsers }, { count: paidPurchases }, { count: pendingPurchases }] = await Promise.all([
+      adminClient.from('profiles').select('id', { count: 'exact', head: true }),
+      adminClient.from('report_purchases').select('id', { count: 'exact', head: true }).eq('status', 'paid'),
+      adminClient.from('report_purchases').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    ]);
+
+    const { data: revenueRows, error: revenueError } = await adminClient
+      .from('report_purchases')
+      .select('amount_aed')
+      .eq('status', 'paid');
+
+    if (revenueError) {
+      console.error('Revenue query failed:', revenueError.message);
+    }
+
+    const totalRevenue = (revenueRows || []).reduce((sum: number, row: any) => sum + (row.amount_aed || 0), 0);
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { count: recentPurchases } = await adminClient
+      .from('report_purchases')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'paid')
+      .gte('created_at', sevenDaysAgo);
+
+    const usersCount = totalUsers || 0;
+    const paidCount = paidPurchases || 0;
+    const conversionRate = usersCount > 0 ? Math.round((paidCount / usersCount) * 1000) / 10 : 0;
+
+    return c.json({
+      totalUsers: usersCount,
+      totalRevenue: totalRevenue,
+      conversionRate: conversionRate,
+      openTickets: 0,
+      pendingPurchases: pendingPurchases || 0,
+      paidPurchases: paidCount,
+      recentPurchases: recentPurchases || 0,
+    });
+  } catch (err) {
+    console.error('Admin stats error:', err);
+    return c.json({ error: 'Failed to load admin stats' }, 500);
+  }
+});
+
+// ================================================================
+// ADMIN USERS
+// ================================================================
+app.get('/admin/users', async (c) => {
+  try {
+    const { user, error } = await requireAdmin(c);
+    if (!user) return c.json({ error: error || 'Unauthorized' }, error === 'Forbidden' ? 403 : 401);
+
+    if (!serviceRoleKey) {
+      return c.json({ error: 'SERVICE_ROLE_KEY missing' }, 500);
+    }
+
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const page = Math.max(parseInt(c.req.query('page') || '1', 10), 1);
+    const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '20', 10), 1), 100);
+    const search = (c.req.query('search') || '').trim();
+    const adminFilter = c.req.query('admin_filter');
+
+    let query = adminClient
+      .from('profiles')
+      .select('id,email,full_name,is_admin,created_at', { count: 'exact' });
+
+    if (search) {
+      query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`);
+    }
+
+    if (adminFilter === 'true' || adminFilter === 'false') {
+      query = query.eq('is_admin', adminFilter === 'true');
+    }
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data: users, error: usersError, count } = await query
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (usersError) {
+      console.error('Admin users list error:', usersError.message);
+      return c.json({ error: 'Failed to load users' }, 500);
+    }
+
+    const userIds = (users || []).map((u: any) => u.id);
+    const purchaseCounts: Record<string, number> = {};
+
+    if (userIds.length > 0) {
+      const { data: purchases, error: purchasesError } = await adminClient
+        .from('report_purchases')
+        .select('user_id')
+        .in('user_id', userIds);
+
+      if (purchasesError) {
+        console.error('Admin users purchase count error:', purchasesError.message);
+      } else {
+        for (const row of purchases || []) {
+          purchaseCounts[row.user_id] = (purchaseCounts[row.user_id] || 0) + 1;
+        }
+      }
+    }
+
+    const usersWithCounts = (users || []).map((u: any) => ({
+      ...u,
+      purchase_count: purchaseCounts[u.id] || 0,
+    }));
+
+    const total = count || 0;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    return c.json({
+      users: usersWithCounts,
+      total,
+      totalPages,
+      page,
+      limit,
+    });
+  } catch (err) {
+    console.error('Admin users list error:', err);
+    return c.json({ error: 'Failed to load users' }, 500);
+  }
+});
+
+app.get('/admin/users/:id', async (c) => {
+  try {
+    const { user, error } = await requireAdmin(c);
+    if (!user) return c.json({ error: error || 'Unauthorized' }, error === 'Forbidden' ? 403 : 401);
+
+    if (!serviceRoleKey) {
+      return c.json({ error: 'SERVICE_ROLE_KEY missing' }, 500);
+    }
+
+    const userId = c.req.param('id');
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data: profile, error: profileError } = await adminClient
+      .from('profiles')
+      .select('id,email,full_name,is_admin,created_at')
+      .eq('id', userId)
+      .single();
+
+    if (profileError || !profile) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+
+    const [
+      { count: totalAnalyses },
+      { count: totalPurchases },
+      { count: paidPurchases },
+    ] = await Promise.all([
+      adminClient.from('analyses').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+      adminClient.from('report_purchases').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+      adminClient.from('report_purchases').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'paid'),
+    ]);
+
+    const { data: revenueRows, error: revenueError } = await adminClient
+      .from('report_purchases')
+      .select('amount_aed')
+      .eq('user_id', userId)
+      .eq('status', 'paid');
+
+    if (revenueError) {
+      console.error('Admin user revenue error:', revenueError.message);
+    }
+
+    const totalSpent = (revenueRows || []).reduce(
+      (sum: number, row: any) => sum + (row.amount_aed || 0),
+      0
+    );
+
+    const { data: purchases } = await adminClient
+      .from('report_purchases')
+      .select('id,analysis_id,amount_aed,status,created_at,stripe_payment_intent_id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    const { data: analyses } = await adminClient
+      .from('analyses')
+      .select('id,created_at,purchase_price,gross_yield,is_paid')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    return c.json({
+      user: profile,
+      stats: {
+        total_analyses: totalAnalyses || 0,
+        total_purchases: totalPurchases || 0,
+        paid_purchases: paidPurchases || 0,
+        total_spent: totalSpent,
+      },
+      purchases: purchases || [],
+      analyses: analyses || [],
+    });
+  } catch (err) {
+    console.error('Admin user details error:', err);
+    return c.json({ error: 'Failed to load user details' }, 500);
+  }
+});
+
+app.put('/admin/users/:id', async (c) => {
+  try {
+    const { user, error } = await requireAdmin(c);
+    if (!user) return c.json({ error: error || 'Unauthorized' }, error === 'Forbidden' ? 403 : 401);
+
+    if (!serviceRoleKey) {
+      return c.json({ error: 'SERVICE_ROLE_KEY missing' }, 500);
+    }
+
+    const userId = c.req.param('id');
+    const payload = await c.req.json();
+    const update: Record<string, any> = {};
+
+    if (typeof payload.is_admin === 'boolean') {
+      update.is_admin = payload.is_admin;
+    }
+    if (typeof payload.full_name === 'string') {
+      update.full_name = payload.full_name;
+    }
+
+    if (Object.keys(update).length === 0) {
+      return c.json({ error: 'No valid fields to update' }, 400);
+    }
+
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data: updated, error: updateError } = await adminClient
+      .from('profiles')
+      .update(update)
+      .eq('id', userId)
+      .select('id,email,full_name,is_admin,created_at')
+      .single();
+
+    if (updateError || !updated) {
+      console.error('Admin user update error:', updateError?.message);
+      return c.json({ error: 'Failed to update user' }, 400);
+    }
+
+    return c.json({ user: updated });
+  } catch (err) {
+    console.error('Admin user update error:', err);
+    return c.json({ error: 'Failed to update user' }, 500);
+  }
+});
+
+app.delete('/admin/users/:id', async (c) => {
+  try {
+    const { user, error } = await requireAdmin(c);
+    if (!user) return c.json({ error: error || 'Unauthorized' }, error === 'Forbidden' ? 403 : 401);
+
+    if (!serviceRoleKey) {
+      return c.json({ error: 'SERVICE_ROLE_KEY missing' }, 500);
+    }
+
+    const userId = c.req.param('id');
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
+
+    if (deleteError) {
+      console.error('Admin user delete error:', deleteError.message);
+      return c.json({ error: 'Failed to delete user' }, 400);
+    }
+
+    return c.json({ success: true });
+  } catch (err) {
+    console.error('Admin user delete error:', err);
+    return c.json({ error: 'Failed to delete user' }, 500);
   }
 });
 

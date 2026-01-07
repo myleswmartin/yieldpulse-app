@@ -7,6 +7,7 @@ import { handleError } from '../utils/errorHandling';
 export default function SignInPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const redirectParam = new URLSearchParams(location.search).get('redirect');
   
   // Safely access useAuth with error boundary
   let authContext;
@@ -32,7 +33,7 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
 
-  const from = (location.state as any)?.from?.pathname || '/dashboard';
+  const from = (location.state as any)?.from?.pathname || redirectParam || '/dashboard';
   const safeFrom = from.startsWith('/auth') ? '/dashboard' : from;
 
   useEffect(() => {

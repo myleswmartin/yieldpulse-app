@@ -24,6 +24,20 @@ export default function CalculatorPage() {
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [warnings, setWarnings] = useState<FieldWarning[]>([]);
 
+  const savePendingAnalysis = (payload: { inputs: PropertyInputs; results: CalculationResults }) => {
+    try {
+      const key = 'yieldpulse-pending-analyses';
+      const raw = localStorage.getItem(key);
+      const existing = raw ? JSON.parse(raw) : [];
+      const next = Array.isArray(existing) ? existing : [];
+      next.push({ ...payload, createdAt: new Date().toISOString() });
+      localStorage.setItem(key, JSON.stringify(next));
+    } catch (err) {
+      console.warn('Failed to save pending analysis to localStorage:', err);
+    }
+  };
+
+
   const [formData, setFormData] = useState({
     portalSource: 'Bayut',
     listingUrl: '',
@@ -198,6 +212,7 @@ export default function CalculatorPage() {
     } else {
       // Unauthenticated users: navigate with in-memory state only
       setShowSignInPrompt(true);
+      savePendingAnalysis({ inputs, results: calculatedResults });
       navigate('/results', { 
         state: { 
           inputs, 

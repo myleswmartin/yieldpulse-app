@@ -522,7 +522,7 @@ export default function ResultsPage() {
                 }`}
               >
                 <Download className="w-4 h-4" />
-                <span>{generatingPDF ? 'Generating...' : 'Download PDF'}</span>
+                <span style={{color:'black'}}>{generatingPDF ? 'Generating...' : 'Download PDF'}</span>
                 {!isPremiumUnlocked && <span className="text-xs">(premium only)</span>}
               </button>
               <button

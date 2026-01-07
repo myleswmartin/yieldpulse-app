@@ -1,5 +1,6 @@
-import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { createContext, useState, useContext, useEffect, ReactNode, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { saveAnalysis } from '../utils/apiClient';
 
 interface User {
   id: string;
@@ -49,6 +50,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
+
+  const pendingSyncRef = useRef(false);
+
+  const syncPendingAnalyses = async () => {
+    if (pendingSyncRef.current) return;
+    pendingSyncRef.current = true;
+    try {
+      const key = 'yieldpulse-pending-analyses';
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list) || list.length === 0) {
+        localStorage.removeItem(key);
+        return;
+      }
+
+      const remaining = [];
+      for (const item of list) {
+        if (!item?.inputs || !item?.results) continue;
+        const { error } = await saveAnalysis({
+          inputs: item.inputs,
+          results: item.results,
+        });
+        if (error) {
+          remaining.push(item);
+        }
+      }
+
+      if (remaining.length > 0) {
+        localStorage.setItem(key, JSON.stringify(remaining));
+      } else {
+        localStorage.removeItem(key);
+      }
+    } catch (err) {
+      console.warn('Failed to sync pending analyses:', err);
+    } finally {
+      pendingSyncRef.current = false;
+    }
+  };
+
 
   const fetchUserProfile = async (userId: string, email: string, emailConfirmed: boolean) => {
     try {
@@ -116,6 +157,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           emailVerified: emailConfirmed,
         });
 
+        void syncPendingAnalyses();
+
         // Fetch profile in background (never await here)
         fetchUserProfile(session.user.id, session.user.email || '', emailConfirmed)
           .catch((err) => console.warn('Profile fetch failed:', err?.message));
@@ -146,6 +189,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: session.user.email || '',
           emailVerified: emailConfirmed,
         });
+
+        void syncPendingAnalyses();
 
         setSessionExpired(false);
 
