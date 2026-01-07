@@ -717,7 +717,24 @@ app.get('/admin/stats', async (c) => {
       console.error('Revenue query failed:', revenueError.message);
     }
 
-    const totalRevenue = (revenueRows || []).reduce((sum: number, row: any) => sum + (row.amount_aed || 0), 0);
+    const totalRevenue = (revenueRows || []).reduce(
+      (sum: number, row: any) => sum + Number(row.amount_aed || 0),
+      0
+    );
+
+    const { data: paidUserRows, error: paidUsersError } = await adminClient
+      .from('report_purchases')
+      .select('user_id')
+      .eq('status', 'paid');
+
+    if (paidUsersError) {
+      console.error('Paid users query failed:', paidUsersError.message);
+    }
+
+    const paidUsersSet = new Set(
+      (paidUserRows || []).map((row: any) => row.user_id).filter(Boolean)
+    );
+    const paidUsersCount = paidUsersSet.size;
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { count: recentPurchases } = await adminClient
@@ -728,7 +745,9 @@ app.get('/admin/stats', async (c) => {
 
     const usersCount = totalUsers || 0;
     const paidCount = paidPurchases || 0;
-    const conversionRate = usersCount > 0 ? Math.round((paidCount / usersCount) * 1000) / 10 : 0;
+    const conversionRate = usersCount > 0
+      ? Math.round((paidUsersCount / usersCount) * 1000) / 10
+      : 0;
 
     return c.json({
       totalUsers: usersCount,
@@ -737,6 +756,7 @@ app.get('/admin/stats', async (c) => {
       openTickets: 0,
       pendingPurchases: pendingPurchases || 0,
       paidPurchases: paidCount,
+      paidUsers: paidUsersCount,
       recentPurchases: recentPurchases || 0,
     });
   } catch (err) {
