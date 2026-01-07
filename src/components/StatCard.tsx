@@ -2,24 +2,33 @@ import { LucideIcon } from 'lucide-react';
 import { ReactNode } from 'react';
 
 interface StatCardProps {
-  label: string;
+  label?: string;
+  title?: string; // Backwards compatibility
   value: string | number;
-  icon?: LucideIcon;
+  icon?: LucideIcon | React.FC<{ className?: string; size?: number }>;
   description?: string;
-  trend?: 'positive' | 'negative' | 'neutral';
+  subtitle?: string; // Backwards compatibility
+  trend?: 'positive' | 'negative' | 'neutral' | 'up' | 'down'; // Support both naming conventions
   variant?: 'default' | 'navy' | 'teal' | 'success' | 'warning';
   className?: string;
 }
 
 export function StatCard({
   label,
+  title, // Backwards compatibility
   value,
   icon: Icon,
   description,
+  subtitle, // Backwards compatibility
   trend,
   variant = 'default',
   className = ''
 }: StatCardProps) {
+  // Use title if label is not provided (backwards compatibility)
+  const displayLabel = label || title;
+  // Use subtitle if description is not provided (backwards compatibility)
+  const displayDescription = description || subtitle;
+  
   const variantStyles = {
     default: 'bg-white border border-neutral-200',
     navy: 'bg-[#1e2875]/5 border border-[#1e2875]/10',
@@ -38,20 +47,23 @@ export function StatCard({
 
   const getTrendColor = () => {
     if (!trend) return '';
-    return trend === 'positive' ? 'text-emerald-600' : trend === 'negative' ? 'text-red-600' : 'text-neutral-600';
+    // Support both 'positive'/'negative' and 'up'/'down' naming conventions
+    if (trend === 'positive' || trend === 'up') return 'text-emerald-600';
+    if (trend === 'negative' || trend === 'down') return 'text-red-600';
+    return 'text-neutral-600';
   };
 
   return (
     <div className={`rounded-xl p-6 transition-all hover:shadow-md ${variantStyles[variant]} ${className}`}>
       <div className="flex items-start justify-between mb-4">
-        <span className="text-sm font-medium text-neutral-600">{label}</span>
+        <span className="text-sm font-medium text-neutral-600">{displayLabel}</span>
         {Icon && <Icon className={`w-5 h-5 ${iconColorStyles[variant]}`} />}
       </div>
       <p className={`text-3xl font-bold tracking-tight mb-2 ${getTrendColor() || 'text-neutral-900'}`}>
         {value}
       </p>
-      {description && (
-        <p className="text-xs text-neutral-500">{description}</p>
+      {displayDescription && (
+        <p className="text-xs text-neutral-500">{displayDescription}</p>
       )}
     </div>
   );

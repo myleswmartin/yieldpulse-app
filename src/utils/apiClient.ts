@@ -19,8 +19,26 @@ export interface ApiResponse<T = any> {
  * Get current user's access token for Authorization header
  */
 async function getAccessToken(): Promise<string | null> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.access_token) return session.access_token;
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (!error && session) {
+      let token = session.access_token || null;
+
+      if (session.expires_at && session.expires_at * 1000 < Date.now()) {
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (!refreshError && refreshedSession?.access_token) {
+          token = refreshedSession.access_token;
+        }
+      }
+
+      if (token) return token;
+    } else if (error) {
+      console.warn('Failed to get session:', error.message);
+    }
+  } catch (err) {
+    console.warn('Failed to get session:', err);
+  }
 
   // Fallback: read from persisted storageKey used in supabaseClient (yieldpulse-auth)
   try {
@@ -47,12 +65,12 @@ async function apiCall<T = any>(endpoint: string, options: RequestInit = {}): Pr
       ...options.headers,
       // Supabase Functions require apikey header for browser calls.
       apikey: publicAnonKey,
-      "x-client-info": "yieldpulse-web",
+      'x-client-info': 'yieldpulse-web',
     };
 
     // Only set Content-Type when a body is present to avoid unnecessary preflights.
-    if (options.body && !("Content-Type" in headers)) {
-      headers["Content-Type"] = "application/json";
+    if (options.body && !('Content-Type' in headers)) {
+      headers['Content-Type'] = 'application/json';
     }
 
     // Add Authorization header if user is authenticated
@@ -181,4 +199,56 @@ export async function createCheckoutSession(payload: CreateCheckoutRequest): Pro
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export interface CreateGuestCheckoutRequest {
+  inputs: any;
+  results: any;
+  origin: string;
+}
+
+/**
+ * Create Stripe guest checkout session (NO authentication required)
+ * Endpoint: POST /stripe/guest-checkout-session
+ */
+export async function createGuestCheckoutSession(payload: CreateGuestCheckoutRequest): Promise<ApiResponse> {
+  try {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      apikey: publicAnonKey,
+      'x-client-info': 'yieldpulse-web',
+      Authorization: `Bearer ${publicAnonKey}`,
+    };
+
+    const response = await fetch(`${BASE_URL}/stripe/guest-checkout-session`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    const requestId = response.headers.get('X-Request-ID') || undefined;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      return {
+        error: {
+          error: errorData.error || `HTTP ${response.status}`,
+          requestId,
+          status: response.status,
+        },
+        requestId,
+      };
+    }
+
+    const data = await response.json();
+    return { data, requestId };
+  } catch (err: any) {
+    console.error('API call failed:', err);
+    return {
+      error: {
+        error: err.message || 'Network error',
+        status: 0,
+      },
+    };
+  }
 }

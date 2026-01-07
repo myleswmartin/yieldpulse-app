@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "../utils/supabaseClient";
+import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { supabase } from '../utils/supabaseClient';
 
 interface User {
   id: string;
@@ -23,295 +23,350 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-AuthContext.displayName = "AuthContext";
 
-/** Real timeout wrapper (your AbortController approach did nothing for getSession). */
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+// Add display name for better debugging
+AuthContext.displayName = 'AuthContext';
+
+const withTimeout = <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
   let timer: number | undefined;
-
   const timeout = new Promise<T>((_, reject) => {
     timer = window.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
   });
-
   return Promise.race([promise, timeout]).finally(() => {
     if (timer) window.clearTimeout(timer);
   });
+};
+
+
+// Make context HMR-safe by preventing hot reload issues
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    console.log('🔄 AuthContext hot reloaded');
+  });
 }
 
-function safeLocalStorageGet(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function safeLocalStorageRemove(key: string) {
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    // ignore
-  }
-}
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
 
-  const mountedRef = useRef(true);
-
-  const safeSetUser = (u: User | null) => {
-    if (!mountedRef.current) return;
-    setUser(u);
-  };
-
-  const safeSetLoading = (v: boolean) => {
-    if (!mountedRef.current) return;
-    setLoading(v);
-  };
-
-  const buildBasicUser = (userId: string, email: string, emailConfirmed: boolean): User => ({
-    id: userId,
-    email,
-    emailVerified: emailConfirmed,
-  });
-
   const fetchUserProfile = async (userId: string, email: string, emailConfirmed: boolean) => {
-    // Never let profile fetch block the app.
-    // If RLS blocks or table missing, we still keep the user logged in with basic info.
     try {
-      // If this query hangs due to network, timeout and fallback.
-      const result = await withTimeout(
-        supabase.from("profiles").select("*").eq("id", userId).single(),
-        8000,
-        "profiles.select"
-      );
+      // Add timeout to prevent hanging on RLS issues
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
-      const profile = (result as any).data;
-      const error = (result as any).error;
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .abortSignal(controller.signal)
+        .single();
 
-      if (error || !profile) {
-        console.warn("Profile fetch failed; using fallback:", error?.message);
-        safeSetUser({
-          ...buildBasicUser(userId, email, emailConfirmed),
-          fullName: email?.split("@")[0] || undefined,
+      clearTimeout(timeoutId);
+
+      if (error) {
+        console.warn('Profile fetch error (using fallback):', error.message);
+        // If profile doesn't exist, create basic user object from auth
+        setUser({
+          id: userId,
+          email: email,
+          fullName: email.split('@')[0],
+          emailVerified: emailConfirmed,
         });
         return;
       }
 
-      safeSetUser({
+      setUser({
         id: profile.id,
-        email: profile.email ?? email,
-        fullName: profile.full_name ?? undefined,
-        isAdmin: !!profile.is_admin,
+        email: profile.email,
+        fullName: profile.full_name,
+        isAdmin: profile.is_admin,
         emailVerified: emailConfirmed,
       });
-    } catch (err: any) {
-      console.warn("Profile fetch timeout/error; using fallback:", err?.message);
-      safeSetUser({
-        ...buildBasicUser(userId, email, emailConfirmed),
-        fullName: email?.split("@")[0] || undefined,
+    } catch (error: any) {
+      console.warn('Error in fetchUserProfile (using fallback):', error.message);
+      // Fallback to basic user info
+      setUser({
+        id: userId,
+        email: email,
+        emailVerified: emailConfirmed,
       });
     }
-  };
-
-  const applySession = async (session: any | null) => {
-    if (!session?.user) {
-      safeSetUser(null);
-      return;
-    }
-
-    const email = session.user.email || "";
-    const emailConfirmed = session.user.email_confirmed_at != null;
-
-    // Set basic user immediately so UI can move on.
-    safeSetUser(buildBasicUser(session.user.id, email, emailConfirmed));
-
-    // Fetch profile in background (non-blocking).
-    void fetchUserProfile(session.user.id, email, emailConfirmed);
   };
 
   const initializeAuth = async () => {
-    safeSetLoading(true);
-
     try {
-      // Real timeout. If this hangs, we still release loading and let user sign in.
-      const { data, error } = await withTimeout(supabase.auth.getSession(), 8000, "auth.getSession");
+      const result = await withTimeout(supabase.auth.getSession(), 8000, 'auth.getSession');
+      const session = result.data?.session;
 
-      if (error) {
-        console.warn("getSession error:", error.message);
-        safeSetUser(null);
+      if (result.error) {
+        console.warn('Session error:', result.error.message);
+        setUser(null);
         return;
       }
 
-      await applySession(data?.session ?? null);
-    } catch (err: any) {
-      console.warn("Auth init failed (continuing without session):", err?.message);
-      safeSetUser(null);
+      if (session?.user) {
+        const emailConfirmed = session.user.email_confirmed_at !== null;
+
+        // IMPORTANT: set basic user immediately (unblocks UI)
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          emailVerified: emailConfirmed,
+        });
+
+        // Fetch profile in background (never await here)
+        fetchUserProfile(session.user.id, session.user.email || '', emailConfirmed)
+          .catch((err) => console.warn('Profile fetch failed:', err?.message));
+      } else {
+        setUser(null);
+      }
+    } catch (error: any) {
+      console.warn('Auth initialization error:', error?.message);
+      setUser(null);
     } finally {
-      safeSetLoading(false);
+      setLoading(false);
     }
   };
 
+
   useEffect(() => {
-    mountedRef.current = true;
+    initializeAuth();
 
-    void initializeAuth();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event);
 
-    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // IMPORTANT: never block auth state updates on profile fetch.
-      console.log("Auth state changed:", event, {
-        userId: session?.user?.id,
-        email: session?.user?.email,
-      });
+      if (event === 'SIGNED_IN' && session?.user) {
+        const emailConfirmed = session.user.email_confirmed_at !== null;
 
-      try {
-        if (event === "SIGNED_OUT") {
-          safeSetUser(null);
-          setSessionExpired(false);
-          return;
-        }
+        // Set basic user immediately
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          emailVerified: emailConfirmed,
+        });
 
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-          await applySession(session);
-          setSessionExpired(false);
-          return;
-        }
+        setSessionExpired(false);
 
-        // PASSWORD_RECOVERY etc. can be ignored here.
-      } finally {
-        // If auth init was stuck for some reason, this guarantees we stop showing loading.
-        safeSetLoading(false);
+        // Background profile fetch
+        fetchUserProfile(session.user.id, session.user.email || '', emailConfirmed)
+          .catch((err) => console.warn('Profile fetch failed:', err?.message));
       }
+
+      if (event === 'SIGNED_OUT') setUser(null);
     });
 
-    return () => {
-      mountedRef.current = false;
-      data.subscription.unsubscribe();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    console.log("AuthContext: signIn start", { email });
+    try {
+      console.log('🔐 Starting sign in process...');
+      console.log('📧 Email:', email);
+      
+      // Direct auth call without complex timeout wrapper
+      console.log('🌐 Sending authentication request...');
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        10000,
+        'auth.signInWithPassword'
+      );
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      console.log('📨 Authentication response received');
 
-    if (error) {
-      console.error("AuthContext: signIn error:", error);
-      throw new Error(error.message || "Failed to sign in");
+      if (error) {
+        console.error('❌ Sign in error:', error);
+        throw new Error(error.message || 'Failed to sign in');
+      }
+      
+      if (!data || !data.session) {
+        console.error('❌ No session data returned');
+        throw new Error('Sign in failed - no session created');
+      }
+      
+      console.log('✅ Sign in successful, session created');
+      
+      if (data.session?.user) {
+        const emailConfirmed = data.session.user.email_confirmed_at !== null;
+        
+        // Set user immediately with basic info to unblock UI
+        setUser({
+          id: data.session.user.id,
+          email: data.session.user.email || '',
+          emailVerified: emailConfirmed,
+        });
+        
+        console.log('✅ User state updated, fetching profile in background...');
+        
+        // Fetch profile in background - don't block sign in on this
+        fetchUserProfile(data.session.user.id, data.session.user.email || '', emailConfirmed)
+          .then(() => console.log('✅ Profile loaded successfully'))
+          .catch((err) => console.warn('⚠️ Profile fetch failed (user still authenticated):', err.message));
+        
+        // Clear pending verification email from localStorage
+        try {
+          localStorage.removeItem('pendingVerificationEmail');
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
+    } catch (error: any) {
+      // Re-throw authentication errors
+      if (error.message?.includes('Invalid login credentials') || 
+          error.message?.includes('Email not confirmed') ||
+          error.message?.includes('Failed to sign in')) {
+        throw error;
+      }
+      // For other errors, throw a generic message
+      console.error('❌ Unexpected sign in error:', error);
+      throw new Error('Unable to sign in. Please try again.');
     }
-
-    if (!data?.session?.user) {
-      throw new Error("Sign in failed - no session created");
-    }
-
-    const emailConfirmed = data.session.user.email_confirmed_at != null;
-
-    // Set basic user immediately (no waiting).
-    safeSetUser(buildBasicUser(data.session.user.id, data.session.user.email || "", emailConfirmed));
-
-    // Fetch profile async.
-    void fetchUserProfile(data.session.user.id, data.session.user.email || "", emailConfirmed);
-
-    safeLocalStorageRemove("pendingVerificationEmail");
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    // Get the current app URL for email redirect
     const redirectUrl = `${window.location.origin}/auth/verify-email`;
 
+    // Sign up with Supabase Auth - email verification required
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: {
+          full_name: fullName,
+        },
         emailRedirectTo: redirectUrl,
       },
     });
 
     if (error) {
-      console.error("Sign up error:", error);
-      throw new Error(error.message || "Failed to sign up");
+      console.error('Sign up error:', error);
+      throw new Error(error.message || 'Failed to sign up');
     }
 
     if (!data.user) {
-      throw new Error("Signup failed - no user returned");
+      throw new Error('Signup failed - no user returned');
     }
 
-    // For resend
+    // Store email in localStorage for resend functionality (before verification)
     try {
-      localStorage.setItem("pendingVerificationEmail", email);
-    } catch {
-      // ignore
+      localStorage.setItem('pendingVerificationEmail', email);
+    } catch (e) {
+      console.warn('Could not store email in localStorage:', e);
     }
 
-    // Do NOT set user here; user must verify first (depending on your Supabase settings).
+    // Profile will be created by database trigger when user verifies email
+    // Do NOT manually insert into profiles table - RLS policy prevents it
+    
+    // User is created but not confirmed - they need to verify email
+    // Do NOT set user in state - they must verify first
   };
 
   const signOut = async () => {
-    // Clear UI immediately.
-    safeSetUser(null);
-
-    const { error } = await supabase.auth.signOut();
-    if (error) console.error("Sign out error:", error);
+    try {
+      // Clear user state immediately
+      setUser(null);
+      
+      // Attempt to sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Sign out error:', error);
+        // Don't throw - user state is already cleared
+      }
+    } catch (error) {
+      console.error('Error in signOut:', error);
+      // User state already cleared above
+    }
   };
 
   const resendVerificationEmail = async () => {
-    const { data } = await supabase.auth.getSession();
-
-    let emailToUse = data.session?.user?.email || safeLocalStorageGet("pendingVerificationEmail");
-    if (!emailToUse) throw new Error("No email found. Please sign up again.");
+    // Try to get email from session first
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    let emailToUse = session?.user?.email;
+    
+    // If no session (unverified user), try localStorage
+    if (!emailToUse) {
+      try {
+        emailToUse = localStorage.getItem('pendingVerificationEmail');
+      } catch (e) {
+        console.warn('Could not read from localStorage:', e);
+      }
+    }
+    
+    if (!emailToUse) {
+      throw new Error('No email found. Please sign up again.');
+    }
 
     const redirectUrl = `${window.location.origin}/auth/verify-email`;
-
+    
     const { error } = await supabase.auth.resend({
-      type: "signup",
+      type: 'signup',
       email: emailToUse,
-      options: { emailRedirectTo: redirectUrl },
+      options: {
+        emailRedirectTo: redirectUrl,
+      },
     });
 
-    if (error) throw new Error(error.message || "Failed to resend verification email");
+    if (error) {
+      console.error('Resend verification error:', error);
+      throw new Error(error.message || 'Failed to resend verification email');
+    }
   };
 
   const resetPassword = async (email: string) => {
     const redirectUrl = `${window.location.origin}/auth/reset-password`;
-
+    
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
     });
 
-    if (error) throw new Error(error.message || "Failed to send password reset email");
+    if (error) {
+      console.error('Password reset error:', error);
+      throw new Error(error.message || 'Failed to send password reset email');
+    }
   };
 
   const updatePassword = async (newPassword: string) => {
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) throw new Error(error.message || "Failed to update password");
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      console.error('Update password error:', error);
+      throw new Error(error.message || 'Failed to update password');
+    }
   };
 
-  const clearSessionExpired = () => setSessionExpired(false);
+  const clearSessionExpired = () => {
+    setSessionExpired(false);
+  };
 
-  const value = useMemo<AuthContextType>(
-    () => ({
-      user,
-      loading,
+  return (
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
       sessionExpired,
-      signIn,
-      signUp,
+      signIn, 
+      signUp, 
       signOut,
       resendVerificationEmail,
       resetPassword,
       updatePassword,
       clearSessionExpired,
-    }),
-    [user, loading, sessionExpired]
+    }}>
+      {children}
+    </AuthContext.Provider>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }

@@ -1,15 +1,16 @@
 import { useLocation, Link } from 'react-router-dom';
-import { TrendingUp, DollarSign, Lock, ArrowLeft, CheckCircle, FileText, Download, GitCompare, Calendar, Info, AlertCircle, Sparkles } from 'lucide-react';
+import { TrendingUp, DollarSign, Lock, ArrowLeft, CheckCircle, FileText, Download, GitCompare, Calendar, Info, AlertCircle, Sparkles, Save, UserPlus, LogIn, Shield } from 'lucide-react';
 import { CalculationResults, formatCurrency, formatPercent, PropertyInputs } from '../utils/calculations';
 import { useAuth } from '../contexts/AuthContext';
 import { Header } from '../components/Header';
 import { StatCard } from '../components/StatCard';
+import { PremiumReport } from '../components/PremiumReport';
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { generatePDF } from '../utils/pdfGenerator';
 import { showSuccess, handleError } from '../utils/errorHandling';
 import { trackPdfDownload, trackPremiumUnlock } from '../utils/analytics';
-import { checkPurchaseStatus, createCheckoutSession, saveAnalysis } from '../utils/apiClient';
+import { checkPurchaseStatus, createCheckoutSession, saveAnalysis, createGuestCheckoutSession } from '../utils/apiClient';
 import { 
   BarChart, 
   Bar, 
@@ -25,7 +26,6 @@ import {
   ComposedChart,
   Line
 } from 'recharts';
-import { Button } from '@/app/components/ui/button';
 
 // ================================================================
 // HELPER FUNCTION: Build PropertyInputs from saved analysis record
@@ -185,40 +185,62 @@ export default function ResultsPage() {
   };
   
   const handleUnlockPremium = async () => {
-    if (!user) {
-      alert('Please sign in to unlock the premium report');
-      return;
-    }
-
-    if (!analysisId) {
-      alert('Analysis not saved. Please save your analysis first.');
-      return;
-    }
-
     setCreatingCheckout(true);
     
     try {
       const currentOrigin = window.location.origin;
       
-      const { data, error, requestId } = await createCheckoutSession({
-        analysisId,
-        origin: currentOrigin,
-      });
+      // NEW FLOW: Use guest checkout for everyone
+      // If user is logged in AND has saved the report, use authenticated checkout
+      if (user && analysisId) {
+        const { data, error, requestId } = await createCheckoutSession({
+          analysisId,
+          origin: currentOrigin,
+        });
 
-      if (error) {
-        console.error('Error creating checkout session:', error);
-        handleError(
-          error.error || 'Failed to create checkout session',
-          'Create Checkout',
-          () => handleUnlockPremium(),
-          requestId
-        );
-        return;
-      }
+        if (error) {
+          console.error('Error creating checkout session:', error);
+          handleError(
+            error.error || 'Failed to create checkout session',
+            'Create Checkout',
+            () => handleUnlockPremium(),
+            requestId
+          );
+          return;
+        }
 
-      if (data?.url) {
-        // Redirect to Stripe Checkout
-        window.location.href = data.url;
+        if (data?.url) {
+          // Redirect to Stripe Checkout
+          window.location.href = data.url;
+        }
+      } else {
+        // Guest checkout for non-authenticated users OR users who haven't saved
+        if (!inputs || !displayResults) {
+          handleError('Analysis data not available. Please try again.', 'Create Checkout');
+          return;
+        }
+
+        const { data, error, requestId } = await createGuestCheckoutSession({
+          inputs,
+          results: displayResults,
+          origin: currentOrigin,
+        });
+
+        if (error) {
+          console.error('Error creating guest checkout session:', error);
+          handleError(
+            error.error || 'Failed to create checkout session',
+            'Create Checkout',
+            () => handleUnlockPremium(),
+            requestId
+          );
+          return;
+        }
+
+        if (data?.url) {
+          // Redirect to Stripe Checkout
+          window.location.href = data.url;
+        }
       }
     } catch (error: any) {
       console.error('Error creating checkout session:', error);
@@ -370,6 +392,43 @@ export default function ResultsPage() {
 
   const sensitivityFactors = calculateSensitivity();
 
+  // Calculate additional derived values for premium sections
+  const vacancyAmount = displayResults ? displayResults.grossAnnualRentalIncome * (displayInputs?.vacancyRatePercent || 0) / 100 : 0;
+  
+  // Calculate first-year principal and interest breakdown
+  const calculateFirstYearAmortization = () => {
+    if (!displayInputs || !displayResults) return { principal: 0, interest: 0 };
+    
+    const loanAmount = displayResults.loanAmount;
+    const monthlyRate = displayInputs.mortgageInterestRate / 12 / 100;
+    const monthlyPayment = displayResults.monthlyMortgagePayment;
+    
+    let remainingBalance = loanAmount;
+    let totalPrincipal = 0;
+    let totalInterest = 0;
+    
+    for (let month = 1; month <= 12; month++) {
+      const interestPayment = remainingBalance * monthlyRate;
+      const principalPayment = monthlyPayment - interestPayment;
+      
+      totalInterest += interestPayment;
+      totalPrincipal += principalPayment;
+      remainingBalance -= principalPayment;
+    }
+    
+    return { principal: totalPrincipal, interest: totalInterest };
+  };
+  
+  const firstYearAmortization = calculateFirstYearAmortization();
+  const totalInterestOverTerm = displayResults && displayInputs 
+    ? (displayResults.monthlyMortgagePayment * displayInputs.mortgageTermYears * 12) - displayResults.loanAmount
+    : 0;
+
+  // Calculate selling fee for exit scenario
+  const sellingFee = displayResults?.projection?.[4] 
+    ? displayResults.projection[4].propertyValue * 0.02 
+    : 0;
+
   // Prepare chart data
   const waterfallData = [
     { name: 'Rental Income', value: displayResults.grossAnnualRentalIncome, fill: '#14b8a6' },
@@ -453,21 +512,19 @@ export default function ResultsPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <Button
+              <button
                 onClick={handleDownloadPDF}
                 disabled={!isPremiumUnlocked || generatingPDF || !pdfSnapshot}
-                className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
+                className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   isPremiumUnlocked && pdfSnapshot
-                    ? 'bg-teal-600 text-white hover:bg-teal-700 border-teal-700/30 shadow-sm'
-                    : 'bg-neutral-200 text-neutral-600 border-neutral-300 cursor-not-allowed'
+                    ? 'bg-teal text-white hover:bg-teal/90 shadow-sm'
+                    : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
                 }`}
               >
                 <Download className="w-4 h-4" />
                 <span>{generatingPDF ? 'Generating...' : 'Download PDF'}</span>
-                {!isPremiumUnlocked && (
-                  <span className="text-xs text-neutral-500">(premium only)</span>
-                )}
-              </Button>
+                {!isPremiumUnlocked && <span className="text-xs">(premium only)</span>}
+              </button>
               <button
                 disabled
                 className="inline-flex items-center space-x-2 px-4 py-2 bg-neutral-100 text-neutral-400 rounded-lg text-sm font-medium cursor-not-allowed"
@@ -489,25 +546,119 @@ export default function ResultsPage() {
 
         {/* SAVE ENFORCEMENT BANNER - Show if authenticated but not saved */}
         {user && !isSaved && !analysisId && inputs && results && (
-          <div className="bg-warning/10 border border-warning/30 rounded-xl p-6 mb-8">
+          <div className="bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/10 border-2 border-primary/30 rounded-xl p-6 mb-8 shadow-sm">
             <div className="flex items-start space-x-4">
-              <AlertCircle className="w-6 h-6 text-warning flex-shrink-0 mt-0.5" />
+              <div className="p-2.5 bg-primary rounded-lg flex-shrink-0">
+                <Save className="w-5 h-5 text-white" />
+              </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-foreground mb-2">
-                  Save Report to Continue
+                <h3 className="text-lg font-bold text-foreground mb-1.5">
+                  One More Step to Unlock Premium
                 </h3>
-                <p className="text-neutral-700 mb-4 leading-relaxed">
-                  You must save this report to your dashboard before you can unlock premium features or compare properties.
+                <p className="text-neutral-600 mb-4 leading-relaxed text-sm">
+                  Save this analysis to enable comparisons, track your portfolio, and purchase the full PDF report.
                 </p>
                 <button
                   onClick={handleSaveReport}
                   disabled={saving}
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary-hover transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FileText className="w-4 h-4" />
-                  <span>{saving ? 'Saving...' : 'Save Report to Dashboard'}</span>
+                  <span>{saving ? 'Saving...' : 'Save to My Dashboard'}</span>
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* SAVE REPORT SECTION - For non-authenticated users */}
+        {!user && inputs && results && (
+          <div className="bg-gradient-to-br from-primary/5 via-white to-secondary/5 border-2 border-primary/20 rounded-2xl p-8 mb-8 shadow-lg">
+            <div className="flex items-start gap-6">
+              <div className="p-4 bg-gradient-to-br from-primary to-primary-hover rounded-2xl flex-shrink-0 shadow-md">
+                <Save className="w-7 h-7 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="text-2xl font-bold text-foreground">
+                    Don't Lose This Analysis
+                  </h3>
+                  <span className="px-3 py-1 bg-success/10 border border-success/30 rounded-full text-xs font-semibold text-success">
+                    100% FREE
+                  </span>
+                </div>
+                <p className="text-neutral-600 mb-6 leading-relaxed text-lg">
+                  Save to your dashboard, then unlock the full investor-grade PDF report with detailed charts, projections, and insights for just AED 49.
+                </p>
+                
+                {/* Value propositions */}
+                <div className="grid md:grid-cols-3 gap-4 mb-6 pb-6 border-b border-neutral-200">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Save Analysis Free</p>
+                      <p className="text-xs text-neutral-500">Access anytime</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Compare Properties</p>
+                      <p className="text-xs text-neutral-500">Side-by-side view</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Lock className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Full PDF Report</p>
+                      <p className="text-xs text-neutral-500">AED 49 to unlock</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link
+                    to="/auth/signup"
+                    state={{ from: location.pathname, inputs, results }}
+                    className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-xl font-semibold hover:bg-primary-hover transition-all shadow-md hover:shadow-lg hover:scale-[1.02]"
+                  >
+                    <UserPlus className="w-5 h-5" />
+                    <span>Save Report - It's Free</span>
+                  </Link>
+                  <Link
+                    to="/auth/signin"
+                    state={{ from: location.pathname, inputs, results }}
+                    className="inline-flex items-center gap-2 px-6 py-4 bg-white text-primary border-2 border-primary/30 rounded-xl font-medium hover:bg-primary/5 hover:border-primary transition-all"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Already have an account?</span>
+                  </Link>
+                </div>
+                <p className="text-xs text-neutral-500 mt-3 flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5" />
+                  No credit card required • Takes 30 seconds • Instant access
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* REPORT SAVED CONFIRMATION - Show when saved */}
+        {user && isSaved && analysisId && (
+          <div className="bg-success/10 border border-success/30 rounded-xl p-4 mb-8">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-success flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-success">
+                  Report saved to your dashboard
+                </p>
+              </div>
+              <Link
+                to="/dashboard"
+                className="text-sm text-success hover:text-success/80 font-medium hover:underline"
+              >
+                View Dashboard →
+              </Link>
             </div>
           </div>
         )}
@@ -735,7 +886,17 @@ export default function ResultsPage() {
         </div>
 
         {/* Premium Section */}
-        <div className="relative bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+        {isPremiumUnlocked && displayResults && displayInputs ? (
+          <PremiumReport
+            displayResults={displayResults}
+            displayInputs={displayInputs}
+            vacancyAmount={vacancyAmount}
+            firstYearAmortization={firstYearAmortization}
+            totalInterestOverTerm={totalInterestOverTerm}
+            sellingFee={sellingFee}
+          />
+        ) : (
+          <div className="relative bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
           {/* Premium Header */}
           <div className="bg-gradient-to-r from-primary to-primary-hover px-8 py-6">
             <div className="flex items-center justify-between">
@@ -1001,21 +1162,16 @@ export default function ResultsPage() {
                   <p className="text-xs text-neutral-600">View anytime from your dashboard. No recurring fees.</p>
                 </div>
                 <button 
-                  disabled={creatingCheckout || !user || !analysisId}
-                  className={`inline-flex items-center space-x-2 px-8 py-4 rounded-xl font-medium shadow-lg transition-all ${
-                    !analysisId 
-                      ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed' 
-                      : 'bg-primary text-primary-foreground hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed'
-                  }`}
+                  disabled={creatingCheckout}
+                  className="inline-flex items-center space-x-2 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg transition-all hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleUnlockPremium}
                 >
                   <Lock className="w-5 h-5" />
-                  <span>
-                    {!analysisId && 'Save Report First'}
-                    {analysisId && !user && 'Sign In to Unlock'}
-                    {analysisId && user && (creatingCheckout ? 'Processing...' : 'Unlock for AED 49')}
-                  </span>
+                  <span>{creatingCheckout ? 'Processing...' : 'Unlock for AED 49'}</span>
                 </button>
+                <p className="text-sm text-neutral-600 mt-4">
+                  Pay now, complete sign up after. Full access to premium report immediately.
+                </p>
                 {!user && (
                   <p className="text-sm text-neutral-500 mt-4">
                     <Link to="/auth/signin" className="text-primary hover:underline font-medium">Sign in</Link> to unlock premium reports
@@ -1025,27 +1181,37 @@ export default function ResultsPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Sign In Prompt for Non Authenticated Users */}
         {!user && (
-          <div className="mt-8 bg-success/10 border border-success/30 rounded-xl p-8">
+          <div className="mt-8 bg-gradient-to-br from-primary/10 via-secondary/5 to-primary/5 border-2 border-primary/30 rounded-xl p-8">
             <div className="flex items-start space-x-4">
-              <div className="p-3 bg-success/20 rounded-xl flex-shrink-0">
-                <CheckCircle className="w-6 h-6 text-success" />
+              <div className="p-3 bg-primary rounded-xl flex-shrink-0">
+                <FileText className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
                 <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Save Your Analysis
+                  Ready for the Full Report?
                 </h3>
-                <p className="text-neutral-700 mb-6 leading-relaxed">
-                  Sign in to save this analysis and access it anytime from your dashboard. 
-                  Track multiple properties and compare investments side by side.
+                <p className="text-neutral-700 mb-4 leading-relaxed">
+                  Sign in to save this analysis free, compare multiple properties, and unlock investor-grade PDF reports for AED 49 each.
                 </p>
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                  <div className="flex items-center gap-2 text-sm text-neutral-600">
+                    <CheckCircle className="w-4 h-4 text-success" />
+                    <span>Free to save & compare</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-neutral-600">
+                    <Lock className="w-4 h-4 text-primary" />
+                    <span>AED 49 for full PDF</span>
+                  </div>
+                </div>
                 <Link 
                   to="/auth/signin"
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-all"
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-all shadow-md hover:shadow-lg"
                 >
-                  <span>Sign In to Save</span>
+                  <span>Sign In to Continue</span>
                   <ArrowLeft className="w-4 h-4 rotate-180" />
                 </Link>
               </div>

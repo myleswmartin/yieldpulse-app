@@ -1,0 +1,751 @@
+/* ================================================================
+   YieldPulse Premium Report - PDF Export Print Stylesheet
+   A4 Portrait (595pt × 842pt) with deterministic layout
+   ================================================================ */
+
+/* A4 Page Setup with Margins */
+@page {
+  size: A4 portrait;
+  margin: 60px 50px 60px 50px; /* top right bottom left */
+}
+
+/* Landscape page for Five-Year Projection */
+@page landscape {
+  size: A4 landscape;
+  margin: 60px 50px 60px 50px;
+}
+
+/* Apply landscape page to specific section */
+.print-landscape {
+  page: landscape;
+}
+
+@media print {
+  /* ============================================================
+     ROOT AND BODY SETUP
+     ============================================================ */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* Hide navigation, headers, and non-report elements */
+  header,
+  nav,
+  .no-print,
+  button:not(.print-preserve),
+  .hide-in-print {
+    display: none !important;
+  }
+
+  /* ============================================================
+     PDF PAGE CONTAINER - FIXED WIDTH LAYOUT
+     ============================================================ */
+  .pdf-page-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0;
+    /* Add padding in print to avoid overlap with fixed header/footer */
+    padding-top: 60px !important;
+    padding-bottom: 60px !important;
+  }
+
+  /* Portrait content area: 495px usable width (after 50px left + 50px right margins from @page) */
+  .pdf-content-portrait {
+    width: 495px;
+    max-width: 495px;
+    margin: 0 auto;
+  }
+
+  /* Landscape content area: 742px usable width */
+  .pdf-content-landscape {
+    width: 742px;
+    max-width: 742px;
+    margin: 0 auto;
+  }
+
+  /* ============================================================
+     TYPOGRAPHY HIERARCHY - EXACT SIZES FROM PDF SPEC
+     ============================================================ */
+  
+  /* H1 - Report Title (Cover page only) */
+  .pdf-h1 {
+    font-size: 28px !important;
+    line-height: 36px !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+    letter-spacing: -0.02em;
+  }
+
+  /* H2 - Section Titles */
+  .pdf-h2,
+  h2 {
+    font-size: 20px !important;
+    line-height: 28px !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+    letter-spacing: -0.01em;
+    margin-bottom: 24px !important;
+    margin-top: 0 !important;
+  }
+
+  /* H3 - Subsection Titles */
+  .pdf-h3,
+  h3 {
+    font-size: 16px !important;
+    line-height: 24px !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* H4 - Component Titles */
+  .pdf-h4,
+  h4 {
+    font-size: 14px !important;
+    line-height: 20px !important;
+    font-weight: 600 !important;
+    color: #374151 !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* Body Text */
+  .pdf-body,
+  p,
+  div {
+    font-size: 11px !important;
+    line-height: 18px !important;
+    font-weight: 400 !important;
+    color: #374151 !important;
+  }
+
+  /* Table Headers */
+  .pdf-table-header,
+  th {
+    font-size: 10px !important;
+    line-height: 14px !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+    letter-spacing: 0.01em;
+    padding: 8px !important;
+  }
+
+  /* Table Body */
+  .pdf-table-body,
+  td {
+    font-size: 10px !important;
+    line-height: 16px !important;
+    font-weight: 400 !important;
+    color: #4b5563 !important;
+    padding: 8px !important;
+  }
+
+  /* Table Bold Rows (Subtotals) */
+  .pdf-table-bold,
+  td.font-bold,
+  td.font-semibold {
+    font-size: 10px !important;
+    line-height: 16px !important;
+    font-weight: 600 !important;
+    color: #111827 !important;
+  }
+
+  /* Footnotes */
+  .pdf-footnote {
+    font-size: 8px !important;
+    line-height: 12px !important;
+    font-weight: 400 !important;
+    color: #6b7280 !important;
+  }
+
+  /* Captions (Chart legends, axis labels) */
+  .pdf-caption {
+    font-size: 9px !important;
+    line-height: 14px !important;
+    font-weight: 400 !important;
+    color: #6b7280 !important;
+  }
+
+  /* Badge Text */
+  .pdf-badge {
+    font-size: 9px !important;
+    line-height: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em;
+  }
+
+  /* ============================================================
+     SECTION SPACING AND RHYTHM
+     ============================================================ */
+  
+  /* Major section breaks */
+  .pdf-section {
+    margin-bottom: 48px !important;
+    page-break-inside: avoid;
+  }
+
+  /* Subsection spacing */
+  .pdf-subsection {
+    margin-bottom: 32px !important;
+  }
+
+  /* Component spacing */
+  .pdf-component {
+    margin-bottom: 24px !important;
+  }
+
+  /* Space between title and content */
+  .pdf-title-spacing {
+    margin-bottom: 12px !important;
+  }
+
+  /* Space between content and interpretation */
+  .pdf-interpretation-spacing {
+    margin-top: 16px !important;
+    margin-bottom: 24px !important;
+  }
+
+  /* ============================================================
+     PAGE BREAK CONTROL
+     ============================================================ */
+  
+  /* Force page break before major sections */
+  .page-break-before {
+    page-break-before: always !important;
+    break-before: always !important;
+  }
+
+  /* Avoid page break within elements */
+  .page-break-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Ensure headings have content following (prevent orphans) */
+  h2, h3, h4, .pdf-h2, .pdf-h3, .pdf-h4 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Keep table header with first rows */
+  thead {
+    display: table-header-group;
+  }
+
+  tbody {
+    display: table-row-group;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* ============================================================
+     TABLE LAYOUT - DETERMINISTIC WIDTHS
+     ============================================================ */
+  
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Prevent tables from breaking across pages when small */
+  table.keep-together {
+    page-break-inside: avoid !important;
+  }
+
+  /* Table cells - ensure padding */
+  th, td {
+    padding: 8px !important;
+    text-align: left;
+  }
+
+  /* Right-align numeric columns */
+  .text-right,
+  td.text-right,
+  th.text-right {
+    text-align: right !important;
+  }
+
+  /* Center-align specific columns */
+  .text-center,
+  td.text-center,
+  th.text-center {
+    text-align: center !important;
+  }
+
+  /* ============================================================
+     CHART RENDERING - FIXED SIZES
+     ============================================================ */
+  
+  .recharts-wrapper {
+    width: 475px !important;
+    height: 300px !important;
+    margin: 0 auto !important;
+  }
+
+  .recharts-surface {
+    width: 475px !important;
+    height: 300px !important;
+  }
+
+  /* Chart containers */
+  .pdf-chart-container {
+    width: 100%;
+    height: 320px !important; /* 300px chart + 20px spacing */
+    margin-bottom: 20px !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* ============================================================
+     COLOR PRESERVATION FOR PRINT
+     ============================================================ */
+  
+  /* Preserve table row backgrounds */
+  .bg-neutral-50,
+  .bg-muted\/50,
+  tr:nth-child(even) {
+    background-color: #f9fafb !important;
+  }
+
+  .bg-white,
+  tr:nth-child(odd) {
+    background-color: #ffffff !important;
+  }
+
+  .bg-neutral-100 {
+    background-color: #f3f4f6 !important;
+  }
+
+  .bg-amber-50 {
+    background-color: #fffbeb !important;
+  }
+
+  .bg-blue-50 {
+    background-color: #eff6ff !important;
+  }
+
+  .bg-green-50 {
+    background-color: #f0fdf4 !important;
+  }
+
+  /* Preserve text colors */
+  .text-success {
+    color: #10b981 !important;
+  }
+
+  .text-destructive {
+    color: #dc2626 !important;
+  }
+
+  .text-warning {
+    color: #f59e0b !important;
+  }
+
+  .text-primary {
+    color: #1e2875 !important;
+  }
+
+  .text-teal {
+    color: #14b8a6 !important;
+  }
+
+  .text-neutral-600 {
+    color: #4b5563 !important;
+  }
+
+  .text-neutral-700 {
+    color: #374151 !important;
+  }
+
+  .text-neutral-500 {
+    color: #6b7280 !important;
+  }
+
+  .text-foreground {
+    color: #111827 !important;
+  }
+
+  /* Preserve borders */
+  .border,
+  .border-border {
+    border: 1px solid #e5e7eb !important;
+  }
+
+  .border-t {
+    border-top: 1px solid #e5e7eb !important;
+  }
+
+  .border-b {
+    border-bottom: 1px solid #e5e7eb !important;
+  }
+
+  .divide-y > * + * {
+    border-top: 1px solid #e5e7eb !important;
+  }
+
+  /* ============================================================
+     INTERPRETATION BLOCKS
+     ============================================================ */
+  
+  .pdf-interpretation {
+    font-size: 11px !important;
+    line-height: 18px !important;
+    color: #374151 !important;
+    background-color: #f9fafb !important;
+    padding: 16px !important;
+    border-radius: 8px;
+    margin-top: 16px !important;
+    page-break-inside: avoid !important;
+  }
+
+  .pdf-interpretation p {
+    margin-bottom: 12px !important;
+  }
+
+  .pdf-interpretation p:last-child {
+    margin-bottom: 0 !important;
+  }
+
+  /* ============================================================
+     PANEL AND CARD STYLES
+     ============================================================ */
+  
+  .pdf-panel {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px;
+    padding: 16px !important;
+    background-color: #ffffff !important;
+    margin-bottom: 20px !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* ============================================================
+     COLLAPSIBLE SECTIONS - FORCE OPEN IN PRINT
+     ============================================================ */
+  
+  .print-force-open {
+    display: block !important;
+    visibility: visible !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Hide collapse icons in print */
+  .print-hide-icon {
+    display: none !important;
+  }
+
+  /* ============================================================
+     PREMIUM REPORT SPECIFIC OVERRIDES
+     ============================================================ */
+  
+  /* Remove responsive grid, use single column */
+  .grid {
+    display: block !important;
+  }
+
+  .grid > * {
+    width: 100% !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Remove box shadows in print */
+  .shadow,
+  .shadow-sm,
+  .shadow-lg {
+    box-shadow: none !important;
+  }
+
+  /* Simplify rounded corners for print */
+  .rounded-xl,
+  .rounded-2xl {
+    border-radius: 8px !important;
+  }
+
+  /* ============================================================
+     HIDE INTERACTIVE ELEMENTS
+     ============================================================ */
+  
+  button,
+  .cursor-pointer {
+    cursor: default !important;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  /* ============================================================
+     LANDSCAPE ORIENTATION SPECIFICS
+     ============================================================ */
+  
+  @page landscape {
+    size: A4 landscape;
+    margin: 60px 50px 60px 50px;
+  }
+
+  .print-landscape {
+    page: landscape;
+  }
+
+  .print-landscape .pdf-content-portrait {
+    width: 742px !important;
+    max-width: 742px !important;
+  }
+
+  /* Abbreviated table headers for landscape */
+  .print-abbrev {
+    font-size: 9px !important;
+  }
+
+  /* ============================================================
+     FIVE-YEAR PROJECTION TABLE SPECIFIC
+     ============================================================ */
+  
+  .five-year-table {
+    width: 100% !important;
+    font-size: 9px !important;
+  }
+
+  .five-year-table th {
+    font-size: 9px !important;
+    padding: 6px 4px !important;
+    white-space: nowrap;
+  }
+
+  .five-year-table td {
+    font-size: 9px !important;
+    padding: 6px 4px !important;
+  }
+
+  /* ============================================================
+     UTILITY CLASSES
+     ============================================================ */
+  
+  .print-only {
+    display: block !important;
+  }
+
+  .screen-only {
+    display: none !important;
+  }
+
+  /* Prevent widows and orphans */
+  p, li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* ============================================================
+     MONOSPACE FORMULAS
+     ============================================================ */
+  
+  .font-mono {
+    font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace !important;
+    font-size: 10px !important;
+    line-height: 16px !important;
+  }
+
+  /* ============================================================
+     TABULAR NUMBERS FOR ALIGNMENT
+     ============================================================ */
+  
+  .tabular-nums,
+  td.text-right,
+  .text-right {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ============================================================
+     FIXED PRINT HEADER AND FOOTER WITH PAGE NUMBERS
+     ============================================================ */
+  
+  /* Hide header and footer on screen by default */
+  .print-only {
+    display: none;
+  }
+
+  .no-print {
+    display: block;
+  }
+
+  @media print {
+    /* Show elements marked as print-only */
+    .print-only {
+      display: flex !important;
+    }
+
+    /* Hide elements marked as no-print */
+    .no-print {
+      display: none !important;
+    }
+
+    /* FIXED HEADER - repeats on every page */
+    .pdf-print-header {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      height: 40px !important;
+      display: flex !important;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 50px 8px 50px !important; /* Match page margins */
+      background: white !important;
+      border-bottom: 1px solid #e5e7eb !important;
+      font-size: 10px !important;
+      line-height: 14px !important;
+      color: #6b7280 !important;
+      z-index: 9999 !important;
+    }
+
+    /* FIXED FOOTER - repeats on every page */
+    .pdf-print-footer {
+      position: fixed !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      height: 40px !important;
+      display: flex !important;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 50px 0 50px !important; /* Match page margins */
+      background: white !important;
+      border-top: 1px solid #e5e7eb !important;
+      font-size: 9px !important;
+      line-height: 12px !important;
+      color: #9ca3af !important;
+      z-index: 9999 !important;
+    }
+
+    .pdf-print-header .header-left {
+      font-weight: 500;
+    }
+
+    .pdf-print-header .header-right {
+      font-weight: 400;
+    }
+
+    .pdf-print-footer .footer-left {
+      font-weight: 400;
+      color: #6b7280 !important;
+    }
+
+    .pdf-print-footer .footer-center {
+      font-style: italic;
+      color: #9ca3af !important;
+    }
+
+    .pdf-print-footer .footer-right {
+      font-weight: 500;
+      color: #6b7280 !important;
+    }
+
+    /* CSS Page Counter for page numbers - browser dependent */
+    .page-number::after {
+      content: counter(page);
+    }
+
+    .total-pages::after {
+      content: counter(pages);
+    }
+  }
+
+  /* ============================================================
+     LANDSCAPE TABLE FALLBACK (if named @page not supported)
+     ============================================================ */
+  
+  /* If browser doesn't support named pages, ensure five-year table still fits */
+  @supports not (page: landscape) {
+    .print-landscape .five-year-table {
+      font-size: 7px !important;
+      max-width: 495px !important;
+    }
+
+    .print-landscape .five-year-table th,
+    .print-landscape .five-year-table td {
+      font-size: 7px !important;
+      padding: 4px 2px !important;
+      word-break: break-word;
+    }
+
+    .print-landscape .print-abbrev {
+      font-size: 7px !important;
+    }
+  }
+
+  /* Additional fallback: reduce five-year table font even more if needed */
+  @media print and (max-width: 595px) {
+    .five-year-table {
+      font-size: 7px !important;
+    }
+
+    .five-year-table th,
+    .five-year-table td {
+      font-size: 7px !important;
+      padding: 4px 2px !important;
+    }
+  }
+
+  /* Ensure five-year table never causes horizontal overflow */
+  .print-landscape {
+    overflow-x: visible;
+    max-width: 100%;
+  }
+
+  .five-year-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  /* If absolutely needed, allow table to scale down slightly */
+  @media print {
+    .five-year-table-wrapper {
+      max-width: 100%;
+      overflow: visible;
+    }
+
+    /* Only apply transform scale as last resort fallback */
+    @supports not (page: landscape) {
+      .print-landscape .five-year-table-wrapper {
+        transform: scale(0.95);
+        transform-origin: top left;
+      }
+    }
+  }
+
+  /* ============================================================
+     COLLAPSIBLE CONTENT - ALWAYS RENDER FOR PRINT
+     ============================================================ */
+  
+  /* Force collapsible sections to be visible in print */
+  @media print {
+    .collapsible-content {
+      display: block !important;
+      visibility: visible !important;
+      height: auto !important;
+      opacity: 1 !important;
+      overflow: visible !important;
+    }
+
+    .screen-only-hidden {
+      display: block !important;
+    }
+  }
+}

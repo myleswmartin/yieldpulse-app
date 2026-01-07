@@ -7,6 +7,7 @@ import { formatCurrency, formatPercent } from '../utils/calculations';
 import { Header } from '../components/Header';
 import { showSuccess, showInfo, handleError } from '../utils/errorHandling';
 import { trackPageView } from '../utils/analytics';
+import React from 'react';
 
 interface Analysis {
   id: string;
@@ -39,6 +40,10 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const getPaidStatus = (analysis: Analysis) =>
+    analysis.paid_status ?? (analysis.is_paid ? 'paid' : 'free');
+
 
   // Filter and sort state
   const [filter, setFilter] = useState<FilterType>('all');
@@ -99,28 +104,20 @@ export default function DashboardPage() {
 
       if (error) {
         console.error('Error fetching analyses:', error);
-        handleError(
-          error.error || 'Failed to load your reports. Please try again.',
-          'Load Dashboard',
-          () => fetchAnalyses(),
-          requestId
-        );
+        handleError(error.error || 'Failed to load your reports. Please try again.', 'Load Dashboard', () => fetchAnalyses(), requestId);
         return;
       }
 
-      const list = (data || []).map((a) => ({
-        ...a,
-        paid_status: a.is_paid ? 'paid' : 'checking',
+      const list = (data || []).map((analysis) => ({
+        ...analysis,
+        paid_status: analysis.is_paid ? 'paid' : 'checking',
       }));
 
       setAnalyses(list);
 
-      // Sync paid status against purchase records (in case analyses table is stale)
-      const pending = list.filter((a) => a.paid_status === 'checking');
+      const pending = list.filter((analysis) => analysis.paid_status === 'checking');
       if (pending.length > 0) {
-        const results = await Promise.all(
-          pending.map((a) => checkPurchaseStatus(a.id))
-        );
+        const results = await Promise.all(pending.map((analysis) => checkPurchaseStatus(analysis.id)));
 
         const paidIds = new Set<string>();
         const freeIds = new Set<string>();
@@ -135,14 +132,14 @@ export default function DashboardPage() {
 
         if (paidIds.size > 0 || freeIds.size > 0) {
           setAnalyses((prev) =>
-            prev.map((a) => {
-              if (paidIds.has(a.id)) {
-                return { ...a, is_paid: true, paid_status: 'paid' };
+            prev.map((analysis) => {
+              if (paidIds.has(analysis.id)) {
+                return { ...analysis, is_paid: true, paid_status: 'paid' };
               }
-              if (freeIds.has(a.id)) {
-                return { ...a, paid_status: 'free' };
+              if (freeIds.has(analysis.id)) {
+                return { ...analysis, paid_status: 'free' };
               }
-              return a;
+              return analysis;
             })
           );
         }
@@ -202,9 +199,9 @@ export default function DashboardPage() {
 
     // Apply filter
     if (filter === 'free') {
-      filtered = analyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "free");
+      filtered = analyses.filter((analysis) => getPaidStatus(analysis) === 'free');
     } else if (filter === 'premium') {
-      filtered = analyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid");
+      filtered = analyses.filter((analysis) => getPaidStatus(analysis) === 'paid');
     }
 
     // Apply sort
@@ -340,14 +337,14 @@ export default function DashboardPage() {
           />
           <StatCard
             label="Premium Reports"
-            value={analyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid").length}
+            value={analyses.filter(a => getPaidStatus(a) === 'paid').length}
             icon={TrendingUp}
             description="Full reports unlocked"
             variant="teal"
           />
           <StatCard
             label="Free Reports"
-            value={analyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "free").length}
+            value={analyses.filter(a => getPaidStatus(a) === 'free').length}
             icon={Calculator}
             description="Preview analyses"
             variant="success"
@@ -378,7 +375,7 @@ export default function DashboardPage() {
                 <button
                   onClick={handleStartComparison}
                   disabled={selectedForComparison.length < 2}
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-teal text-black cursor-pointer rounded-lg font-medium hover:bg-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-teal text-white rounded-lg font-medium hover:bg-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   <GitCompare className="w-5 h-5" />
                   <span>Compare {selectedForComparison.length > 0 ? `(${selectedForComparison.length})` : ''}</span>
@@ -494,7 +491,7 @@ export default function DashboardPage() {
                   <div className="flex items-center space-x-2 bg-muted/50 rounded-lg p-1">
                     <button
                       onClick={() => setFilter('all')}
-                      className={`px-4 py-2 rounded-md text-sm cursor-pointer font-medium transition-all ${
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
                         filter === 'all' 
                           ? 'bg-white text-foreground shadow-sm' 
                           : 'text-neutral-600 hover:text-foreground'
@@ -504,7 +501,7 @@ export default function DashboardPage() {
                     </button>
                     <button
                       onClick={() => setFilter('free')}
-                      className={`px-4 py-2 rounded-md text-sm cursor-pointer font-medium transition-all ${
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
                         filter === 'free' 
                           ? 'bg-white text-foreground shadow-sm' 
                           : 'text-neutral-600 hover:text-foreground'
@@ -514,7 +511,7 @@ export default function DashboardPage() {
                     </button>
                     <button
                       onClick={() => setFilter('premium')}
-                      className={`px-4 py-2 rounded-md text-sm cursor-pointer font-medium transition-all ${
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
                         filter === 'premium' 
                           ? 'bg-white text-foreground shadow-sm' 
                           : 'text-neutral-600 hover:text-foreground'
@@ -528,21 +525,21 @@ export default function DashboardPage() {
                   <select
                     value={sort}
                     onChange={(e) => setSort(e.target.value as SortType)}
-                    className="px-4 py-2 bg-muted/50 border border-border rounded-lg cursor-pointer text-sm font-medium text-foreground focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                    className="px-4 py-2 bg-muted/50 border border-border rounded-lg text-sm font-medium text-foreground focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   >
-                    <option className='cursor-pointer' value="newest">Newest First</option>
-                        <option className='cursor-pointer' value="yield">Highest Yield</option>
-                        <option className='cursor-pointer' value="cashflow">Highest Cash Flow</option>
+                    <option value="newest">Newest First</option>
+                    <option value="yield">Highest Yield</option>
+                    <option value="cashflow">Highest Cash Flow</option>
                   </select>
 
                   {/* Compare Reports Button */}
-                  {analyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid").length >= 2 && !comparisonMode && (
+                  {analyses.filter(a => getPaidStatus(a) === 'paid').length >= 2 && !comparisonMode && (
                     <button
                       onClick={() => {
                         setComparisonMode(true);
                         setSelectedForComparison([]);
                       }}
-                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-teal/10 text-teal border border-teal/30 rounded-lg cursor-pointer font-medium hover:bg-teal/20 transition-colors text-sm shadow-sm"
+                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-teal/10 text-teal border border-teal/30 rounded-lg font-medium hover:bg-teal/20 transition-colors text-sm shadow-sm"
                     >
                       <GitCompare className="w-4 h-4" />
                       <span>Compare Reports</span>
@@ -553,7 +550,7 @@ export default function DashboardPage() {
                   {!comparisonMode && (
                     <button
                       onClick={() => navigate('/calculator')}
-                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-primary cursor-pointer text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm shadow-sm"
+                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm shadow-sm"
                     >
                       <Plus className="w-4 h-4" />
                       <span>New Analysis</span>
@@ -571,10 +568,10 @@ export default function DashboardPage() {
                       <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-16">
                         <input
                           type="checkbox"
-                          checked={selectedForComparison.length === filteredAnalyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid").length && filteredAnalyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid").length > 0}
+                          checked={selectedForComparison.length === filteredAnalyses.filter(a => getPaidStatus(a) === 'paid').length && filteredAnalyses.filter(a => getPaidStatus(a) === 'paid').length > 0}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedForComparison(filteredAnalyses.filter(a => (a.paid_status ?? (a.is_paid ? "paid" : "free")) === "paid").map(a => a.id));
+                              setSelectedForComparison(filteredAnalyses.filter(a => getPaidStatus(a) === 'paid').map(a => a.id));
                             } else {
                               setSelectedForComparison([]);
                             }
@@ -613,8 +610,8 @@ export default function DashboardPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredAnalyses.map((analysis) => (
-                    <>
-                      <tr key={analysis.id} className="hover:bg-muted/20 transition-colors">
+                    <React.Fragment key={analysis.id}>
+                      <tr className="hover:bg-muted/20 transition-colors">
                         {comparisonMode && (
                           <td className="px-6 py-5">
                             <input
@@ -667,28 +664,37 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td className="px-6 py-5">
-                          {(analysis.paid_status ?? (analysis.is_paid ? 'paid' : 'free')) === 'paid' ? (
-                            <div className="flex items-center space-x-2">
-                              <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-teal/20 text-teal border border-teal/30">
-                                <Unlock className="w-3 h-3" />
-                                <span>Premium</span>
-                              </span>
-                            </div>
-                          ) : (analysis.paid_status === 'checking') ? (
-                            <div className="flex items-center space-x-2">
-                              <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                <Info className="w-3 h-3" />
-                                <span>Checking...</span>
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center space-x-2">
-                              <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
-                                <Lock className="w-3 h-3" />
-                                <span>Free</span>
-                              </span>
-                            </div>
-                          )}
+                          {(() => {
+                            const status = getPaidStatus(analysis);
+                            if (status === 'paid') {
+                              return (
+                                <div className="flex items-center space-x-2">
+                                  <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-teal/20 text-teal border border-teal/30">
+                                    <Unlock className="w-3 h-3" />
+                                    <span>Premium</span>
+                                  </span>
+                                </div>
+                              );
+                            }
+                            if (status === 'checking') {
+                              return (
+                                <div className="flex items-center space-x-2">
+                                  <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-warning/10 text-warning border border-warning/30">
+                                    <span className="inline-block animate-spin rounded-full h-3 w-3 border-2 border-warning border-t-transparent"></span>
+                                    <span>Checking</span>
+                                  </span>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="flex items-center space-x-2">
+                                <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+                                  <Lock className="w-3 h-3" />
+                                  <span>Free</span>
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-5">
                           <div className="flex items-center justify-end space-x-2">
@@ -782,7 +788,7 @@ export default function DashboardPage() {
                               </div>
 
                               {/* Premium Upgrade or Status */}
-                              {!analysis.is_paid ? (
+                              {getPaidStatus(analysis) === 'free' ? (
                                 <div className="flex-shrink-0 bg-white border border-border rounded-lg p-4 max-w-xs">
                                   <div className="flex items-start space-x-3 mb-3">
                                     <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -817,7 +823,7 @@ export default function DashboardPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
@@ -867,40 +873,24 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon: Icon, description, variant }: StatCardProps) {
   const variantStyles = {
-    navy: {
-      card: 'from-primary to-primary-hover text-white',
-      chip: 'bg-white/20 text-white',
-      label: 'text-white/90',
-      desc: 'text-white/70',
-    },
-    teal: {
-      card: 'from-teal/30 to-teal/10 text-slate-900',
-      chip: 'bg-teal/25 text-teal',
-      label: 'text-slate-900',
-      desc: 'text-slate-700',
-    },
-    success: {
-      card: 'from-success/30 to-success/10 text-slate-900',
-      chip: 'bg-success/25 text-success',
-      label: 'text-slate-900',
-      desc: 'text-slate-700',
-    },
+    navy: 'from-[#1e2875] to-[#2f3aad] text-white',
+    teal: 'from-[#0f766e] to-[#14b8a6] text-white',
+    success: 'from-emerald-500 to-emerald-400 text-white',
   };
-  const styles = variantStyles[variant];
 
   return (
-    <div className={`rounded-xl shadow-sm border border-border overflow-hidden bg-gradient-to-br ${styles.card}`}>
+    <div className={`rounded-xl shadow-sm border border-border overflow-hidden bg-gradient-to-br ${variantStyles[variant]}`}>
       <div className="p-6">
         <div className="flex items-start justify-between mb-4">
-          <div className={`p-3 rounded-lg ${styles.chip}`}>
+          <div className="p-3 bg-white/20 rounded-lg">
             <Icon className="w-6 h-6" />
           </div>
         </div>
         <div className="mb-2">
           <div className="text-3xl font-bold mb-1">{value}</div>
-          <div className={`text-sm font-medium ${styles.label}`}>{label}</div>
+          <div className="text-sm font-medium opacity-90">{label}</div>
         </div>
-        <div className={`text-xs ${styles.desc}`}>{description}</div>
+        <div className="text-xs opacity-75">{description}</div>
       </div>
     </div>
   );

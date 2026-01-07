@@ -670,7 +670,7 @@ export default function CalculatorPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="group cursor-pointer inline-flex items-center space-x-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="group inline-flex items-center space-x-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   <span>{saving ? 'Calculating...' : 'Calculate ROI'}</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
