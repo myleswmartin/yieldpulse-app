@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { TrendingUp, LogIn, LogOut, LayoutDashboard, Calculator, Menu, X } from 'lucide-react';
+import { TrendingUp, LogIn, LogOut, LayoutDashboard, Calculator, Menu, X, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
@@ -31,17 +31,16 @@ export function Header({ variant = 'default' }: HeaderProps) {
     return location.pathname.startsWith(path);
   };
 
-  const baseClasses = variant === 'transparent' 
-    ? 'bg-white/90 backdrop-blur-sm border-b border-border/50' 
+  const baseClasses = variant === 'transparent'
+    ? 'bg-white/90 backdrop-blur-sm border-b border-border/50'
     : 'bg-white shadow-sm border-b border-border';
 
   const navLinkClass = (path: string) => {
     const active = isActive(path);
-    return `px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-      active 
-        ? 'text-primary bg-primary/10' 
+    return `px-4 py-2 text-sm font-medium rounded-lg transition-colors ${active
+        ? 'text-primary bg-primary/10'
         : 'text-neutral-600 hover:text-primary hover:bg-muted'
-    }`;
+      }`;
   };
 
   return (
@@ -70,17 +69,26 @@ export function Header({ variant = 'default' }: HeaderProps) {
               <Calculator className="w-4 h-4" />
               <span>Calculator</span>
             </Link>
-            
+
             {user ? (
               <>
                 <Link to="/dashboard" className={`flex items-center space-x-2 ${navLinkClass('/dashboard')}`}>
                   <LayoutDashboard className="w-4 h-4" />
                   <span>Dashboard</span>
                 </Link>
+
+                {/* Admin Link - Only visible to admins */}
+                {user.isAdmin && (
+                  <Link to="/admin/dashboard" className={`flex items-center space-x-2 ${navLinkClass('/admin')}`}>
+                    <Shield className="w-4 h-4" />
+                    <span>Admin</span>
+                  </Link>
+                )}
+
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="flex cursor-pointer items-center space-x-2 px-4 py-2 text-sm font-medium text-neutral-600 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                  className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-neutral-600 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Sign Out</span>
@@ -114,39 +122,52 @@ export function Header({ variant = 'default' }: HeaderProps) {
         {mobileMenuOpen && (
           <div className="md:hidden py-6 border-t border-border">
             <nav className="flex flex-col space-y-2">
-              <Link 
-                to="/how-it-works" 
+              <Link
+                to="/how-it-works"
                 className={`${navLinkClass('/how-it-works')} w-full text-left`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 How It Works
               </Link>
-              <Link 
-                to="/pricing" 
+              <Link
+                to="/pricing"
                 className={`${navLinkClass('/pricing')} w-full text-left`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Pricing
               </Link>
-              <Link 
-                to="/calculator" 
+              <Link
+                to="/calculator"
                 className={`${navLinkClass('/calculator')} w-full text-left flex items-center space-x-2`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <Calculator className="w-4 h-4" />
                 <span>Calculator</span>
               </Link>
-              
+
               {user ? (
                 <>
-                  <Link 
-                    to="/dashboard" 
+                  <Link
+                    to="/dashboard"
                     className={`${navLinkClass('/dashboard')} w-full text-left flex items-center space-x-2`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <LayoutDashboard className="w-4 h-4" />
                     <span>Dashboard</span>
                   </Link>
+
+                  {/* Admin Link - Only visible to admins */}
+                  {user.isAdmin && (
+                    <Link
+                      to="/admin/dashboard"
+                      className={`${navLinkClass('/admin')} w-full text-left flex items-center space-x-2`}
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Shield className="w-4 h-4" />
+                      <span>Admin</span>
+                    </Link>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => {
@@ -161,16 +182,16 @@ export function Header({ variant = 'default' }: HeaderProps) {
                 </>
               ) : (
                 <>
-                  <Link 
-                    to="/auth/signin" 
+                  <Link
+                    to="/auth/signin"
                     className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-neutral-600 hover:text-primary hover:bg-muted rounded-lg transition-colors w-full"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <LogIn className="w-4 h-4" />
                     <span>Sign In</span>
                   </Link>
-                  <Link 
-                    to="/calculator" 
+                  <Link
+                    to="/calculator"
                     className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors font-medium shadow-sm text-center"
                     onClick={() => setMobileMenuOpen(false)}
                   >

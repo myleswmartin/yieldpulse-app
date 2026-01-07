@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
-import { TrendingUp, Mail } from 'lucide-react';
+import { TrendingUp, Mail, Shield } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export function Footer() {
+  const { user } = useAuth();
+
   return (
     <footer className="bg-neutral-900 text-neutral-300 border-t border-neutral-800">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
@@ -40,6 +43,20 @@ export function Footer() {
                   How It Works
                 </Link>
               </li>
+              <li>
+                <Link to="/sample-report" className="text-sm hover:text-secondary transition-colors flex items-center gap-1">
+                  Sample Report
+                  <span className="px-1.5 py-0.5 bg-secondary text-white text-[10px] rounded-full font-semibold">NEW</span>
+                </Link>
+              </li>
+              {user?.isAdmin && (
+                <li>
+                  <Link to="/admin/dashboard" className="text-sm hover:text-secondary transition-colors flex items-center gap-1">
+                    <Shield className="w-3.5 h-3.5" />
+                    Admin Panel
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 
@@ -68,8 +85,8 @@ export function Footer() {
           {/* Contact */}
           <div>
             <h3 className="font-semibold text-white mb-4">Contact</h3>
-            <a 
-              href="mailto:hello@yieldpulse.com" 
+            <a
+              href="mailto:hello@yieldpulse.com"
               className="inline-flex items-center space-x-2 text-sm hover:text-secondary transition-colors"
             >
               <Mail className="w-4 h-4" />
