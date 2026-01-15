@@ -307,7 +307,9 @@ export default function CalculatorPage() {
               <Calculator className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-foreground tracking-tight">UAE Property ROI Calculator</h1>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
+                UAE Property ROI Calculator
+              </h1>
               <p className="text-neutral-600 mt-1">Enter your property details to calculate investment returns</p>
             </div>
           </div>
@@ -356,7 +358,9 @@ export default function CalculatorPage() {
             {/* Property Information Section */}
             <div className="p-8 lg:p-10">
               <div className="mb-6">
-                <h2 className="font-semibold text-foreground mb-2">Property Information</h2>
+                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mb-2">
+                  Property Information
+                </h2>
                 <p className="text-sm text-neutral-600">Basic details about the property you are analyzing</p>
               </div>
               
@@ -445,7 +449,9 @@ export default function CalculatorPage() {
             {/* Rent Section */}
             <div className="p-8 lg:p-10">
               <div className="mb-6">
-                <h2 className="font-semibold text-foreground mb-2">Rent Information</h2>
+                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mb-2">
+                  Rent Information
+                </h2>
                 <p className="text-sm text-neutral-600">Expected rental income from the property</p>
               </div>
               
@@ -473,7 +479,9 @@ export default function CalculatorPage() {
             {/* Financing Section */}
             <div className="p-8 lg:p-10">
               <div className="mb-6">
-                <h2 className="font-semibold text-foreground mb-2">Financing</h2>
+                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mb-2">
+                  Financing
+                </h2>
                 <p className="text-sm text-neutral-600">Mortgage and down payment details</p>
               </div>
               
@@ -539,7 +547,9 @@ export default function CalculatorPage() {
             {/* Operating Costs Section */}
             <div className="p-8 lg:p-10">
               <div className="mb-6">
-                <h2 className="font-semibold text-foreground mb-2">Operating Costs</h2>
+                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mb-2">
+                  Operating Costs
+                </h2>
                 <p className="text-sm text-neutral-600">Annual expenses and maintenance for the property</p>
               </div>
               
@@ -636,7 +646,9 @@ export default function CalculatorPage() {
             {/* Assumptions Section */}
             <div className="p-8 lg:p-10">
               <div className="mb-6">
-                <h2 className="font-semibold text-foreground mb-2">Risk Assumptions</h2>
+                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mb-2">
+                  Risk Assumptions
+                </h2>
                 <p className="text-sm text-neutral-600">Expected vacancy and market conditions</p>
               </div>
               
