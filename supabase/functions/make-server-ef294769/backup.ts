@@ -489,6 +489,7 @@ app.post("/stripe/checkout-session", async (c) => {
       "https://makeproxy-c.figma.site",
       "https://yieldpulse.vercel.app",
       "https://www.yieldpulse.ae",
+      "https://yieldpulse.ae",
     ];
 
     if (!allowedOrigins.includes(origin)) {

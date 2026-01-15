@@ -739,6 +739,8 @@ app.post("/make-server-ef294769/stripe/checkout-session", async (c) => {
       "http://localhost:3000",
       "https://makeproxy-c.figma.site",
       "https://yieldpulse.vercel.app",
+      "https://www.yieldpulse.ae",
+      "https://yieldpulse.ae",
     ];
 
     // Check if origin is allowed (exact match or makeproxy-c.figma.site subdomain or figmaiframepreview.figma.site)
@@ -937,6 +939,8 @@ app.post("/make-server-ef294769/stripe/guest-checkout-session", async (c) => {
       "http://localhost:3000",
       "https://makeproxy-c.figma.site",
       "https://yieldpulse.vercel.app",
+      "https://www.yieldpulse.ae",
+      "https://yieldpulse.ae",
     ];
 
     // Check if origin is allowed (exact match or makeproxy-c.figma.site subdomain or figmaiframepreview.figma.site)
