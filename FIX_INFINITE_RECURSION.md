@@ -92,14 +92,14 @@ Since admin RLS policies are removed, admin operations must use the **service ro
 ### Example: Admin Endpoint to View All Analyses
 
 ```typescript
-// In /supabase/functions/make-server-ef294769/index.ts
+// In /supabase/functions/server/index.tsx
 app.get('/make-server-ef294769/admin/analyses', async (c) => {
   const userId = c.get('userId');
   
   // Use service role client (bypasses RLS)
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SERVICE_ROLE_KEY')!
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
   
   // Check if user is admin

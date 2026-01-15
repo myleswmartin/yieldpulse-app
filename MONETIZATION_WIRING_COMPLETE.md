@@ -15,18 +15,16 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ## Files Changed
 
 ### Backend
-1. **`/supabase/functions/make-server-ef294769/index.ts`**
-   - バ. Implemented `POST /make-server-ef294769/stripe/checkout-session`
-   - バ. Added comment marking simulated payments as DEV only legacy
-   - バ. All routes use `report_purchases` table exclusively
-   - バ. Snapshot creation implemented in checkout session route
-   - バ. Origin allowlist enforced (localhost and Vercel domains)
-   - バ. Idempotency checks implemented (already purchased, pending reuse)
-
-2. **`/supabase/functions/stripe-webhook/index.ts`**
-   - バ. Implemented `POST /stripe-webhook` (public)
-   - バ. Webhook signature verification using Stripe SDK
-   - バ. Service role client used for webhook updates
+1. **`/supabase/functions/server/index.tsx`**
+   - ✅ Implemented `POST /make-server-ef294769/stripe/checkout-session`
+   - ✅ Implemented `POST /make-server-ef294769/stripe/webhook`
+   - ✅ Added comment marking simulated payments as DEV only legacy
+   - ✅ All routes use `report_purchases` table exclusively
+   - ✅ Snapshot creation implemented in checkout session route
+   - ✅ Origin allowlist enforced (localhost and Vercel domains)
+   - ✅ Idempotency checks implemented (already purchased, pending reuse)
+   - ✅ Webhook signature verification using Stripe SDK
+   - ✅ Service role client used for webhook updates
 
 ### Frontend
 2. **`/src/pages/SignInPage.tsx`**
@@ -125,7 +123,7 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 
 ### B. Stripe Webhook Route
 
-**Endpoint:** `POST /stripe-webhook`
+**Endpoint:** `POST /make-server-ef294769/stripe/webhook`
 
 **Authentication:**
 - Requires `stripe-signature` header
@@ -220,7 +218,7 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 5. Server creates Stripe checkout session
 6. User redirected to Stripe payment page
 7. User completes payment
-8. Stripe sends webhook to `/stripe-webhook`
+8. Stripe sends webhook to `/stripe/webhook`
 9. Server updates `report_purchases.status='paid'`
 10. User redirected to `/dashboard?payment=success`
 11. Dashboard shows success banner
@@ -312,7 +310,7 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ### Existing (Already Set)
 - ✅ `SUPABASE_URL`
 - ✅ `SUPABASE_ANON_KEY`
-- ✅ `SERVICE_ROLE_KEY`
+- ✅ `SUPABASE_SERVICE_ROLE_KEY`
 
 ### Required for Stripe (Must Set)
 - ⚠️ `STRIPE_SECRET_KEY` - Test mode: `sk_test_...` or Live mode: `sk_live_...`
@@ -365,7 +363,7 @@ STRIPE_WEBHOOK_SECRET=whsec_... # From Stripe webhook configuration
 
 ### 2. Configure Stripe Webhook
 1. Go to Stripe Dashboard > Developers > Webhooks
-2. Add endpoint: `https://woqwrkfmdjuaerzpvshj.supabase.co/functions/v1/stripe-webhook`
+2. Add endpoint: `https://woqwrkfmdjuaerzpvshj.supabase.co/functions/v1/make-server-ef294769/stripe/webhook`
 3. Select event: `checkout.session.completed`
 4. Copy webhook signing secret to `STRIPE_WEBHOOK_SECRET`
 
@@ -417,7 +415,7 @@ Stripe Checkout Page
     v
 Stripe Servers
     |
-    | POST /stripe-webhook
+    | POST /stripe/webhook
     | checkout.session.completed event
     |
     v

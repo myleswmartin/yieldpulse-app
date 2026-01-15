@@ -5,22 +5,106 @@
 
 ---
 
-## ƒo. Supabase Edge Functions (REQUIRED)
+## ✅ REQUIRED FILES (Must Sync)
 
-### /supabase/functions/make-server-ef294769 (API function)
-
-```
-ƒo. /supabase/functions/make-server-ef294769/index.ts     - API endpoints (analyses, checkout, purchases)
-ƒo. /supabase/functions/make-server-ef294769/kv_store.ts  - Key-value store utilities
-```
-
-### /supabase/functions/stripe-webhook (public webhook)
+### Root Configuration Files (6)
 
 ```
-ƒo. /supabase/functions/stripe-webhook/index.ts           - Stripe webhook handler
+✅ /package.json                 - Dependencies
+✅ /vite.config.ts               - Build configuration
+✅ /tsconfig.json                - TypeScript config
+✅ /vercel.json                  - SPA routing (CRITICAL)
+✅ /index.html                   - HTML entry point
+✅ /DATABASE_SCHEMA.sql          - Database setup script
 ```
 
-**Reason:** API calls and Stripe checkout/webhook flows require Edge Functions.
+**Optional but recommended:**
+```
+⭕ /pnpm-lock.yaml               - Lock file (if you have it)
+⭕ /.gitignore                   - Git ignore rules
+```
+
+---
+
+## ✅ Source Files - /src Directory
+
+### /src/app (1 file)
+
+```
+✅ /src/app/App.tsx              - Main router with all routes
+```
+
+---
+
+### /src/pages (6 files)
+
+```
+✅ /src/pages/HomePage.tsx              - Landing page
+✅ /src/pages/CalculatorPage.tsx        - ROI calculator (MODIFIED ✏️)
+✅ /src/pages/ResultsPage.tsx           - Results display
+✅ /src/pages/SignInPage.tsx            - Login page (NEW 🆕)
+✅ /src/pages/SignUpPage.tsx            - Registration page (NEW 🆕)
+✅ /src/pages/DashboardPage.tsx         - My Reports dashboard (NEW 🆕, MODIFIED ✏️)
+```
+
+**Key:**
+- 🆕 = New file created in MVP
+- ✏️ = Modified to use direct Supabase client
+
+---
+
+### /src/components (1 file)
+
+```
+✅ /src/components/ProtectedRoute.tsx   - Route guard component (NEW 🆕)
+```
+
+---
+
+### /src/contexts (1 file)
+
+```
+✅ /src/contexts/AuthContext.tsx        - Auth state management
+```
+
+---
+
+### /src/utils (2 files)
+
+```
+✅ /src/utils/calculations.ts           - ROI calculation engine
+✅ /src/utils/supabaseClient.ts         - Supabase client setup
+```
+
+---
+
+### /src/styles (2 files)
+
+```
+✅ /src/styles/theme.css                - Design tokens
+✅ /src/styles/fonts.css                - Typography
+```
+
+---
+
+### /src root (1 file)
+
+```
+✅ /src/main.tsx                        - Application entry point
+```
+
+---
+
+## ❌ NOT REQUIRED (Do Not Sync)
+
+### /supabase/functions/server (entire directory)
+
+```
+❌ /supabase/functions/server/index.tsx     - NOT NEEDED FOR MVP
+❌ /supabase/functions/server/kv_store.tsx  - NOT NEEDED FOR MVP
+```
+
+**Reason:** MVP now uses direct Supabase client, no Edge Function required.
 
 ---
 
@@ -134,7 +218,7 @@ These files are absolutely required for the app to work:
 ## ⚠️ Common Mistakes to Avoid
 
 ❌ **Don't forget vercel.json** - App will 404 on refresh  
-Г?O **Don't omit Supabase Edge Functions** (`make-server-ef294769`, `stripe-webhook`) - Required for API + webhooks  
+❌ **Don't include /supabase/functions/server/** - Not needed for MVP  
 ❌ **Don't commit .env files** - Use Vercel environment variables  
 ❌ **Don't skip DATABASE_SCHEMA.sql** - Must run in Supabase  
 ❌ **Don't miss the modified files** - CalculatorPage and DashboardPage have critical changes  
@@ -148,9 +232,9 @@ These files are absolutely required for the app to work:
 - [ ] All 20 required source files present in Figma Make
 - [ ] vercel.json contains SPA rewrites configuration
 - [ ] package.json has all dependencies
-- [ ] CalculatorPage uses `saveAnalysis()` from `apiClient`
-- [ ] DashboardPage uses `getUserAnalyses()` / `deleteAnalysis()` from `apiClient`
-- [ ] `/supabase/functions/make-server-ef294769/` and `/supabase/functions/stripe-webhook/` included
+- [ ] CalculatorPage uses `supabase.from('analyses').insert()`
+- [ ] DashboardPage uses `supabase.from('analyses').select()`
+- [ ] No `/supabase/functions/server/` files included
 - [ ] No hardcoded secrets in any file
 - [ ] All TypeScript files compile without errors
 
@@ -173,7 +257,7 @@ These files are absolutely required for the app to work:
 3. Copy exported files to repo (matching folder structure)
 4. Verify all files present
 5. Run: `git add .`
-6. Run: `git commit -m "MVP complete - Edge Functions + Stripe webhook"`
+6. Run: `git commit -m "MVP complete - Direct Supabase client implementation"`
 7. Run: `git push origin main`
 
 ---
@@ -221,10 +305,10 @@ These files are absolutely required for the app to work:
 
 - [x] 20 required source files ready to sync
 - [x] 10 optional documentation files ready to sync
-- [x] Edge Function files included (make-server-ef294769, stripe-webhook)
+- [x] No Edge Function files included
 - [x] vercel.json present with SPA rewrites
 - [x] DATABASE_SCHEMA.sql included
-- [x] API routes use Edge Functions for analyses + Stripe checkout/status
+- [x] All modified files (CalculatorPage, DashboardPage) use direct Supabase client
 - [x] No secrets hardcoded
 - [x] Ready for production deployment
 

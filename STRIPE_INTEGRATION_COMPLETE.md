@@ -25,9 +25,8 @@ YieldPulse now has a production-ready Stripe payment integration with:
 ### **Database Migration**
 - `/DATABASE_MIGRATION_STRIPE.sql` - Creates `report_purchases` table with RLS policies
 
-### **Backend** (Supabase Edge Functions)
-- `/supabase/functions/make-server-ef294769/index.ts` - Checkout + purchase status endpoints
-- `/supabase/functions/stripe-webhook/index.ts` - Public webhook handler (signature verified)
+### **Backend** (Supabase Edge Function)
+- `/supabase/functions/server/index.tsx` - Added 3 new Stripe routes
 
 ### **Frontend** (Vite React)
 - `/src/pages/ResultsPage.tsx` - Added purchase status check and checkout flow
@@ -37,8 +36,7 @@ YieldPulse now has a production-ready Stripe payment integration with:
 
 ## 🔧 Backend Routes Added
 
-API routes prefixed with `/make-server-ef294769`  
-Webhook endpoint: `/stripe-webhook`
+All routes prefixed with `/make-server-ef294769`
 
 ### **1. POST /stripe/checkout-session**
 
@@ -80,7 +78,7 @@ Webhook endpoint: `/stripe-webhook`
 
 ---
 
-### **2. POST /stripe-webhook**
+### **2. POST /stripe/webhook**
 
 **Purpose**: Handle Stripe webhook events
 
@@ -408,7 +406,7 @@ You can try again anytime from the results page.
 ```
 SUPABASE_URL=https://woqwrkfmdjuaerzpvshj.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SERVICE_ROLE_KEY=<service_role_key>
+SUPABASE_SERVICE_ROLE_KEY=<service_role_key>
 ```
 
 **New Environment Variables** (must be added):
@@ -439,7 +437,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...  # Webhook signing secret
 
 ### **3. Configure Webhook**
 
-- **Endpoint URL**: `https://woqwrkfmdjuaerzpvshj.supabase.co/functions/v1/stripe-webhook`
+- **Endpoint URL**: `https://woqwrkfmdjuaerzpvshj.supabase.co/functions/v1/make-server-ef294769/stripe/webhook`
 - **Events to listen**:
   - `checkout.session.completed`
 - **Copy Webhook Signing Secret** → `STRIPE_WEBHOOK_SECRET`
@@ -492,7 +490,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...  # Webhook signing secret
 
 2. **Backend Routes** ✅
    - POST /stripe/checkout-session implemented
-   - POST /stripe-webhook implemented
+   - POST /stripe/webhook implemented
    - GET /purchases/status implemented
 
 3. **Frontend Integration** ✅

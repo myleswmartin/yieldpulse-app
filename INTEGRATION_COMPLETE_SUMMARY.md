@@ -325,7 +325,7 @@ import { checkPurchaseStatus, createCheckoutSession } from '../utils/apiClient';
 | `/profile/me` | GET | AuthContext | Direct Supabase RLS | ✅ | N/A |
 | `/purchases/status` | GET | ResultsPage | ⏳ | ✅ | ❌ |
 | `/stripe/checkout-session` | POST | ResultsPage | ⏳ | ✅ | ❌ |
-| `/stripe-webhook` | POST | Stripe | Server-to-Server | ❌ | ✅ |
+| `/stripe/webhook` | POST | Stripe | Server-to-Server | ❌ | ✅ |
 
 **Legend:**
 - ✅ = Implemented

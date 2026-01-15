@@ -65,6 +65,7 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
 
   const headers = {
     'Content-Type': 'application/json',
+    'apikey': publicAnonKey,
     'Authorization': `Bearer ${token}`,
     ...options.headers,
   };
@@ -162,7 +163,119 @@ export const adminApi = {
 
   // Statistics
   stats: {
-    get: () => apiRequest('/admin/stats'),
+    get: (range?: '7d' | '30d' | '90d') => {
+      const query = range ? `?range=${range.replace('d', '')}` : '';
+      return apiRequest(`/admin/stats${query}`);
+    },
+  },
+
+  // Analytics
+  analytics: {
+    get: (range?: '30d' | '90d' | '1y') => {
+      const normalized = range === '1y' ? '365' : range?.replace('d', '') || '90';
+      return apiRequest(`/admin/analytics?range=${normalized}`);
+    },
+  },
+
+  // Platform Settings
+  settings: {
+    get: () => apiRequest('/admin/settings'),
+    update: (data: any) => apiRequest('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  },
+
+  // Reports
+  reports: {
+    list: (params?: { page?: number; limit?: number; status?: string; search?: string; sort?: string }) => {
+      const sanitized = Object.entries(params || {}).reduce((acc, [key, value]) => {
+        if (value === undefined || value === null || value === '' || value === 'undefined') {
+          return acc;
+        }
+        acc[key] = value as any;
+        return acc;
+      }, {} as Record<string, any>);
+
+      const query = new URLSearchParams(sanitized as any).toString();
+      return apiRequest(`/admin/reports${query ? `?${query}` : ''}`);
+    },
+  },
+
+  // Documents
+  documents: {
+    list: () => {
+      console.log('📄 [Admin API] Calling documents.list()');
+      console.log('📄 [Admin API] Full URL:', `${API_BASE}/admin/documents`);
+      return apiRequest('/admin/documents').catch(err => {
+        console.error('📄 [Admin API] documents.list() failed:', err);
+        // Return empty array instead of throwing for graceful degradation
+        return [];
+      });
+    },
+    upload: async (file: File, name: string, description: string, category: string) => {
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error('Not authenticated - please sign in again');
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('name', name);
+      formData.append('description', description);
+      formData.append('category', category);
+
+      const response = await fetch(`${API_BASE}/admin/documents`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: response.statusText }));
+        throw new Error(error.error || `Upload failed with status ${response.status}`);
+      }
+
+      return response.json();
+    },
+    delete: (documentId: string) => apiRequest(`/admin/documents/${documentId}`, {
+      method: 'DELETE',
+    }),
+    getDownloadUrl: (documentId: string) => apiRequest(`/admin/documents/${documentId}/download`).then(res => res.url),
+  },
+
+  // Discount Codes
+  discounts: {
+    list: () => apiRequest('/admin/discounts'),
+    create: (data: {
+      code: string;
+      type: 'percentage' | 'fixed';
+      value: number;
+      maxUses?: number;
+      expiresAt?: string;
+      description?: string;
+      active: boolean;
+    }) => apiRequest('/admin/discounts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    update: (code: string, data: {
+      type?: 'percentage' | 'fixed';
+      value?: number;
+      maxUses?: number;
+      expiresAt?: string;
+      description?: string;
+      active?: boolean;
+    }) => apiRequest(`/admin/discounts/${code}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+    delete: (code: string) => apiRequest(`/admin/discounts/${code}`, {
+      method: 'DELETE',
+    }),
+    validate: (code: string) => apiRequest(`/admin/discounts/${code}/validate`),
   },
 };
 

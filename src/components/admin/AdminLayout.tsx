@@ -8,7 +8,12 @@ import {
   FileText, 
   Settings,
   LogOut,
-  Shield
+  Shield,
+  Mail,
+  FolderOpen,
+  BarChart3,
+  FileCheck,
+  Tag
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -18,9 +23,14 @@ export default function AdminLayout() {
 
   const navItems = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/admin/reports', label: 'Reports', icon: FileCheck },
     { path: '/admin/users', label: 'Users', icon: Users },
     { path: '/admin/purchases', label: 'Purchases', icon: CreditCard },
+    { path: '/admin/discounts', label: 'Discounts', icon: Tag },
+    { path: '/admin/documents', label: 'Documents', icon: FolderOpen },
     { path: '/admin/support', label: 'Support', icon: MessageCircle },
+    // { path: '/admin/contact-submissions', label: 'Contact', icon: Mail },
     { path: '/admin/webhooks', label: 'Webhooks', icon: Webhook },
     { path: '/admin/audit-log', label: 'Audit Log', icon: FileText },
     { path: '/admin/settings', label: 'Settings', icon: Settings },
@@ -82,7 +92,7 @@ export default function AdminLayout() {
             </Link>
             <button
               onClick={signOut}
-              className="flex items-center space-x-1 text-neutral-600 hover:text-foreground text-sm transition-colors"
+              className="flex items-center space-x-1 text-neutral-600 hover:text-foreground text-sm transition-colors cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span>Sign Out</span>

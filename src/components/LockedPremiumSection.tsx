@@ -1,234 +1,262 @@
-import { Lock, TrendingUp, Eye, BarChart3 } from 'lucide-react';
+import { Lock, BarChart3, TrendingUp, Table2, Target, FileCheck } from 'lucide-react';
+import { usePublicPricing } from '../utils/usePublicPricing';
 
 interface LockedPremiumSectionProps {
-  onUnlockClick: () => void;
-  creatingCheckout: boolean;
-  personalizedMessage: string;
+  onUnlock: () => void;
+  isLoading?: boolean;
 }
 
-export function LockedPremiumSection({ onUnlockClick, creatingCheckout, personalizedMessage }: LockedPremiumSectionProps) {
+export function LockedPremiumSection({ onUnlock, isLoading = false }: LockedPremiumSectionProps) {
+  const { priceLabel } = usePublicPricing();
   return (
     <div className="relative bg-white rounded-2xl shadow-sm border-2 border-primary/30 overflow-hidden">
-      {/* Premium Header */}
-      <div className="bg-gradient-to-r from-primary to-primary-hover px-8 py-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center space-x-2 mb-2">
-              <Lock className="w-5 h-5 text-primary-foreground" />
-              <h2 className="text-2xl font-bold text-primary-foreground">Premium Report Analysis</h2>
-            </div>
-            <p className="text-primary-foreground/90">Complete insights, projections, and decision tools</p>
-          </div>
-          <div className="text-right">
-            <div className="text-4xl font-bold text-primary-foreground mb-1">AED 49</div>
-            <div className="text-sm text-primary-foreground/80">one time unlock</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Blurred Content Preview */}
-      <div className="p-8 space-y-8">
-        
-        {/* Section 1: Visual Analysis */}
-        <div>
-          <h3 className="text-xl font-bold text-foreground mb-4 flex items-center space-x-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
-            <span>A. Visual Analysis</span>
-          </h3>
-          <div className="grid lg:grid-cols-2 gap-6">
-            <div className="bg-neutral-100 rounded-xl p-6 h-64 flex items-center justify-center border border-border">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Lock className="w-6 h-6 text-primary" />
-                </div>
-                <p className="text-sm font-medium text-neutral-600">Cash Flow Waterfall Chart</p>
-                <p className="text-xs text-neutral-500 mt-1">Interactive breakdown of income and expenses</p>
-              </div>
-            </div>
-            <div className="bg-neutral-100 rounded-xl p-6 h-64 flex items-center justify-center border border-border">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Lock className="w-6 h-6 text-primary" />
-                </div>
-                <p className="text-sm font-medium text-neutral-600">Yield Comparison Chart</p>
-                <p className="text-xs text-neutral-500 mt-1">Gross vs net vs cash on cash returns</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 2: Financial Details */}
-        <div>
-          <h3 className="text-xl font-bold text-foreground mb-4 flex items-center space-x-2">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            <span>B. Financial Details</span>
-          </h3>
-          <div className="bg-neutral-50 border border-border rounded-xl p-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-semibold text-foreground mb-3 text-sm">Income Statement</h4>
-                <div className="space-y-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="flex justify-between py-2 border-b border-border">
-                      <div className="h-4 bg-neutral-200 rounded w-32"></div>
-                      <div className="h-4 bg-neutral-200 rounded w-20"></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h4 className="font-semibold text-foreground mb-3 text-sm">Cost Breakdown</h4>
-                <div className="space-y-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="flex justify-between py-2 border-b border-border">
-                      <div className="h-4 bg-neutral-200 rounded w-32"></div>
-                      <div className="h-4 bg-neutral-200 rounded w-20"></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 3: Five-Year Projection - Teaser */}
-        <div>
-          <h3 className="text-xl font-bold text-foreground mb-4">C. Five-Year Financial Projection</h3>
-          <div className="bg-neutral-50 border border-border rounded-xl p-6 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-neutral-200">
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">Metric</th>
-                    <th className="text-right py-3 px-4 font-semibold text-foreground">Year 1</th>
-                    <th className="text-right py-3 px-4 font-semibold text-foreground">Year 2</th>
-                    <th className="text-right py-3 px-4 font-semibold text-foreground">Year 3</th>
-                    <th className="text-right py-3 px-4 font-semibold text-foreground">Year 4</th>
-                    <th className="text-right py-3 px-4 font-semibold text-foreground">Year 5</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Skeleton rows */}
-                  {['Property Value', 'Rental Income', 'Cash Flow', 'Cumulative CF', 'Equity Built'].map((label, i) => (
-                    <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}>
-                      <td className="py-3 px-4 text-sm text-neutral-700 font-medium">{label}</td>
-                      {[1, 2, 3, 4, 5].map((year) => (
-                        <td key={year} className="py-3 px-4 text-right">
-                          <div className="h-4 bg-neutral-200 rounded w-16 ml-auto"></div>
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 4: Exit Scenario */}
-        <div>
-          <h3 className="text-xl font-bold text-foreground mb-4">D. Exit Scenario Analysis</h3>
-          <div className="bg-neutral-50 border border-border rounded-xl p-6">
-            <p className="text-sm text-neutral-600 mb-4">Year 5 exit scenario with complete return breakdown</p>
-            <div className="grid md:grid-cols-2 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex justify-between py-2 border-b border-border">
-                  <div className="h-4 bg-neutral-200 rounded w-32"></div>
-                  <div className="h-4 bg-neutral-200 rounded w-24"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Section 5: Sensitivity Analysis */}
-        <div>
-          <h3 className="text-xl font-bold text-foreground mb-4">E. Complete Sensitivity Analysis</h3>
-          <div className="grid md:grid-cols-3 gap-4">
-            {['Rent Scenarios', 'Price Scenarios', 'Rate Scenarios'].map((label) => (
-              <div key={label} className="bg-neutral-50 border border-border rounded-xl p-5">
-                <h4 className="font-semibold text-foreground mb-3 text-sm">{label}</h4>
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex justify-between py-1">
-                      <div className="h-3 bg-neutral-200 rounded w-20"></div>
-                      <div className="h-3 bg-neutral-200 rounded w-16"></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Additional sections headings */}
-        <div className="space-y-4">
-          <h3 className="text-xl font-bold text-foreground">F. Cash Flow Methodology</h3>
-          <h3 className="text-xl font-bold text-foreground">G. Operating Expense Detail</h3>
-          <h3 className="text-xl font-bold text-foreground">H. Assumptions Audit Trail</h3>
-          <h3 className="text-xl font-bold text-foreground">I. Calculation Methodology</h3>
-          <h3 className="text-xl font-bold text-foreground">J. Investment Grade Methodology</h3>
-        </div>
-      </div>
-
-      {/* Locked Overlay */}
-      <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex items-center justify-center">
-        <div className="text-center max-w-lg px-6">
-          <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
-            <Lock className="w-10 h-10 text-primary-foreground" />
+      {/* Blur overlay */}
+      <div className="absolute inset-0 backdrop-blur-sm bg-white/60 z-10 flex items-center justify-center">
+        <div className="text-center max-w-md p-8">
+          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <Lock className="w-8 h-8 text-white" />
           </div>
           <h3 className="text-2xl font-bold text-foreground mb-3">
-            Unlock Complete Analysis
+            Premium Content Locked
           </h3>
-          
-          {/* Personalized Message */}
-          {personalizedMessage && (
-            <p className="text-sm text-primary bg-primary/10 border border-primary/20 rounded-lg p-3 mb-5 leading-relaxed">
-              {personalizedMessage}
-            </p>
-          )}
-          
-          <p className="text-neutral-700 mb-6 leading-relaxed">
-            Get instant access to interactive charts, detailed financial tables, 5 year projections, and complete cost breakdowns to make a confident investment decision.
+          <p className="text-neutral-600 mb-6 leading-relaxed">
+            Unlock the complete investor-grade analysis with detailed projections, stress tests, and transparent calculations
           </p>
-          
-          <div className="bg-muted/50 rounded-lg p-4 mb-6 border border-border">
-            <p className="text-sm font-medium text-foreground mb-2">One time payment. Lifetime access to this report.</p>
-            <p className="text-xs text-neutral-600">View anytime from your dashboard. No recurring fees.</p>
-          </div>
-          
-          {/* Primary CTA */}
-          <h4 className="text-lg font-bold text-foreground mb-2">Unlock the Premium Report</h4>
-          <p className="text-2xl font-bold text-primary mb-1">AED 49</p>
-          <p className="text-sm text-neutral-600 mb-4">one time payment</p>
-          
-          <ul className="text-left space-y-2 mb-5 max-w-sm mx-auto">
-            <li className="flex items-start space-x-2 text-sm text-neutral-700">
-              <span className="text-success mt-0.5">✓</span>
-              <span>Make confident decisions with 5-year financial projections</span>
-            </li>
-            <li className="flex items-start space-x-2 text-sm text-neutral-700">
-              <span className="text-success mt-0.5">✓</span>
-              <span>Understand your true exit value and total returns</span>
-            </li>
-            <li className="flex items-start space-x-2 text-sm text-neutral-700">
-              <span className="text-success mt-0.5">✓</span>
-              <span>Validate assumptions with stress-tested scenarios</span>
-            </li>
-          </ul>
-          
-          <button 
-            disabled={creatingCheckout}
-            className="inline-flex items-center space-x-2 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-semibold shadow-lg transition-all hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed mb-3"
-            onClick={onUnlockClick}
+          <button
+            onClick={onUnlock}
+            disabled={isLoading}
+            className="inline-flex items-center space-x-2 px-8 py-3.5 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary-hover transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <Lock className="w-5 h-5" />
-            <span>{creatingCheckout ? 'Processing...' : 'Unlock now'}</span>
+            <span>{isLoading ? 'Processing...' : `Unlock for ${priceLabel}`}</span>
           </button>
-          
-          <p className="text-sm text-neutral-600">
-            Pay now, complete sign up after. Full access immediately.
-          </p>
+        </div>
+      </div>
+
+      {/* Preview content (blurred) */}
+      <div className="p-8 space-y-8 select-none pointer-events-none">
+        {/* Section A: Premium Executive Recap */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Premium Executive Recap
+              </h2>
+              <p className="text-neutral-600">Complete investment summary with grade analysis</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="border border-border rounded-lg p-4 bg-neutral-50">
+              <div className="h-4 bg-neutral-200 rounded w-24 mb-2"></div>
+              <div className="h-8 bg-neutral-300 rounded w-32"></div>
+            </div>
+            <div className="border border-border rounded-lg p-4 bg-neutral-50">
+              <div className="h-4 bg-neutral-200 rounded w-24 mb-2"></div>
+              <div className="h-8 bg-neutral-300 rounded w-32"></div>
+            </div>
+            <div className="border border-border rounded-lg p-4 bg-neutral-50">
+              <div className="h-4 bg-neutral-200 rounded w-24 mb-2"></div>
+              <div className="h-8 bg-neutral-300 rounded w-32"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section B: Cash Flow Anatomy */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold text-foreground">
+              Cash Flow Anatomy Waterfall
+            </h2>
+          </div>
+          <div className="border border-border rounded-lg p-6 bg-neutral-50 h-80 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-neutral-300 rounded-lg mx-auto mb-3"></div>
+              <div className="h-4 bg-neutral-200 rounded w-48 mx-auto"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section C: Monthly Operating Expenses */}
+        <div>
+          <h2 className="text-2xl font-bold text-foreground mb-4">
+            Monthly Operating Expenses Breakdown
+          </h2>
+          <div className="border border-border rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-neutral-100">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Expense Category</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold">Monthly Amount</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold">Annual Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-border">
+                  <td className="px-4 py-3"><div className="h-4 bg-neutral-200 rounded w-32"></div></td>
+                  <td className="px-4 py-3"><div className="h-4 bg-neutral-200 rounded w-20 ml-auto"></div></td>
+                  <td className="px-4 py-3"><div className="h-4 bg-neutral-200 rounded w-20 ml-auto"></div></td>
+                </tr>
+                <tr className="border-t border-border">
+                  <td className="px-4 py-3"><div className="h-4 bg-neutral-200 rounded w-32"></div></td>
+                  <td className="px-4 py-3"><div className="h-4 bg-neutral-200 rounded w-20 ml-auto"></div></td>
+                  <td className="px-4 py-3"><div className="h-4 bg-neutral-200 rounded w-20 ml-auto"></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Section D: Mortgage & Amortization */}
+        <div>
+          <h2 className="text-2xl font-bold text-foreground mb-4">
+            Mortgage Payment & First Year Amortization
+          </h2>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="border border-border rounded-lg p-6 bg-neutral-50 h-64"></div>
+            <div className="border border-border rounded-lg p-4">
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <div className="h-4 bg-neutral-200 rounded w-24"></div>
+                  <div className="h-4 bg-neutral-200 rounded w-20"></div>
+                </div>
+                <div className="flex justify-between">
+                  <div className="h-4 bg-neutral-200 rounded w-24"></div>
+                  <div className="h-4 bg-neutral-200 rounded w-20"></div>
+                </div>
+                <div className="flex justify-between">
+                  <div className="h-4 bg-neutral-200 rounded w-24"></div>
+                  <div className="h-4 bg-neutral-200 rounded w-20"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section E: Five-Year Financial Projection */}
+        <div id="five-year-projection">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold text-foreground">
+              Five-Year Financial Projection
+            </h2>
+          </div>
+          <div className="border border-border rounded-lg overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-neutral-100">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-semibold">Metric</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold">Year 1</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold">Year 2</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold">Year 3</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold">Year 4</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold">Year 5</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-border">
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-24"></div></td>
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-16 ml-auto"></div></td>
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-16 ml-auto"></div></td>
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-16 ml-auto"></div></td>
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-16 ml-auto"></div></td>
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-16 ml-auto"></div></td>
+                </tr>
+                <tr className="border-t border-border">
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-24"></div></td>
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-16 ml-auto"></div></td>
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-16 ml-auto"></div></td>
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-16 ml-auto"></div></td>
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-16 ml-auto"></div></td>
+                  <td className="px-3 py-2"><div className="h-3 bg-neutral-200 rounded w-16 ml-auto"></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Section F: Exit Scenario Analysis */}
+        <div id="exit-scenario">
+          <div className="flex items-center gap-2 mb-4">
+            <Target className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold text-foreground">
+              Exit Scenario & Year 5 Total Return
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="border border-border rounded-lg p-4">
+              <div className="space-y-3">
+                <div className="h-4 bg-neutral-200 rounded w-full"></div>
+                <div className="h-4 bg-neutral-200 rounded w-3/4"></div>
+                <div className="h-4 bg-neutral-200 rounded w-full"></div>
+              </div>
+            </div>
+            <div className="border border-border rounded-lg p-4">
+              <div className="space-y-3">
+                <div className="h-4 bg-neutral-200 rounded w-full"></div>
+                <div className="h-4 bg-neutral-200 rounded w-3/4"></div>
+                <div className="h-4 bg-neutral-200 rounded w-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section G: Comprehensive Sensitivity Analysis */}
+        <div id="sensitivity-tables">
+          <div className="flex items-center gap-2 mb-4">
+            <Table2 className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold text-foreground">
+              Comprehensive Sensitivity Analysis
+            </h2>
+          </div>
+          <div className="space-y-4">
+            <div className="border border-border rounded-lg p-4">
+              <div className="h-5 bg-neutral-200 rounded w-48 mb-3"></div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="h-4 bg-neutral-200 rounded"></div>
+                <div className="h-4 bg-neutral-200 rounded"></div>
+                <div className="h-4 bg-neutral-200 rounded"></div>
+                <div className="h-4 bg-neutral-200 rounded"></div>
+              </div>
+            </div>
+            <div className="border border-border rounded-lg p-4">
+              <div className="h-5 bg-neutral-200 rounded w-48 mb-3"></div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="h-4 bg-neutral-200 rounded"></div>
+                <div className="h-4 bg-neutral-200 rounded"></div>
+                <div className="h-4 bg-neutral-200 rounded"></div>
+                <div className="h-4 bg-neutral-200 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section H: Complete Input Assumptions */}
+        <div id="assumptions-audit">
+          <div className="flex items-center gap-2 mb-4">
+            <FileCheck className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold text-foreground">
+              Complete Input Assumptions & Calculation Methodology
+            </h2>
+          </div>
+          <div className="border border-border rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-neutral-100">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Input Parameter</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold">Your Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} className="border-t border-border">
+                    <td className="px-4 py-3"><div className="h-4 bg-neutral-200 rounded w-40"></div></td>
+                    <td className="px-4 py-3"><div className="h-4 bg-neutral-200 rounded w-24 ml-auto"></div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

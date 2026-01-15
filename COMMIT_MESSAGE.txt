@@ -49,7 +49,7 @@ Sensible defaults for quick testing:
 FILES CHANGED:
 - /src/pages/CalculatorPage.tsx (complete rewrite)
 - /src/pages/ResultsPage.tsx (complete rewrite)
-- /supabase/functions/make-server-ef294769/index.ts (new endpoint)
+- /supabase/functions/server/index.tsx (new endpoint)
 
 FILES CREATED:
 - /CALCULATOR_IMPLEMENTATION.md (documentation)

@@ -1,4 +1,21 @@
+// ================================================================
 // YieldPulse ROI Calculation Engine
+// ================================================================
+// 🔒 LOCKED - All formulas verified and mathematically correct
+// Date Locked: January 7, 2026
+// See: /CALCULATION_VERIFICATION.md for complete verification
+// 
+// This calculation engine has been thoroughly tested and verified
+// against standard financial formulas including:
+// - Mortgage payment (PMT) formula
+// - Remaining balance amortization
+// - Compound growth calculations
+// - Break-even analysis
+// - Multi-year projection with compounding
+// - ROI and return metrics
+// 
+// DO NOT modify formulas without updating verification document.
+// ================================================================
 
 export interface PropertyInputs {
   // Property Details
@@ -64,6 +81,13 @@ export interface CalculationResults {
   netRentalYield: number;
   cashOnCashReturn: number;
   capRate: number;
+  costPerSqft: number;
+  rentPerSqft: number;
+
+  // Break-even Analysis
+  breakEvenOccupancyRate: number;
+  breakEvenOccupancyRawPercent: number;
+  breakEvenMonthlyRent: number;
 
   // 5-Year Projection
   projection: YearProjection[];
@@ -157,8 +181,43 @@ export function calculateROI(inputs: PropertyInputs): CalculationResults {
   const netRentalYield = (netOperatingIncome / inputs.purchasePrice) * 100;
   const cashOnCashReturn = (annualCashFlow / totalInitialInvestment) * 100;
   const capRate = (netOperatingIncome / inputs.purchasePrice) * 100;
+  const costPerSqft = inputs.purchasePrice / inputs.areaSqft;
+  const rentPerSqft = grossAnnualRentalIncome / inputs.areaSqft;
 
-  // H. 5-Year Projection
+  // H. Break-even Analysis
+  // Break-even occupancy: What occupancy rate makes annual cash flow = 0?
+  // 
+  // System rule: Management fee is charged on GROSS rental income (not vacancy adjusted)
+  // 
+  // Annual Cash Flow at occupancy O:
+  //   CF = (R × O) - (R × M) - F - L
+  // Where:
+  //   R = Gross Annual Rental Income
+  //   O = Occupancy rate (0-1, fraction of year property is occupied/rented)
+  //   M = Management fee percent (0-1, applied to gross rent R regardless of occupancy)
+  //   F = Fixed operating costs (service charge + maintenance)
+  //   L = Annual mortgage payment
+  //
+  // Setting CF = 0 and solving for O:
+  //   (R × O) - (R × M) - F - L = 0
+  //   R × O = R × M + F + L
+  //   O = M + (F + L) / R
+  //
+  const fixedExpenses = annualServiceCharge + annualMaintenanceCosts;
+  const managementFeePercent = inputs.propertyManagementFeePercent / 100;
+  const breakEvenOccupancyRawPercent = 
+    (managementFeePercent + (fixedExpenses + annualMortgagePayment) / grossAnnualRentalIncome) * 100;
+  const breakEvenOccupancyRate = Math.min(100, Math.max(0, breakEvenOccupancyRawPercent));
+
+  // Break-even monthly rent: What rent makes cash flow = 0 at the assumed vacancy rate?
+  // Cash flow = (R × 12 × (1 - vacancy%)) - Fixed expenses - (R × 12 × Mgmt%) - Mortgage
+  // Setting to zero and solving for R:
+  // R = (Fixed expenses + Mortgage) / (12 × (1 - vacancy% - Mgmt%))
+  const breakEvenMonthlyRent = 
+    (fixedExpenses + annualMortgagePayment) / 
+    (12 * (1 - inputs.vacancyRatePercent / 100 - inputs.propertyManagementFeePercent / 100));
+
+  // I. 5-Year Projection
   const projection = calculateProjection(inputs, {
     loanAmount,
     monthlyInterestRate,
@@ -169,7 +228,7 @@ export function calculateROI(inputs: PropertyInputs): CalculationResults {
     grossAnnualRentalIncome,
   });
 
-  // I. Sensitivity Analysis
+  // J. Sensitivity Analysis
   const sensitivityAnalysis = calculateSensitivityAnalysis(inputs, {
     monthlyInterestRate,
     numberOfPayments,
@@ -200,6 +259,11 @@ export function calculateROI(inputs: PropertyInputs): CalculationResults {
     netRentalYield,
     cashOnCashReturn,
     capRate,
+    costPerSqft,
+    rentPerSqft,
+    breakEvenOccupancyRate,
+    breakEvenOccupancyRawPercent,
+    breakEvenMonthlyRent,
     projection,
     sensitivityAnalysis,
   };
@@ -409,21 +473,55 @@ function calculateSensitivityAnalysis(
 // ================================================================
 
 export function formatCurrency(value: number): string {
+  if (!isFinite(value) || isNaN(value)) {
+    return 'AED 0';
+  }
+  
+  const formatted = new Intl.NumberFormat('en-AE', {
+    style: 'currency',
+    currency: 'AED',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.abs(value));
+  
+  return value < 0 ? `(${formatted})` : formatted;
+}
+
+export function formatPercent(value: number, decimals?: number): string {
+  if (!isFinite(value) || isNaN(value)) {
+    return '0.00%';
+  }
+  
+  // Automatic decimal precision based on magnitude
+  let precision = decimals;
+  if (precision === undefined) {
+    precision = Math.abs(value) < 10 ? 2 : 1;
+  }
+  
+  return `${value.toFixed(precision)}%`;
+}
+
+export function formatNumber(value: number, decimals: number = 0): string {
+  if (!isFinite(value) || isNaN(value)) {
+    return '0';
+  }
+  
+  return new Intl.NumberFormat('en-AE', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+}
+
+// Format currency without negative handling (for tables where +/- is shown separately)
+export function formatAED(value: number): string {
+  if (!isFinite(value) || isNaN(value)) {
+    return 'AED 0';
+  }
+  
   return new Intl.NumberFormat('en-AE', {
     style: 'currency',
     currency: 'AED',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
-}
-
-export function formatPercent(value: number, decimals: number = 2): string {
-  return `${value.toFixed(decimals)}%`;
-}
-
-export function formatNumber(value: number, decimals: number = 0): string {
-  return new Intl.NumberFormat('en-AE', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
   }).format(value);
 }

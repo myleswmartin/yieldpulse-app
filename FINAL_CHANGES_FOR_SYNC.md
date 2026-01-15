@@ -5,12 +5,6 @@
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----
-
 ## Status Check Responses
 
 ### 1. How Analyses Are Saved
@@ -22,33 +16,26 @@ Edge Functions are required for analyses + Stripe checkout; the webhook now live
 
 ---
 
-## Update (Jan 5, 2026)
+### 2. MVP Simplified (No Edge Function Required)
 
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
+**Changes Made:**
 
----### 2. Edge Functions Required (API + Stripe)
-
-**Current:** Analyses and checkout use Edge Function API routes; Stripe webhook is handled by a separate public function.
-
-**Changes:**
-
-ƒo. API calls use `/make-server-ef294769/...` via `apiClient`  
-ƒo. Webhook endpoint is `/stripe-webhook` (public, signature-verified)  
-ƒo. Supabase CLI deploy required for both functions  
-ƒo. Service role secret stored as `SERVICE_ROLE_KEY`
+✅ Removed dependency on `/supabase/functions/server` for MVP saving  
+✅ CalculatorPage now saves directly to Supabase using client  
+✅ DashboardPage now fetches/deletes directly using Supabase client  
+✅ Inserts comply with RLS and use `auth.uid()` via Supabase session  
+✅ Guest mode unchanged: calculate only, no save  
+✅ **NO Supabase CLI deployment required for MVP**
 
 **Benefits:**
-- Secure server-side control for payments
-- Consistent API surface for analyses + purchases
-- Webhook verification isolated to a public endpoint
+- Faster deployment (no Edge Function setup needed)
+- Simpler architecture for MVP
+- RLS handles all security automatically
+- One less deployment step
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----### 3. HomePage Navigation Verification
+### 3. HomePage Navigation Verification
 
 **Confirmed:** ✅ All CTAs use React Router `<Link>` component
 
@@ -66,11 +53,7 @@ Edge Functions are required for analyses + Stripe checkout; the webhook now live
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----## Files Modified (2)
+## Files Modified (2)
 
 ### 1. `/src/pages/CalculatorPage.tsx`
 
@@ -121,33 +104,63 @@ const { error } = await supabase
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----### 2. Edge Functions Required (API + Stripe)
-
-**Current:** Analyses and checkout use Edge Function API routes; Stripe webhook is handled by a separate public function.
+### 2. `/src/pages/DashboardPage.tsx`
 
 **Changes:**
+- Removed `import { apiUrl } from '../utils/supabaseClient'`
+- Added `import { supabase } from '../utils/supabaseClient'`
+- Removed `accessToken` from destructured `useAuth()`
+- Replaced `fetch()` call to Edge Function with direct Supabase query:
 
-ƒo. API calls use `/make-server-ef294769/...` via `apiClient`  
-ƒo. Webhook endpoint is `/stripe-webhook` (public, signature-verified)  
-ƒo. Supabase CLI deploy required for both functions  
-ƒo. Service role secret stored as `SERVICE_ROLE_KEY`
+**Before (fetch):**
+```typescript
+const response = await fetch(`${apiUrl}/analyses/user/me`, {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+  },
+});
+const data = await response.json();
+setAnalyses(data);
+```
 
-**Benefits:**
-- Secure server-side control for payments
-- Consistent API surface for analyses + purchases
-- Webhook verification isolated to a public endpoint
+**After (direct query):**
+```typescript
+const { data, error } = await supabase
+  .from('analyses')
+  .select('*')
+  .order('created_at', { ascending: false });
+
+if (error) throw error;
+setAnalyses(data || []);
+```
+
+**Before (delete via fetch):**
+```typescript
+const response = await fetch(`${apiUrl}/analyses/${id}`, {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+  },
+});
+```
+
+**After (direct delete):**
+```typescript
+const { error } = await supabase
+  .from('analyses')
+  .delete()
+  .eq('id', id);
+
+if (error) throw error;
+```
+
+**Security:** RLS policies automatically:
+- Only show user's own analyses on SELECT
+- Only allow deleting user's own analyses
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----## Deployment Steps (Updated)
+## Deployment Steps (Updated)
 
 ### Required Steps (Simplified)
 
@@ -186,11 +199,7 @@ Edge Functions are required for analyses + Stripe checkout; the webhook now live
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----## Files to Sync to GitHub
+## Files to Sync to GitHub
 
 ### Complete File List (in order)
 
@@ -244,15 +253,11 @@ Edge Functions are required for analyses + Stripe checkout; the webhook now live
 - `FINAL_CHANGES_FOR_SYNC.md` (this file)
 
 **NOT Needed:**
-- `/supabase/functions/make-server-ef294769/` directory - Not used in MVP
+- `/supabase/functions/server/` directory - Not used in MVP
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----## Verification Before Sync
+## Verification Before Sync
 
 ### ✅ Pre-Sync Checklist
 
@@ -269,11 +274,7 @@ Edge Functions are required for analyses + Stripe checkout; the webhook now live
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----## Database RLS Verification
+## Database RLS Verification
 
 ### Ensure These Policies Exist (from DATABASE_SCHEMA.sql)
 
@@ -307,11 +308,7 @@ CREATE POLICY "Users can delete own analyses"
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----## Testing After Deployment
+## Testing After Deployment
 
 ### Quick Test (5 minutes)
 
@@ -329,18 +326,14 @@ Follow `DEPLOYMENT_VERIFICATION.md` for complete checklist.
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----## Summary of Changes
+## Summary of Changes
 
 **Modified Files:** 2
 - ✅ `/src/pages/CalculatorPage.tsx` - Direct insert
 - ✅ `/src/pages/DashboardPage.tsx` - Direct queries
 
 **Removed Dependencies:** 1
-- ❌ Edge Function `/supabase/functions/make-server-ef294769/` (not needed for MVP)
+- ❌ Edge Function `/supabase/functions/server/` (not needed for MVP)
 
 **Simplified Deployment:**
 - **Before:** 5 steps (GitHub + Supabase DB + Edge Function + Vercel)
@@ -352,11 +345,7 @@ Edge Functions are required for analyses + Stripe checkout; the webhook now live
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----## Final Status
+## Final Status
 
 ✅ **All changes complete**  
 ✅ **No Edge Function required**  
@@ -370,10 +359,6 @@ Edge Functions are required for analyses + Stripe checkout; the webhook now live
 
 ---
 
-## Update (Jan 5, 2026)
-
-Edge Functions are required for analyses + Stripe checkout; the webhook now lives in `/stripe-webhook` (public). Service role secret name is `SERVICE_ROLE_KEY`. Any legacy notes about "no Edge Function required" are superseded by the current architecture.
-
----**Updated By:** Figma Make AI  
+**Updated By:** Figma Make AI  
 **Date:** January 2, 2026  
 **Status:** ✅ READY FOR SYNC

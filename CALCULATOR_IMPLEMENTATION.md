@@ -66,7 +66,7 @@ Four key metric cards shown immediately after calculation:
 - Back to Calculator link
 - Consistent branding with blue/green/purple color scheme
 
-### 3. Server Endpoint (/supabase/functions/make-server-ef294769/index.ts)
+### 3. Server Endpoint (/supabase/functions/server/index.tsx)
 **Added new endpoint:**
 
 ```

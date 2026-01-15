@@ -2,7 +2,7 @@
 
 ## Required Environment Variables
 
-You must add these environment variables to your Supabase Edge Functions before the Stripe integration will work.
+You must add these environment variables to your Supabase Edge Function before the Stripe integration will work.
 
 ---
 
@@ -27,7 +27,7 @@ STRIPE_SECRET_KEY=sk_test_51XXXXXXXXXXXX...
 2. Click "+ Add endpoint"
 3. Enter endpoint URL:
    ```
-   https://woqwrkfmdjuaerzpvshj.supabase.co/functions/v1/stripe-webhook
+   https://woqwrkfmdjuaerzpvshj.supabase.co/functions/v1/make-server-ef294769/stripe/webhook
    ```
 4. Select events to listen for:
    - `checkout.session.completed`
@@ -56,7 +56,7 @@ STRIPE_WEBHOOK_SECRET=whsec_XXXXXXXXXXXXXXXXXXXXXXXXXX
    - Name: `STRIPE_SECRET_KEY`, Value: `sk_test_...`
    - Name: `STRIPE_WEBHOOK_SECRET`, Value: `whsec_...`
 4. Save changes
-5. **Important**: Redeploy your Edge Functions for changes to take effect
+5. **Important**: Redeploy your Edge Function for changes to take effect
 
 ### Option B: Via Supabase CLI
 
@@ -68,7 +68,6 @@ supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_XXXXXXXXX
 Then redeploy:
 ```bash
 supabase functions deploy make-server-ef294769
-supabase functions deploy stripe-webhook --no-verify-jwt
 ```
 
 ---
@@ -98,7 +97,7 @@ supabase functions deploy stripe-webhook --no-verify-jwt
 1. Install Stripe CLI: https://stripe.com/docs/stripe-cli
 2. Forward webhook events to local server:
    ```bash
-   stripe listen --forward-to http://localhost:54321/functions/v1/stripe-webhook
+   stripe listen --forward-to http://localhost:54321/functions/v1/make-server-ef294769/stripe/webhook
    ```
 3. Trigger test event:
    ```bash
@@ -154,13 +153,11 @@ WHERE status = 'paid';
 ### Check Supabase Logs
 
 1. Go to https://supabase.com/dashboard/project/woqwrkfmdjuaerzpvshj/logs/edge-functions
-2. Filter by function: `make-server-ef294769` (checkout + purchase creation)
+2. Filter by function: `make-server-ef294769`
 3. Look for:
    - `Purchase record created: <uuid>`
    - `Stripe checkout session created: <session_id>`
-4. Filter by function: `stripe-webhook` (webhook processing)
-5. Look for:
-   - `Webhook event received: checkout.session.completed`
+   - `Stripe webhook event received: checkout.session.completed`
    - `Purchase marked as paid: <uuid>`
 
 ### Common Issues

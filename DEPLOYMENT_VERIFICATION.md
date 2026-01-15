@@ -6,16 +6,15 @@ Use this checklist to verify the deployment is working correctly after syncing t
 
 ## Pre-Deployment Checks
 
-### ƒo. Files Synced to GitHub
+### ✅ Files Synced to GitHub
 - [ ] All files from Figma Make synced to GitHub repository
 - [ ] `package.json` has all dependencies
 - [ ] `vercel.json` exists with SPA rewrites
 - [ ] All page files in `/src/pages/` committed
 - [ ] All component files in `/src/components/` committed
-- [ ] Server files in `/supabase/functions/make-server-ef294769/` committed
-- [ ] Webhook files in `/supabase/functions/stripe-webhook/` committed
+- [ ] Server files in `/supabase/functions/server/` committed
 
-### ƒo. Database Setup
+### ✅ Database Setup
 - [ ] Supabase project created
 - [ ] Database schema executed (`DATABASE_SCHEMA.sql`)
 - [ ] `profiles` table exists
@@ -23,16 +22,14 @@ Use this checklist to verify the deployment is working correctly after syncing t
 - [ ] `payments` table exists (for future)
 - [ ] RLS policies enabled and active
 
-### ƒo. Supabase Edge Functions
-- [ ] API function deployed: `supabase functions deploy make-server-ef294769`
-- [ ] Webhook function deployed: `supabase functions deploy stripe-webhook --no-verify-jwt`
+### ✅ Supabase Edge Function
+- [ ] Edge function deployed: `supabase functions deploy make-server-ef294769`
 - [ ] Environment variables set in Supabase:
-  - [ ] SERVICE_ROLE_KEY
-  - [ ] STRIPE_SECRET_KEY
-  - [ ] STRIPE_WEBHOOK_SECRET
-  - [ ] SUPABASE_URL and SUPABASE_ANON_KEY are injected automatically
+  - [ ] SUPABASE_URL
+  - [ ] SUPABASE_ANON_KEY
+  - [ ] SUPABASE_SERVICE_ROLE_KEY
 
-### ƒo. Vercel Configuration
+### ✅ Vercel Configuration
 - [ ] GitHub repository connected to Vercel
 - [ ] Build settings:
   - Framework: Vite

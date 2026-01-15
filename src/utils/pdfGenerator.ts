@@ -24,41 +24,44 @@ export interface ReportSnapshot {
     grossYield: number;
     netYield: number;
     cashOnCashReturn: number;
+    capRate?: number;
     monthlyCashFlow: number;
     annualCashFlow: number;
     monthlyMortgagePayment: number;
     totalOperatingCosts: number;
     monthlyIncome: number;
     annualIncome: number;
+    costPerSqft?: number;
+    rentPerSqft?: number;
   };
 }
 
 // Helper function to add header with metadata to each page
 function addPageHeader(
-  doc: jsPDF, 
-  pageNumber: number, 
-  totalPages: number, 
+  doc: jsPDF,
+  pageNumber: number,
+  totalPages: number,
   snapshotTimestamp: string,
   isFirstPage: boolean = false
 ): void {
   if (isFirstPage) return; // Skip header on cover page
 
   const pageWidth = doc.internal.pageSize.getWidth();
-  
+
   doc.setFontSize(7);
   doc.setTextColor(120, 120, 120);
   doc.setFont('helvetica', 'normal');
-  
+
   // Left: YieldPulse
   doc.text('YieldPulse', 15, 10);
-  
+
   // Center: Metadata
   const metadataText = `Report v1.0 | Generated from immutable data snapshot | ${snapshotTimestamp}`;
   doc.text(metadataText, pageWidth / 2, 10, { align: 'center' });
-  
+
   // Right: Page number
   doc.text(`Page ${pageNumber} of ${totalPages}`, pageWidth - 15, 10, { align: 'right' });
-  
+
   // Divider line
   doc.setDrawColor(220, 220, 220);
   doc.setLineWidth(0.5);
@@ -72,106 +75,27 @@ function addPageFooter(doc: jsPDF, isFirstPage: boolean = false): void {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const footerY = pageHeight - 15;
-  
+
   // Divider line
   doc.setDrawColor(220, 220, 220);
   doc.setLineWidth(0.5);
   doc.line(15, footerY - 8, pageWidth - 15, footerY - 8);
-  
+
   doc.setFontSize(7);
   doc.setTextColor(100, 100, 100);
   doc.setFont('helvetica', 'italic');
-  
+
   const disclaimerLine1 = 'This report is for informational purposes only and does not constitute financial or investment advice.';
   const disclaimerLine2 = 'Please consult with qualified professionals before making investment decisions.';
-  
+
   doc.text(disclaimerLine1, pageWidth / 2, footerY - 4, { align: 'center' });
   doc.text(disclaimerLine2, pageWidth / 2, footerY, { align: 'center' });
-  
+
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6);
   doc.text('YieldPulse powered by Constructive', pageWidth / 2, footerY + 4, { align: 'center' });
 }
 
-
-
-type NormalizedResults = {
-  grossYield: number;
-  netYield: number;
-  cashOnCashReturn: number;
-  monthlyCashFlow: number;
-  annualCashFlow: number;
-  monthlyMortgagePayment: number;
-  totalOperatingCosts: number;
-  monthlyIncome: number;
-  annualIncome: number;
-};
-
-const pickNumber = (...values: Array<unknown>): number | undefined => {
-  for (const value of values) {
-    if (value === null || value === undefined) continue;
-    const parsed = typeof value === 'number' ? value : Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-};
-
-const normalizeResults = (snapshot: ReportSnapshot): NormalizedResults => {
-  const raw = (snapshot.results || {}) as Record<string, unknown>;
-
-  const grossYield = pickNumber(raw.grossYield, raw.grossRentalYield, raw.gross_yield) ?? 0;
-  const netYield = pickNumber(raw.netYield, raw.netRentalYield, raw.net_yield) ?? 0;
-  const cashOnCashReturn = pickNumber(raw.cashOnCashReturn, raw.cash_on_cash_return) ?? 0;
-  const monthlyCashFlow = pickNumber(raw.monthlyCashFlow, raw.monthly_cash_flow) ?? 0;
-  const annualCashFlow =
-    pickNumber(raw.annualCashFlow, raw.annual_cash_flow) ?? (monthlyCashFlow * 12);
-
-  const monthlyMortgagePayment = pickNumber(raw.monthlyMortgagePayment, raw.monthly_mortgage_payment);
-  const annualMortgagePayment = pickNumber(raw.annualMortgagePayment, raw.annual_mortgage_payment);
-  const resolvedMonthlyMortgagePayment =
-    monthlyMortgagePayment ?? (annualMortgagePayment ? annualMortgagePayment / 12 : 0);
-
-  const totalOperatingCosts = (() => {
-    const direct = pickNumber(
-      raw.totalOperatingCosts,
-      raw.totalAnnualOperatingExpenses,
-      raw.total_annual_operating_expenses,
-    );
-    if (direct !== undefined) return direct;
-
-    const serviceCharge = pickNumber(raw.annualServiceCharge, raw.annual_service_charge);
-    const maintenance = pickNumber(raw.annualMaintenanceCosts, raw.annual_maintenance_costs);
-    const pmFee = pickNumber(raw.annualPropertyManagementFee, raw.annual_property_management_fee);
-
-    if (serviceCharge !== undefined || maintenance !== undefined || pmFee !== undefined) {
-      return (serviceCharge || 0) + (maintenance || 0) + (pmFee || 0);
-    }
-    return 0;
-  })();
-
-  const monthlyIncome =
-    pickNumber(
-      raw.monthlyIncome,
-      raw.expectedMonthlyRent,
-      raw.expected_monthly_rent,
-      snapshot.inputs.expected_monthly_rent,
-    ) ?? 0;
-  const annualIncome =
-    pickNumber(raw.annualIncome, raw.grossAnnualRentalIncome, raw.gross_annual_rental_income) ??
-    (monthlyIncome * 12);
-
-  return {
-    grossYield,
-    netYield,
-    cashOnCashReturn,
-    monthlyCashFlow,
-    annualCashFlow,
-    monthlyMortgagePayment: resolvedMonthlyMortgagePayment,
-    totalOperatingCosts,
-    monthlyIncome,
-    annualIncome,
-  };
-};
 export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string): Promise<void> {
   // Create PDF document
   const doc = new jsPDF('p', 'mm', 'a4');
@@ -195,11 +119,9 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
     month: 'long',
     year: 'numeric'
   });
-  const results = normalizeResults(snapshot);
-
 
   // ==================== COVER PAGE ====================
-  
+
   // Gradient background (subtle)
   doc.setFillColor(...primaryColor);
   doc.rect(0, 0, pageWidth, pageHeight / 3, 'F');
@@ -243,18 +165,18 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...textColor);
-  
+
   let metaY = boxY + 10;
   doc.text('Report Date:', 40, metaY);
   doc.setFont('helvetica', 'bold');
   doc.text(reportGenerationDate, 120, metaY);
-  
+
   metaY += 8;
   doc.setFont('helvetica', 'normal');
   doc.text('Snapshot Date:', 40, metaY);
   doc.setFont('helvetica', 'bold');
   doc.text(snapshotTimestamp, 120, metaY);
-  
+
   metaY += 8;
   doc.setFont('helvetica', 'normal');
   doc.text('Report Version:', 40, metaY);
@@ -272,7 +194,7 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
   doc.setFontSize(7);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(120, 120, 120);
-  
+
   const lines = [
     'CONFIDENTIAL',
     '',
@@ -281,7 +203,7 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
     '',
     'For informational purposes only. Not financial advice.'
   ];
-  
+
   let lineY = coverDisclaimerY;
   lines.forEach((line, index) => {
     if (index === 0) {
@@ -295,30 +217,33 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
 
   // ==================== PAGE 2: EXECUTIVE SUMMARY ====================
   doc.addPage();
-  
+
   addPageHeader(doc, 2, 3, snapshotTimestamp);
-  
+
   let yPosition = 25;
 
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...primaryColor);
   doc.text('Executive Summary', 15, yPosition);
-  
+
   // Decorative line
   doc.setDrawColor(...tealColor);
   doc.setLineWidth(0.8);
   doc.line(15, yPosition + 2, 60, yPosition + 2);
-  
+
   yPosition += 12;
 
-  // Summary metrics in a 2x3 grid
+  // Summary metrics in a 3-column grid (9 metrics total)
   const metrics = [
-    { label: 'Gross Yield', value: formatPercent(results.grossYield) },
-    { label: 'Net Yield', value: formatPercent(results.netYield) },
-    { label: 'Cash on Cash Return', value: formatPercent(results.cashOnCashReturn) },
-    { label: 'Monthly Cash Flow', value: formatCurrency(results.monthlyCashFlow) },
-    { label: 'Annual Cash Flow', value: formatCurrency(results.annualCashFlow) },
+    { label: 'Gross Yield', value: formatPercent(snapshot.results.grossYield) },
+    { label: 'Net Yield', value: formatPercent(snapshot.results.netYield) },
+    { label: 'Cash on Cash Return', value: formatPercent(snapshot.results.cashOnCashReturn) },
+    ...(snapshot.results.capRate !== undefined ? [{ label: 'Cap Rate', value: formatPercent(snapshot.results.capRate) }] : []),
+    { label: 'Monthly Cash Flow', value: formatCurrency(snapshot.results.monthlyCashFlow) },
+    { label: 'Annual Cash Flow', value: formatCurrency(snapshot.results.annualCashFlow) },
+    ...(snapshot.results.costPerSqft !== undefined && snapshot.inputs.area_sqft ? [{ label: 'Cost per sq ft', value: formatCurrency(snapshot.results.costPerSqft) }] : []),
+    ...(snapshot.results.rentPerSqft !== undefined && snapshot.inputs.area_sqft ? [{ label: 'Rent per sq ft (Annual)', value: formatCurrency(snapshot.results.rentPerSqft) }] : []),
   ];
 
   const colWidth = (pageWidth - 30) / 2;
@@ -327,23 +252,23 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
 
   metrics.forEach((metric) => {
     const xPos = 15 + (col * colWidth);
-    
+
     // Background box
     doc.setFillColor(245, 247, 250);
     doc.roundedRect(xPos, yPosition, colWidth - 5, rowHeight, 2, 2, 'F');
-    
+
     // Label
     doc.setTextColor(100, 100, 100);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(metric.label, xPos + 4, yPosition + 7);
-    
+
     // Value
     doc.setTextColor(...textColor);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(metric.value, xPos + 4, yPosition + 16);
-    
+
     col++;
     if (col === 2) {
       col = 0;
@@ -362,24 +287,24 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...primaryColor);
     doc.text('Property Details', 15, yPosition);
-    
+
     doc.setDrawColor(...tealColor);
     doc.setLineWidth(0.8);
     doc.line(15, yPosition + 2, 52, yPosition + 2);
-    
+
     yPosition += 10;
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(...textColor);
-    
+
     if (snapshot.inputs.portal_source) {
       doc.text('Property Source:', 15, yPosition);
       doc.setFont('helvetica', 'bold');
       doc.text(snapshot.inputs.portal_source, 60, yPosition);
       yPosition += 7;
     }
-    
+
     if (snapshot.inputs.area_sqft) {
       doc.setFont('helvetica', 'normal');
       doc.text('Area:', 15, yPosition);
@@ -387,7 +312,7 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
       doc.text(`${snapshot.inputs.area_sqft.toLocaleString()} sqft`, 60, yPosition);
       yPosition += 7;
     }
-    
+
     yPosition += 8;
   }
 
@@ -396,11 +321,11 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...primaryColor);
   doc.text('Key Assumptions', 15, yPosition);
-  
+
   doc.setDrawColor(...tealColor);
   doc.setLineWidth(0.8);
   doc.line(15, yPosition + 2, 52, yPosition + 2);
-  
+
   yPosition += 10;
 
   autoTable(doc, {
@@ -449,34 +374,34 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
 
   // ==================== PAGE 3: FINANCIAL SUMMARY ====================
   doc.addPage();
-  
+
   addPageHeader(doc, 3, 3, snapshotTimestamp);
-  
+
   yPosition = 25;
 
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...primaryColor);
   doc.text('Financial Summary', 15, yPosition);
-  
+
   doc.setDrawColor(...tealColor);
   doc.setLineWidth(0.8);
   doc.line(15, yPosition + 2, 60, yPosition + 2);
-  
+
   yPosition += 12;
 
-  const monthlyIncome = results.monthlyIncome;
-  const annualIncome = results.annualIncome;
+  const monthlyIncome = snapshot.results.monthlyIncome || snapshot.inputs.expected_monthly_rent;
+  const annualIncome = snapshot.results.annualIncome || (monthlyIncome * 12);
 
   autoTable(doc, {
     startY: yPosition,
     head: [['Category', 'Monthly Amount', 'Annual Amount']],
     body: [
       ['Rental Income', formatCurrency(monthlyIncome), formatCurrency(annualIncome)],
-      ['Mortgage Payment', formatCurrency(results.monthlyMortgagePayment), formatCurrency(results.monthlyMortgagePayment * 12)],
-      ['Operating Costs', formatCurrency(results.totalOperatingCosts / 12), formatCurrency(results.totalOperatingCosts)],
+      ['Mortgage Payment', formatCurrency(snapshot.results.monthlyMortgagePayment), formatCurrency(snapshot.results.monthlyMortgagePayment * 12)],
+      ['Operating Costs', formatCurrency(snapshot.results.totalOperatingCosts / 12), formatCurrency(snapshot.results.totalOperatingCosts)],
       ['', '', ''],
-      ['Net Cash Flow', formatCurrency(results.monthlyCashFlow), formatCurrency(results.annualCashFlow)],
+      ['Net Cash Flow', formatCurrency(snapshot.results.monthlyCashFlow), formatCurrency(snapshot.results.annualCashFlow)],
     ],
     theme: 'striped',
     headStyles: {
@@ -518,15 +443,15 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
   doc.setFontSize(9);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(100, 100, 100);
-  
+
   const noteBoxY = yPosition;
   doc.setFillColor(250, 250, 250);
   doc.roundedRect(15, noteBoxY, pageWidth - 30, 25, 2, 2, 'F');
-  
+
   doc.setTextColor(80, 80, 80);
   doc.text('Note:', 20, noteBoxY + 8);
   doc.setFont('helvetica', 'normal');
-  
+
   const noteText = 'All figures are calculated based on the assumptions provided above. Actual results may vary due to market conditions, tenant behavior, and unforeseen expenses. This analysis does not account for capital appreciation or tax implications.';
   const splitNote = doc.splitTextToSize(noteText, pageWidth - 50);
   doc.text(splitNote, 20, noteBoxY + 14);
@@ -536,6 +461,6 @@ export async function generatePDF(snapshot: ReportSnapshot, purchaseDate: string
   // ==================== SAVE PDF ====================
   const propertyName = snapshot.inputs.portal_source || 'Property';
   const fileName = `YieldPulse_${propertyName.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-  
+
   doc.save(fileName);
 }

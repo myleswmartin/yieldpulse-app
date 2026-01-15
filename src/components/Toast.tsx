@@ -70,7 +70,8 @@ export function Toast({
     },
   };
 
-  const { bg, border, text, icon: Icon } = config[type];
+  const safeType = type in config ? type : 'info';
+  const { bg, border, text, icon: Icon } = config[safeType];
 
   return (
     <div
@@ -89,7 +90,7 @@ export function Toast({
             {action && (
               <button
                 onClick={action.onClick}
-                className={`mt-3 text-sm font-medium ${text} hover:underline`}
+                className={`mt-3 text-sm font-medium ${text} hover:underline cursor-pointer`}
               >
                 {action.label}
               </button>
@@ -98,7 +99,7 @@ export function Toast({
         </div>
         <button
           onClick={handleDismiss}
-          className={`${text} hover:opacity-70 transition-opacity flex-shrink-0 ml-2`}
+          className={`${text} hover:opacity-70 transition-opacity flex-shrink-0 ml-2 cursor-pointer`}
           aria-label="Dismiss"
         >
           <X className="w-5 h-5" />
@@ -147,6 +148,16 @@ export function ToastContainer() {
 }
 
 // Helper function to show toasts
-export function showToast(toast: Omit<ToastMessage, 'id'>) {
-  window.dispatchEvent(new CustomEvent('show-toast', { detail: toast }));
+export function showToast(
+  toastOrMessage: Omit<ToastMessage, 'id'> | string,
+  type: ToastType = 'info',
+  description?: string,
+  action?: { label: string; onClick: () => void }
+) {
+  const detail =
+    typeof toastOrMessage === 'string'
+      ? { type, message: toastOrMessage, description, action }
+      : toastOrMessage;
+
+  window.dispatchEvent(new CustomEvent('show-toast', { detail }));
 }

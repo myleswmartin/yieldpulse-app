@@ -54,12 +54,12 @@ export function StatCard({
   };
 
   return (
-    <div className={`rounded-xl p-6 transition-all hover:shadow-md ${variantStyles[variant]} ${className}`}>
-      <div className="flex items-start justify-between mb-4">
-        <span className="text-sm font-medium text-neutral-600">{displayLabel}</span>
-        {Icon && <Icon className={`w-5 h-5 ${iconColorStyles[variant]}`} />}
+    <div className={`rounded-xl p-4 transition-all hover:shadow-md ${variantStyles[variant]} ${className}`}>
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-xs font-medium text-neutral-600">{displayLabel}</span>
+        {Icon && <Icon className={`w-4 h-4 ${iconColorStyles[variant]}`} />}
       </div>
-      <p className={`text-3xl font-bold tracking-tight mb-2 ${getTrendColor() || 'text-neutral-900'}`}>
+      <p className={`text-2xl font-bold tracking-tight mb-1 ${getTrendColor() || 'text-neutral-900'}`}>
         {value}
       </p>
       {displayDescription && (

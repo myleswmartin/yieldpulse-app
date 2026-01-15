@@ -44,9 +44,8 @@
 ### ✅ Other Directories
 
 **Backend:**
-- [x] `supabase/functions/make-server-ef294769/index.ts` - Backend API server
-- [x] `supabase/functions/make-server-ef294769/kv_store.ts` - Key-value store utilities
-- [x] `supabase/functions/stripe-webhook/index.ts` - Stripe webhook handler (public)
+- [x] `supabase/functions/server/index.tsx` - Backend API server
+- [x] `supabase/functions/server/kv_store.tsx` - Key-value store utilities
 
 **Utilities:**
 - [x] `utils/supabase/info.tsx` - Supabase project credentials

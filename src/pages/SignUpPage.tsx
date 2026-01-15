@@ -1,12 +1,18 @@
 import { useState, FormEvent, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { TrendingUp, Mail, Lock, User, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { handleError, showSuccess } from '../utils/errorHandling';
+import { addPendingAnalysis } from '../utils/pendingAnalysis';
+import { usePublicPricing } from '../utils/usePublicPricing';
 
 export default function SignUpPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const purchaseId = searchParams.get('purchaseId');
   const { signUp, user, loading: authLoading } = useAuth();
+  const { priceLabel } = usePublicPricing();
   
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -19,7 +25,23 @@ export default function SignUpPage() {
     if (!authLoading && user) {
       navigate('/dashboard', { replace: true });
     }
-  }, [user, authLoading, navigate]);
+
+    if (purchaseId && !user) {
+      try {
+        localStorage.setItem('yieldpulse-guest-purchase-id', purchaseId);
+      } catch (err) {
+        console.warn('Failed to store purchaseId for guest signup:', err);
+      }
+    }
+
+    // Save pending analysis from location.state to localStorage before sign-up
+    // This ensures it will be synced after email verification and authentication
+    const state = location.state as any;
+    if (state?.inputs && state?.results && !user) {
+      addPendingAnalysis(state.inputs, state.results);
+      console.log('📝 Saved pending analysis to localStorage before sign-up');
+    }
+  }, [user, authLoading, navigate, location.state, purchaseId]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -192,7 +214,7 @@ export default function SignUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-[#1e2875] to-[#2f3aad] text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 bg-gradient-to-r from-[#1e2875] to-[#2f3aad] text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
@@ -212,11 +234,11 @@ export default function SignUpPage() {
               </li>
               <li className="flex items-start space-x-3">
                 <CheckCircle className="w-5 h-5 text-[#14b8a6] flex-shrink-0 mt-0.5" />
-                <span className="text-sm text-neutral-600">Compare multiple investments</span>
+                <span className="text-sm text-neutral-600">Compare 2-4 properties side-by-side</span>
               </li>
               <li className="flex items-start space-x-3">
                 <CheckCircle className="w-5 h-5 text-[#14b8a6] flex-shrink-0 mt-0.5" />
-                <span className="text-sm text-neutral-600">Unlock premium reports for AED 49</span>
+                <span className="text-sm text-neutral-600">Unlock premium reports for {priceLabel}</span>
               </li>
             </ul>
           </div>
@@ -225,7 +247,7 @@ export default function SignUpPage() {
           <div className="mt-8 pt-6 border-t border-neutral-200 text-center">
             <p className="text-neutral-600">
               Already have an account?{' '}
-              <Link to="/auth/signin" className="font-semibold text-[#1e2875] hover:text-[#2f3aad] transition-colors">
+              <Link to={`/auth/signin${purchaseId ? `?purchaseId=${purchaseId}` : ''}`} className="font-semibold text-[#1e2875] hover:text-[#2f3aad] transition-colors">
                 Sign In
               </Link>
             </p>

@@ -1,13 +1,15 @@
 import { useState, FormEvent, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { TrendingUp, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { handleError } from '../utils/errorHandling';
+import { addPendingAnalysis } from '../utils/pendingAnalysis';
 
 export default function SignInPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const redirectParam = new URLSearchParams(location.search).get('redirect');
+  const [searchParams] = useSearchParams();
+  const purchaseId = searchParams.get('purchaseId');
   
   // Safely access useAuth with error boundary
   let authContext;
@@ -32,15 +34,37 @@ export default function SignInPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  const [sessionMessage, setSessionMessage] = useState('');
 
-  const from = (location.state as any)?.from?.pathname || redirectParam || '/dashboard';
-  const safeFrom = from.startsWith('/auth') ? '/dashboard' : from;
+  // Get redirect path from query params or location state
+  const redirectTo = searchParams.get('redirect') || (location.state as any)?.from?.pathname || '/dashboard';
 
   useEffect(() => {
     if (!authLoading && user) {
-      navigate(safeFrom, { replace: true });
+      navigate(redirectTo, { replace: true });
     }
-  }, [user, authLoading, navigate, safeFrom]);
+    
+    // Check for session expiration message from navigation state
+    if (location.state?.message) {
+      setSessionMessage(location.state.message);
+    }
+
+    // Save pending analysis from location.state to localStorage before sign-in
+    // This ensures it will be synced after authentication
+    const state = location.state as any;
+    if (state?.inputs && state?.results && !user) {
+      addPendingAnalysis(state.inputs, state.results);
+      console.log('📝 Saved pending analysis to localStorage before sign-in');
+    }
+    
+    if (purchaseId && !user) {
+      try {
+        localStorage.setItem('yieldpulse-guest-purchase-id', purchaseId);
+      } catch (err) {
+        console.warn('Failed to store purchaseId for guest sign-in:', err);
+      }
+    }
+  }, [user, authLoading, navigate, redirectTo, location.state, purchaseId]);
 
   const handleDemoMode = () => {
     console.log('🎭 Entering demo mode - bypassing authentication');
@@ -58,6 +82,7 @@ export default function SignInPage() {
 
     try {
       await signIn(email, password);
+      navigate(redirectTo, { replace: true });
     } catch (err: any) {
       console.error('Sign in error:', err);
       
@@ -122,6 +147,13 @@ export default function SignInPage() {
             </div>
           )}
 
+          {sessionMessage && (
+            <div className="mb-6 bg-yellow-100 border border-yellow-300 rounded-xl p-4 flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-yellow-500 leading-relaxed">{sessionMessage}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-semibold text-foreground mb-2">
@@ -172,7 +204,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-[#1e2875] to-[#2f3aad] text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 bg-gradient-to-r from-[#1e2875] to-[#2f3aad] text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
@@ -187,19 +219,6 @@ export default function SignInPage() {
               </Link>
             </p>
           </div>
-
-          {/* Demo Mode - Development Only */}
-          {import.meta.env.DEV && (
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={handleDemoMode}
-                className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors underline"
-              >
-                Continue without signing in (Demo)
-              </button>
-            </div>
-          )}
 
           {/* Back to Home */}
           <div className="mt-4 text-center">

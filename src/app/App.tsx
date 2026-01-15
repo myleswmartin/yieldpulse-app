@@ -17,8 +17,16 @@ import ReportsPage from '../pages/ReportsPage';
 import PrivacyPolicyPage from '../pages/PrivacyPolicyPage';
 import TermsOfServicePage from '../pages/TermsOfServicePage';
 import DisclaimerPage from '../pages/DisclaimerPage';
-import SampleReportPage from '../pages/SampleReportPage';
+import SamplePremiumReportPage from '../pages/SamplePremiumReportPage';
+import ContactPage from '../pages/ContactPage';
+import SupportPage from '../pages/SupportPage';
+import AboutPage from '../pages/AboutPage';
 import PaymentSuccessPage from '../pages/PaymentSuccessPage';
+import ProfileSettingsPage from '../pages/ProfileSettingsPage';
+import BrandIdentityPage from '../pages/BrandIdentityPage';
+import PremiumReportGuidePage from '../pages/PremiumReportGuidePage';
+import GlossaryPage from '../pages/GlossaryPage';
+import FAQsPage from '../pages/FAQsPage';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { ToastContainer } from '../components/Toast';
 import { EnvironmentIndicator } from '../components/EnvironmentIndicator';
@@ -28,13 +36,19 @@ import { trackPageView } from '../utils/analytics';
 import AdminRoute from '../components/AdminRoute';
 import AdminLayout from '../components/admin/AdminLayout';
 import AdminDashboard from '../pages/admin/AdminDashboard';
+import AdminAnalytics from '../pages/admin/AdminAnalytics';
+import AdminReports from '../pages/admin/AdminReports';
 import AdminUsers from '../pages/admin/AdminUsers';
 import AdminPurchases from '../pages/admin/AdminPurchases';
+import AdminDocuments from '../pages/admin/AdminDocuments';
 import AdminSupport from '../pages/admin/AdminSupport';
+import AdminContactSubmissions from '../pages/admin/AdminContactSubmissions';
 import AdminWebhooks from '../pages/admin/AdminWebhooks';
 import AdminAuditLog from '../pages/admin/AdminAuditLog';
 import AdminSettings from '../pages/admin/AdminSettings';
 import AdminSetupPage from '../pages/admin/AdminSetupPage';
+import AdminDiscounts from '../pages/admin/AdminDiscounts';
+import SharedReportPage from '../pages/SharedReportPage';
 
 // Route to page name mapping for analytics
 const ROUTE_PAGE_NAMES: Record<string, string> = {
@@ -46,10 +60,16 @@ const ROUTE_PAGE_NAMES: Record<string, string> = {
   '/how-it-works': 'How It Works',
   '/pricing': 'Pricing',
   '/reports': 'Reports',
-  '/sample-report': 'Sample Report',
+  '/sample-premium-report': 'Sample Premium Report',
+  '/premium-report-guide': 'Premium Report Guide',
+  '/glossary': 'Investment Glossary',
+  '/faqs': 'FAQs',
   '/privacy-policy': 'Privacy Policy',
   '/terms-of-service': 'Terms of Service',
   '/disclaimer': 'Disclaimer',
+  '/contact': 'Contact',
+  '/support': 'Support',
+  '/about': 'About',
   '/payment-success': 'Payment Success',
   '/auth/signin': 'Sign In',
   '/auth/signup': 'Sign Up',
@@ -58,6 +78,17 @@ const ROUTE_PAGE_NAMES: Record<string, string> = {
   '/auth/reset-password': 'Reset Password',
   '/admin/dashboard': 'Admin Dashboard',
 };
+
+// Scroll to top on route change for SPA navigation
+function ScrollToTop() {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname, location.search]);
+
+  return null;
+}
 
 // Analytics tracker component
 function AnalyticsTracker() {
@@ -75,6 +106,7 @@ function AnalyticsTracker() {
 function AppRoutes() {
   return (
     <>
+      <ScrollToTop />
       <AnalyticsTracker />
       <Routes>
         <Route path="/" element={<HomePage />} />
@@ -88,10 +120,16 @@ function AppRoutes() {
         <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/sample-report" element={<SampleReportPage />} />
+        <Route path="/sample-premium-report" element={<SamplePremiumReportPage />} />
+        <Route path="/premium-report-guide" element={<PremiumReportGuidePage />} />
+        <Route path="/glossary" element={<GlossaryPage />} />
+        <Route path="/faqs" element={<FAQsPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/terms-of-service" element={<TermsOfServicePage />} />
         <Route path="/disclaimer" element={<DisclaimerPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/support" element={<SupportPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/payment-success" element={<PaymentSuccessPage />} />
         <Route 
           path="/dashboard" 
@@ -109,6 +147,15 @@ function AppRoutes() {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/profile-settings" 
+          element={
+            <ProtectedRoute>
+              <ProfileSettingsPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="/brand-identity" element={<BrandIdentityPage />} />
         
         {/* Admin Routes - Nested under AdminLayout */}
         <Route 
@@ -120,17 +167,28 @@ function AppRoutes() {
           }
         >
           <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="analytics" element={<AdminAnalytics />} />
+          <Route path="reports" element={<AdminReports />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="purchases" element={<AdminPurchases />} />
+          <Route path="documents" element={<AdminDocuments />} />
           <Route path="support" element={<AdminSupport />} />
+          <Route path="contact-submissions" element={<AdminContactSubmissions />} />
           <Route path="webhooks" element={<AdminWebhooks />} />
           <Route path="audit-log" element={<AdminAuditLog />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="discounts" element={<AdminDiscounts />} />
         </Route>
         
         <Route 
           path="/admin/setup" 
           element={<AdminSetupPage />} 
+        />
+        
+        {/* Shared Report - Public route with token parameter */}
+        <Route 
+          path="/shared/:token" 
+          element={<SharedReportPage />} 
         />
       </Routes>
       <ToastContainer />

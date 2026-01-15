@@ -1,9 +1,7 @@
-@custom-variant dark (&:is(.dark *));
-
 :root {
   --font-size: 16px;
   
-  /* Updated to use premium color palette */
+  /* YieldPulse Brand Identity - Primary Colors */
   --background: #ffffff;
   --foreground: #0f172a;
   --card: #ffffff;
@@ -11,7 +9,7 @@
   --popover: #ffffff;
   --popover-foreground: #0f172a;
   
-  /* Primary - Deep Navy */
+  /* Primary - Navy Blue (Deep Navy) */
   --primary: #1e2875;
   --primary-foreground: #ffffff;
   --primary-hover: #2f3aad;
@@ -21,40 +19,44 @@
   --secondary-foreground: #ffffff;
   --secondary-hover: #0d9488;
   
-  /* Neutral */
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #f0fdfa;
-  --accent-foreground: #134e4a;
+  /* Neutral - Slate Palette */
+  --muted: #f1f5f9;           /* slate-100 */
+  --muted-foreground: #64748b; /* slate-500 */
+  --accent: #f8fafc;           /* slate-50 */
+  --accent-foreground: #334155; /* slate-700 */
   
-  /* Borders & Inputs */
-  --border: #e2e8f0;
+  /* Borders & Inputs - Slate Scale */
+  --border: #e2e8f0;           /* slate-200 */
   --input: transparent;
-  --input-background: #f8fafc;
-  --switch-background: #cbd5e1;
+  --input-background: #f8fafc; /* slate-50 */
+  --switch-background: #cbd5e1; /* slate-300 */
   
-  /* Semantic */
+  /* Semantic Colors */
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --success: #10b981;
+  --success-foreground: #ffffff;
   --warning: #f59e0b;
+  --warning-foreground: #ffffff;
   
-  /* Ring/Focus */
-  --ring: #5e74f5;
+  /* Ring/Focus - Primary Navy for brand consistency */
+  --ring: #1e2875;
   
-  /* Font weights */
-  --font-weight-medium: 500;
+  /* Font weights - YieldPulse Brand */
   --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
   
-  /* Charts */
-  --chart-1: #5e74f5;
-  --chart-2: #14b8a6;
-  --chart-3: #f59e0b;
-  --chart-4: #10b981;
-  --chart-5: #8b5cf6;
+  /* Charts - YieldPulse Color System */
+  --chart-1: #1e2875;  /* Navy */
+  --chart-2: #14b8a6;  /* Teal */
+  --chart-3: #f59e0b;  /* Warning/Amber */
+  --chart-4: #10b981;  /* Success/Green */
+  --chart-5: #64748b;  /* Slate-500 */
   
-  /* Radius */
-  --radius: 0.75rem;
+  /* Border Radius - YieldPulse Specifications */
+  --radius: 0.75rem;  /* 12px - rounded-xl for cards */
   
   /* Sidebar */
   --sidebar: #f8fafc;
@@ -64,44 +66,24 @@
   --sidebar-accent: #f0fdfa;
   --sidebar-accent-foreground: #134e4a;
   --sidebar-border: #e2e8f0;
-  --sidebar-ring: #5e74f5;
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --sidebar-ring: #1e2875;
+  
+  /* Additional Slate palette for fine-grained control */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  
+  /* Teal palette for accents */
+  --teal: #14b8a6;
+  --teal-dark: #0d9488;
+  --teal-light: #5eead4;
 }
 
 @theme inline {
@@ -113,14 +95,20 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-hover: var(--secondary-hover);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-input-background: var(--input-background);
@@ -131,10 +119,28 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --color-teal: var(--teal);
+  --color-teal-dark: var(--teal-dark);
+  --color-teal-light: var(--teal-light);
+  
+  /* Slate palette utilities */
+  --color-slate-50: var(--slate-50);
+  --color-slate-100: var(--slate-100);
+  --color-slate-200: var(--slate-200);
+  --color-slate-300: var(--slate-300);
+  --color-slate-400: var(--slate-400);
+  --color-slate-500: var(--slate-500);
+  --color-slate-600: var(--slate-600);
+  --color-slate-700: var(--slate-700);
+  --color-slate-800: var(--slate-800);
+  --color-slate-900: var(--slate-900);
+  
+  /* Border radius - YieldPulse spec */
+  --radius-sm: 0.5rem;      /* 8px - rounded-lg for buttons, inputs */
+  --radius-md: 0.75rem;     /* 12px - rounded-xl for icons, small cards */
+  --radius-lg: 1rem;        /* 16px - rounded-2xl for cards */
+  --radius-xl: 1.5rem;      /* 24px - rounded-3xl for hero cards */
+  
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -151,70 +157,81 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-slate-600;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
   /**
-  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
-  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  * YieldPulse Brand Typography Styles
+  * Following the brand identity specifications
   */
 
   html {
     font-size: var(--font-size);
   }
 
+  /* Headings - Navy Blue (#1e2875) */
   h1 {
-    font-size: var(--text-2xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    @apply text-5xl font-bold leading-tight;
+    color: inherit; /* Allow parent to control color */
   }
 
   h2 {
-    font-size: var(--text-xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    @apply text-4xl font-bold leading-tight;
+    color: inherit; /* Allow parent to control color */
   }
 
   h3 {
-    font-size: var(--text-lg);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    @apply text-3xl font-semibold leading-tight;
+    color: inherit; /* Allow parent to control color */
   }
 
   h4 {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    @apply text-2xl font-semibold leading-normal;
+    color: inherit; /* Allow parent to control color */
   }
 
+  h5 {
+    @apply text-xl font-semibold leading-normal;
+    color: inherit; /* Allow parent to control color */
+  }
+
+  h6 {
+    @apply text-lg font-medium leading-normal;
+    color: inherit; /* Allow parent to control color */
+  }
+
+  /* Body text - Slate palette */
+  p {
+    @apply text-base leading-relaxed;
+    color: inherit; /* Allow parent to control color */
+  }
+
+  /* Labels and form elements */
   label {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    @apply text-sm font-medium text-slate-700 leading-normal;
   }
 
   button {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    @apply text-base font-semibold leading-normal;
   }
 
-  input {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-normal);
-    line-height: 1.5;
+  input, 
+  select, 
+  textarea {
+    @apply text-base font-normal text-slate-900 leading-normal;
   }
 
-  /* Enhanced focus states for accessibility */
+  /* Enhanced focus states for accessibility - YieldPulse Navy */
   button:focus-visible,
   a:focus-visible,
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible,
   [role="button"]:focus-visible {
-    outline: 2px solid var(--secondary);
+    outline: 2px solid var(--primary);
     outline-offset: 2px;
-    border-radius: 0.375rem;
+    border-radius: 0.5rem;
   }
 
   /* Ensure disabled elements are clearly indicated */
@@ -223,15 +240,131 @@
   select:disabled,
   textarea:disabled {
     cursor: not-allowed;
-    opacity: 0.6;
+    opacity: 0.5;
   }
 
-  /* Smooth transitions for interactive elements */
+  /* Smooth transitions for interactive elements - YieldPulse spec (200-300ms) */
   button,
   a,
   input,
   select,
   textarea {
-    transition: all 0.15s ease-in-out;
+    transition: all 0.2s ease-in-out;
   }
+  
+  /* Link styles */
+  a {
+    @apply text-primary hover:text-primary-hover transition-colors;
+  }
+}
+
+@layer utilities {
+  /* YieldPulse Brand Utility Classes */
+  
+  /* Semantic colors */
+  .text-success {
+    color: var(--success);
+  }
+  
+  .text-destructive {
+    color: var(--destructive);
+  }
+  
+  .text-warning {
+    color: var(--warning);
+  }
+  
+  .bg-success {
+    background-color: var(--success);
+  }
+  
+  .bg-destructive {
+    background-color: var(--destructive);
+  }
+  
+  .bg-warning {
+    background-color: var(--warning);
+  }
+  
+  .border-success {
+    border-color: var(--success);
+  }
+  
+  .border-destructive {
+    border-color: var(--destructive);
+  }
+  
+  .border-warning {
+    border-color: var(--warning);
+  }
+  
+  /* Slate text utilities */
+  .text-slate-500 {
+    color: var(--slate-500);
+  }
+  
+  .text-slate-600 {
+    color: var(--slate-600);
+  }
+  
+  .text-slate-700 {
+    color: var(--slate-700);
+  }
+  
+  .text-slate-900 {
+    color: var(--slate-900);
+  }
+  
+  /* Slate background utilities */
+  .bg-slate-50 {
+    background-color: var(--slate-50);
+  }
+  
+  .bg-slate-100 {
+    background-color: var(--slate-100);
+  }
+  
+  .bg-slate-200 {
+    background-color: var(--slate-200);
+  }
+  
+  /* YieldPulse Brand Typography Utilities */
+  .heading-navy {
+    color: var(--primary) !important;
+  }
+  
+  .heading-white {
+    color: #ffffff !important;
+  }
+  
+  .text-primary {
+    color: var(--primary);
+  }
+  
+  /* YieldPulse Brand Gradients */
+  .bg-gradient-navy {
+    background: linear-gradient(to bottom right, #1e2875, #2f3aad);
+  }
+  
+  .bg-gradient-teal {
+    background: linear-gradient(to bottom right, #14b8a6, #0d9488);
+  }
+  
+  .bg-gradient-subtle {
+    background: linear-gradient(to bottom right, #f8fafc, #ffffff);
+  }
+  
+  /* Hover state utilities */
+  .hover-navy {
+    @apply hover:bg-primary-hover;
+  }
+  
+  .hover-teal {
+    @apply hover:bg-secondary-hover;
+  }
+}
+
+
+.pdf-export-scope {
+  background-color: #ffffff;
 }

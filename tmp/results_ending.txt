@@ -1,0 +1,16 @@
+        )}
+
+        {/* Back to Calculator */}
+        <div className="mt-10 text-center">
+          <Link 
+            to="/calculator"
+            className="inline-flex items-center space-x-2 text-neutral-600 hover:text-primary font-medium transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Calculate Another Property</span>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}

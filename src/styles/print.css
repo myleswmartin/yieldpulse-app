@@ -1,751 +1,242 @@
 /* ================================================================
-   YieldPulse Premium Report - PDF Export Print Stylesheet
-   A4 Portrait (595pt × 842pt) with deterministic layout
+   Print Stylesheet for YieldPulse Resource Pages
    ================================================================ */
 
-/* A4 Page Setup with Margins */
-@page {
-  size: A4 portrait;
-  margin: 60px 50px 60px 50px; /* top right bottom left */
-}
-
-/* Landscape page for Five-Year Projection */
-@page landscape {
-  size: A4 landscape;
-  margin: 60px 50px 60px 50px;
-}
-
-/* Apply landscape page to specific section */
-.print-landscape {
-  page: landscape;
-}
-
 @media print {
-  /* ============================================================
-     ROOT AND BODY SETUP
-     ============================================================ */
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
-
-  body {
-    margin: 0;
-    padding: 0;
-    background: white;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  }
-
-  /* Hide navigation, headers, and non-report elements */
-  header,
-  nav,
+  /* Hide non-essential elements */
   .no-print,
-  button:not(.print-preserve),
-  .hide-in-print {
+  header,
+  footer,
+  nav,
+  .floating-cta,
+  button,
+  .feedback-widget {
     display: none !important;
   }
 
-  /* ============================================================
-     PDF PAGE CONTAINER - FIXED WIDTH LAYOUT
-     ============================================================ */
-  .pdf-page-container {
-    width: 100%;
-    max-width: 100%;
-    margin: 0 auto;
-    padding: 0;
-    /* Add padding in print to avoid overlap with fixed header/footer */
-    padding-top: 60px !important;
-    padding-bottom: 60px !important;
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 2cm 1.5cm;
   }
 
-  /* Portrait content area: 495px usable width (after 50px left + 50px right margins from @page) */
-  .pdf-content-portrait {
-    width: 495px;
-    max-width: 495px;
-    margin: 0 auto;
+  /* Reset background colors for print */
+  * {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
 
-  /* Landscape content area: 742px usable width */
-  .pdf-content-landscape {
-    width: 742px;
-    max-width: 742px;
-    margin: 0 auto;
+  /* Typography for print */
+  body {
+    font-size: 12pt;
+    line-height: 1.6;
+    color: black;
   }
 
-  /* ============================================================
-     TYPOGRAPHY HIERARCHY - EXACT SIZES FROM PDF SPEC
-     ============================================================ */
-  
-  /* H1 - Report Title (Cover page only) */
-  .pdf-h1 {
-    font-size: 28px !important;
-    line-height: 36px !important;
-    font-weight: 700 !important;
-    color: #111827 !important;
-    letter-spacing: -0.02em;
+  h1 {
+    font-size: 24pt;
+    margin-top: 0;
+    page-break-after: avoid;
   }
 
-  /* H2 - Section Titles */
-  .pdf-h2,
   h2 {
-    font-size: 20px !important;
-    line-height: 28px !important;
-    font-weight: 700 !important;
-    color: #111827 !important;
-    letter-spacing: -0.01em;
-    margin-bottom: 24px !important;
-    margin-top: 0 !important;
+    font-size: 18pt;
+    margin-top: 20pt;
+    page-break-after: avoid;
   }
 
-  /* H3 - Subsection Titles */
-  .pdf-h3,
   h3 {
-    font-size: 16px !important;
-    line-height: 24px !important;
-    font-weight: 600 !important;
-    color: #1f2937 !important;
-    margin-bottom: 16px !important;
+    font-size: 14pt;
+    margin-top: 15pt;
+    page-break-after: avoid;
   }
 
-  /* H4 - Component Titles */
-  .pdf-h4,
-  h4 {
-    font-size: 14px !important;
-    line-height: 20px !important;
-    font-weight: 600 !important;
-    color: #374151 !important;
-    margin-bottom: 12px !important;
+  h4, h5, h6 {
+    font-size: 12pt;
+    margin-top: 10pt;
+    page-break-after: avoid;
   }
 
-  /* Body Text */
-  .pdf-body,
-  p,
-  div {
-    font-size: 11px !important;
-    line-height: 18px !important;
-    font-weight: 400 !important;
-    color: #374151 !important;
+  /* Links */
+  a {
+    color: black !important;
+    text-decoration: underline;
   }
 
-  /* Table Headers */
-  .pdf-table-header,
-  th {
-    font-size: 10px !important;
-    line-height: 14px !important;
-    font-weight: 600 !important;
-    color: #1f2937 !important;
-    letter-spacing: 0.01em;
-    padding: 8px !important;
+  /* Show URLs for important links */
+  a[href^="http"]:after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+    color: #666;
   }
 
-  /* Table Body */
-  .pdf-table-body,
-  td {
-    font-size: 10px !important;
-    line-height: 16px !important;
-    font-weight: 400 !important;
-    color: #4b5563 !important;
-    padding: 8px !important;
+  /* But hide URLs for internal navigation links */
+  a[href^="/"]:after,
+  a[href^="#"]:after {
+    content: "";
   }
 
-  /* Table Bold Rows (Subtotals) */
-  .pdf-table-bold,
-  td.font-bold,
-  td.font-semibold {
-    font-size: 10px !important;
-    line-height: 16px !important;
-    font-weight: 600 !important;
-    color: #111827 !important;
+  /* Borders and boxes */
+  .border,
+  [class*="border-"] {
+    border: 1pt solid #ddd !important;
   }
 
-  /* Footnotes */
-  .pdf-footnote {
-    font-size: 8px !important;
-    line-height: 12px !important;
-    font-weight: 400 !important;
-    color: #6b7280 !important;
-  }
-
-  /* Captions (Chart legends, axis labels) */
-  .pdf-caption {
-    font-size: 9px !important;
-    line-height: 14px !important;
-    font-weight: 400 !important;
-    color: #6b7280 !important;
-  }
-
-  /* Badge Text */
-  .pdf-badge {
-    font-size: 9px !important;
-    line-height: 12px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.02em;
-  }
-
-  /* ============================================================
-     SECTION SPACING AND RHYTHM
-     ============================================================ */
-  
-  /* Major section breaks */
-  .pdf-section {
-    margin-bottom: 48px !important;
+  /* Tables */
+  table {
+    border-collapse: collapse;
+    width: 100%;
     page-break-inside: avoid;
   }
 
-  /* Subsection spacing */
-  .pdf-subsection {
-    margin-bottom: 32px !important;
-  }
-
-  /* Component spacing */
-  .pdf-component {
-    margin-bottom: 24px !important;
-  }
-
-  /* Space between title and content */
-  .pdf-title-spacing {
-    margin-bottom: 12px !important;
-  }
-
-  /* Space between content and interpretation */
-  .pdf-interpretation-spacing {
-    margin-top: 16px !important;
-    margin-bottom: 24px !important;
-  }
-
-  /* ============================================================
-     PAGE BREAK CONTROL
-     ============================================================ */
-  
-  /* Force page break before major sections */
-  .page-break-before {
-    page-break-before: always !important;
-    break-before: always !important;
-  }
-
-  /* Avoid page break within elements */
-  .page-break-avoid {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  /* Ensure headings have content following (prevent orphans) */
-  h2, h3, h4, .pdf-h2, .pdf-h3, .pdf-h4 {
-    page-break-after: avoid !important;
-    break-after: avoid !important;
-  }
-
-  /* Keep table header with first rows */
-  thead {
-    display: table-header-group;
-  }
-
-  tbody {
-    display: table-row-group;
-  }
-
-  tr {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  /* ============================================================
-     TABLE LAYOUT - DETERMINISTIC WIDTHS
-     ============================================================ */
-  
-  table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-    table-layout: fixed !important;
-    margin-bottom: 16px !important;
-  }
-
-  /* Prevent tables from breaking across pages when small */
-  table.keep-together {
-    page-break-inside: avoid !important;
-  }
-
-  /* Table cells - ensure padding */
   th, td {
-    padding: 8px !important;
+    border: 1pt solid #ddd !important;
+    padding: 8pt;
     text-align: left;
   }
 
-  /* Right-align numeric columns */
-  .text-right,
-  td.text-right,
-  th.text-right {
-    text-align: right !important;
+  thead {
+    display: table-header-group;
+    font-weight: bold;
   }
 
-  /* Center-align specific columns */
-  .text-center,
-  td.text-center,
-  th.text-center {
-    text-align: center !important;
+  /* Lists */
+  ul, ol {
+    margin-left: 20pt;
   }
 
-  /* ============================================================
-     CHART RENDERING - FIXED SIZES
-     ============================================================ */
-  
-  .recharts-wrapper {
-    width: 475px !important;
-    height: 300px !important;
-    margin: 0 auto !important;
+  /* Code blocks */
+  pre, code {
+    border: 1pt solid #ddd !important;
+    background: #f5f5f5 !important;
+    padding: 4pt;
+    font-family: monospace;
+    font-size: 10pt;
   }
 
-  .recharts-surface {
-    width: 475px !important;
-    height: 300px !important;
+  /* Avoid page breaks */
+  .print-no-break {
+    page-break-inside: avoid;
   }
 
-  /* Chart containers */
-  .pdf-chart-container {
-    width: 100%;
-    height: 320px !important; /* 300px chart + 20px spacing */
-    margin-bottom: 20px !important;
-    page-break-inside: avoid !important;
+  /* Force page breaks */
+  .print-page-break {
+    page-break-before: always;
   }
 
-  /* ============================================================
-     COLOR PRESERVATION FOR PRINT
-     ============================================================ */
-  
-  /* Preserve table row backgrounds */
-  .bg-neutral-50,
-  .bg-muted\/50,
-  tr:nth-child(even) {
-    background-color: #f9fafb !important;
+  /* Glossary/FAQ specific */
+  .glossary-term,
+  .faq-item {
+    page-break-inside: avoid;
+    margin-bottom: 12pt;
   }
 
-  .bg-white,
-  tr:nth-child(odd) {
-    background-color: #ffffff !important;
+  /* Ensure good contrast for important elements */
+  .text-primary,
+  .text-secondary {
+    color: black !important;
+    font-weight: 600;
   }
 
-  .bg-neutral-100 {
-    background-color: #f3f4f6 !important;
+  /* Cards and sections */
+  .card,
+  section {
+    border: 1pt solid #ddd !important;
+    padding: 12pt;
+    margin-bottom: 12pt;
+    page-break-inside: avoid;
   }
 
-  .bg-amber-50 {
-    background-color: #fffbeb !important;
+  /* Icons - show minimal version or hide */
+  svg {
+    max-width: 16pt;
+    max-height: 16pt;
   }
 
-  .bg-blue-50 {
-    background-color: #eff6ff !important;
-  }
-
-  .bg-green-50 {
-    background-color: #f0fdf4 !important;
-  }
-
-  /* Preserve text colors */
-  .text-success {
-    color: #10b981 !important;
-  }
-
-  .text-destructive {
-    color: #dc2626 !important;
-  }
-
-  .text-warning {
-    color: #f59e0b !important;
-  }
-
-  .text-primary {
-    color: #1e2875 !important;
-  }
-
-  .text-teal {
-    color: #14b8a6 !important;
-  }
-
-  .text-neutral-600 {
-    color: #4b5563 !important;
-  }
-
-  .text-neutral-700 {
-    color: #374151 !important;
-  }
-
-  .text-neutral-500 {
-    color: #6b7280 !important;
-  }
-
-  .text-foreground {
-    color: #111827 !important;
-  }
-
-  /* Preserve borders */
-  .border,
-  .border-border {
-    border: 1px solid #e5e7eb !important;
-  }
-
-  .border-t {
-    border-top: 1px solid #e5e7eb !important;
-  }
-
-  .border-b {
-    border-bottom: 1px solid #e5e7eb !important;
-  }
-
-  .divide-y > * + * {
-    border-top: 1px solid #e5e7eb !important;
-  }
-
-  /* ============================================================
-     INTERPRETATION BLOCKS
-     ============================================================ */
-  
-  .pdf-interpretation {
-    font-size: 11px !important;
-    line-height: 18px !important;
-    color: #374151 !important;
-    background-color: #f9fafb !important;
-    padding: 16px !important;
-    border-radius: 8px;
-    margin-top: 16px !important;
-    page-break-inside: avoid !important;
-  }
-
-  .pdf-interpretation p {
-    margin-bottom: 12px !important;
-  }
-
-  .pdf-interpretation p:last-child {
-    margin-bottom: 0 !important;
-  }
-
-  /* ============================================================
-     PANEL AND CARD STYLES
-     ============================================================ */
-  
-  .pdf-panel {
-    border: 1px solid #e5e7eb !important;
-    border-radius: 8px;
-    padding: 16px !important;
-    background-color: #ffffff !important;
-    margin-bottom: 20px !important;
-    page-break-inside: avoid !important;
-  }
-
-  /* ============================================================
-     COLLAPSIBLE SECTIONS - FORCE OPEN IN PRINT
-     ============================================================ */
-  
-  .print-force-open {
+  /* Print header for resource pages */
+  .print-header {
     display: block !important;
-    visibility: visible !important;
-    height: auto !important;
-    overflow: visible !important;
+    margin-bottom: 20pt;
+    padding-bottom: 10pt;
+    border-bottom: 2pt solid black !important;
   }
 
-  /* Hide collapse icons in print */
-  .print-hide-icon {
-    display: none !important;
-  }
-
-  /* ============================================================
-     PREMIUM REPORT SPECIFIC OVERRIDES
-     ============================================================ */
-  
-  /* Remove responsive grid, use single column */
-  .grid {
+  /* Footer for printed pages */
+  .print-footer {
     display: block !important;
+    margin-top: 20pt;
+    padding-top: 10pt;
+    border-top: 1pt solid #ddd !important;
+    font-size: 9pt;
+    color: #666;
   }
 
-  .grid > * {
-    width: 100% !important;
-    margin-bottom: 16px !important;
-  }
-
-  /* Remove box shadows in print */
-  .shadow,
-  .shadow-sm,
-  .shadow-lg {
-    box-shadow: none !important;
-  }
-
-  /* Simplify rounded corners for print */
-  .rounded-xl,
-  .rounded-2xl {
-    border-radius: 8px !important;
-  }
-
-  /* ============================================================
-     HIDE INTERACTIVE ELEMENTS
-     ============================================================ */
-  
-  button,
-  .cursor-pointer {
-    cursor: default !important;
-  }
-
-  a {
-    color: inherit !important;
-    text-decoration: none !important;
-  }
-
-  /* ============================================================
-     LANDSCAPE ORIENTATION SPECIFICS
-     ============================================================ */
-  
-  @page landscape {
-    size: A4 landscape;
-    margin: 60px 50px 60px 50px;
-  }
-
-  .print-landscape {
-    page: landscape;
-  }
-
-  .print-landscape .pdf-content-portrait {
-    width: 742px !important;
-    max-width: 742px !important;
-  }
-
-  /* Abbreviated table headers for landscape */
-  .print-abbrev {
-    font-size: 9px !important;
-  }
-
-  /* ============================================================
-     FIVE-YEAR PROJECTION TABLE SPECIFIC
-     ============================================================ */
-  
-  .five-year-table {
-    width: 100% !important;
-    font-size: 9px !important;
-  }
-
-  .five-year-table th {
-    font-size: 9px !important;
-    padding: 6px 4px !important;
-    white-space: nowrap;
-  }
-
-  .five-year-table td {
-    font-size: 9px !important;
-    padding: 6px 4px !important;
-  }
-
-  /* ============================================================
-     UTILITY CLASSES
-     ============================================================ */
-  
-  .print-only {
-    display: block !important;
-  }
-
-  .screen-only {
-    display: none !important;
-  }
-
-  /* Prevent widows and orphans */
+  /* Avoid orphans and widows */
   p, li {
     orphans: 3;
     widows: 3;
   }
 
-  /* ============================================================
-     MONOSPACE FORMULAS
-     ============================================================ */
-  
-  .font-mono {
-    font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace !important;
-    font-size: 10px !important;
-    line-height: 16px !important;
+  /* Avoid page breaks after headings */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
   }
 
-  /* ============================================================
-     TABULAR NUMBERS FOR ALIGNMENT
-     ============================================================ */
-  
-  .tabular-nums,
-  td.text-right,
-  .text-right {
-    font-variant-numeric: tabular-nums;
+  /* Avoid page breaks before headings if possible */
+  h2, h3 {
+    page-break-before: avoid;
   }
 
-  /* ============================================================
-     FIXED PRINT HEADER AND FOOTER WITH PAGE NUMBERS
-     ============================================================ */
-  
-  /* Hide header and footer on screen by default */
-  .print-only {
-    display: none;
+  /* Statistics and metrics */
+  .stat-card {
+    border: 1pt solid #ddd !important;
+    padding: 8pt;
+    margin: 8pt 0;
+    page-break-inside: avoid;
   }
 
-  .no-print {
-    display: block;
+  /* Examples and callouts */
+  .example,
+  .callout,
+  .note {
+    border-left: 3pt solid black !important;
+    padding-left: 12pt;
+    margin: 12pt 0;
+    page-break-inside: avoid;
   }
 
-  @media print {
-    /* Show elements marked as print-only */
-    .print-only {
-      display: flex !important;
-    }
-
-    /* Hide elements marked as no-print */
-    .no-print {
-      display: none !important;
-    }
-
-    /* FIXED HEADER - repeats on every page */
-    .pdf-print-header {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      height: 40px !important;
-      display: flex !important;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 50px 8px 50px !important; /* Match page margins */
-      background: white !important;
-      border-bottom: 1px solid #e5e7eb !important;
-      font-size: 10px !important;
-      line-height: 14px !important;
-      color: #6b7280 !important;
-      z-index: 9999 !important;
-    }
-
-    /* FIXED FOOTER - repeats on every page */
-    .pdf-print-footer {
-      position: fixed !important;
-      bottom: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      height: 40px !important;
-      display: flex !important;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 50px 0 50px !important; /* Match page margins */
-      background: white !important;
-      border-top: 1px solid #e5e7eb !important;
-      font-size: 9px !important;
-      line-height: 12px !important;
-      color: #9ca3af !important;
-      z-index: 9999 !important;
-    }
-
-    .pdf-print-header .header-left {
-      font-weight: 500;
-    }
-
-    .pdf-print-header .header-right {
-      font-weight: 400;
-    }
-
-    .pdf-print-footer .footer-left {
-      font-weight: 400;
-      color: #6b7280 !important;
-    }
-
-    .pdf-print-footer .footer-center {
-      font-style: italic;
-      color: #9ca3af !important;
-    }
-
-    .pdf-print-footer .footer-right {
-      font-weight: 500;
-      color: #6b7280 !important;
-    }
-
-    /* CSS Page Counter for page numbers - browser dependent */
-    .page-number::after {
-      content: counter(page);
-    }
-
-    .total-pages::after {
-      content: counter(pages);
-    }
+  /* Multi-column layouts */
+  .grid {
+    display: block !important;
   }
 
-  /* ============================================================
-     LANDSCAPE TABLE FALLBACK (if named @page not supported)
-     ============================================================ */
-  
-  /* If browser doesn't support named pages, ensure five-year table still fits */
-  @supports not (page: landscape) {
-    .print-landscape .five-year-table {
-      font-size: 7px !important;
-      max-width: 495px !important;
-    }
-
-    .print-landscape .five-year-table th,
-    .print-landscape .five-year-table td {
-      font-size: 7px !important;
-      padding: 4px 2px !important;
-      word-break: break-word;
-    }
-
-    .print-landscape .print-abbrev {
-      font-size: 7px !important;
-    }
+  .grid > * {
+    display: block !important;
+    margin-bottom: 12pt;
   }
 
-  /* Additional fallback: reduce five-year table font even more if needed */
-  @media print and (max-width: 595px) {
-    .five-year-table {
-      font-size: 7px !important;
-    }
-
-    .five-year-table th,
-    .five-year-table td {
-      font-size: 7px !important;
-      padding: 4px 2px !important;
-    }
+  /* Spacing adjustments */
+  .space-y-4 > * + *,
+  .space-y-6 > * + *,
+  .space-y-8 > * + * {
+    margin-top: 12pt !important;
   }
 
-  /* Ensure five-year table never causes horizontal overflow */
-  .print-landscape {
-    overflow-x: visible;
-    max-width: 100%;
+  /* Ensure readability */
+  .text-sm {
+    font-size: 10pt !important;
   }
 
-  .five-year-table {
-    table-layout: fixed !important;
-    width: 100% !important;
-    max-width: 100%;
-    overflow-wrap: break-word;
+  .text-xs {
+    font-size: 9pt !important;
   }
 
-  /* If absolutely needed, allow table to scale down slightly */
-  @media print {
-    .five-year-table-wrapper {
-      max-width: 100%;
-      overflow: visible;
-    }
-
-    /* Only apply transform scale as last resort fallback */
-    @supports not (page: landscape) {
-      .print-landscape .five-year-table-wrapper {
-        transform: scale(0.95);
-        transform-origin: top left;
-      }
-    }
-  }
-
-  /* ============================================================
-     COLLAPSIBLE CONTENT - ALWAYS RENDER FOR PRINT
-     ============================================================ */
-  
-  /* Force collapsible sections to be visible in print */
-  @media print {
-    .collapsible-content {
-      display: block !important;
-      visibility: visible !important;
-      height: auto !important;
-      opacity: 1 !important;
-      overflow: visible !important;
-    }
-
-    .screen-only-hidden {
-      display: block !important;
-    }
+  /* Logo/branding in header */
+  .print-logo {
+    display: block !important;
+    max-width: 150pt;
+    margin-bottom: 12pt;
   }
 }

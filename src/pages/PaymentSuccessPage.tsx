@@ -27,7 +27,11 @@ export default function PaymentSuccessPage() {
       navigate('/dashboard');
     } else {
       // Guest user, prompt to sign up
-      navigate(`/signup?purchaseId=${purchaseId}`);
+      const params = new URLSearchParams();
+      if (purchaseId) params.set('purchaseId', purchaseId);
+      if (isGuest) params.set('guest', 'true');
+      const query = params.toString();
+      navigate(`/auth/signup${query ? `?${query}` : ''}`);
     }
   };
 
@@ -100,7 +104,7 @@ export default function PaymentSuccessPage() {
           {/* Action Button */}
           <button
             onClick={handleContinue}
-            className="inline-flex items-center px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg transition-all hover:bg-primary-hover"
+            className="inline-flex items-center px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg transition-all hover:bg-primary-hover cursor-pointer"
           >
             <span>{user ? 'Go to Dashboard' : 'Create Account & Access Report'}</span>
             <ArrowRight className="w-5 h-5 ml-2" />

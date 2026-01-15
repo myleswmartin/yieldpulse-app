@@ -1,122 +1,146 @@
-import { Lock } from 'lucide-react';
+import { Lock, Sparkles } from 'lucide-react';
+import { usePublicPricing } from '../utils/usePublicPricing';
 
 interface PremiumCTAProps {
-  onUnlockClick: () => void;
-  onSeeIncludedClick: () => void;
-  creatingCheckout: boolean;
+  onUnlock: () => void;
+  onSeeIncluded?: () => void;
+  isLoading?: boolean;
   personalizedMessage?: string;
-  variant?: 'inline' | 'banner';
+  variant?: 'default' | 'compact';
 }
 
 export function PremiumCTA({ 
-  onUnlockClick, 
-  onSeeIncludedClick, 
-  creatingCheckout, 
+  onUnlock, 
+  onSeeIncluded, 
+  isLoading = false, 
   personalizedMessage,
-  variant = 'banner'
+  variant = 'default'
 }: PremiumCTAProps) {
-  
-  if (variant === 'inline') {
+  const { priceLabel } = usePublicPricing();
+  const bullets = [
+    'Know your exact year 5 position and exit returns',
+    'Validate every assumption with transparent calculations',
+    'Understand your downside risk through stress testing'
+  ];
+
+  if (variant === 'compact') {
     return (
-      <div className="bg-white border-2 border-primary/30 rounded-xl p-6 text-center">
-        {personalizedMessage && (
-          <p className="text-sm text-primary bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 leading-relaxed">
-            {personalizedMessage}
-          </p>
-        )}
-        
-        <h3 className="text-xl font-bold text-foreground mb-2">Unlock the Premium Report</h3>
-        <p className="text-2xl font-bold text-primary mb-1">AED 49</p>
-        <p className="text-sm text-neutral-600 mb-4">one time payment • lifetime access</p>
-        
-        <ul className="text-left space-y-2 mb-5 max-w-md mx-auto">
-          <li className="flex items-start space-x-2 text-sm text-neutral-700">
-            <span className="text-success mt-0.5">✓</span>
-            <span>Make confident decisions with 5-year financial projections</span>
-          </li>
-          <li className="flex items-start space-x-2 text-sm text-neutral-700">
-            <span className="text-success mt-0.5">✓</span>
-            <span>Understand your true exit value and total returns</span>
-          </li>
-          <li className="flex items-start space-x-2 text-sm text-neutral-700">
-            <span className="text-success mt-0.5">✓</span>
-            <span>Validate assumptions with stress-tested scenarios</span>
-          </li>
-        </ul>
-        
-        <button 
-          onClick={onUnlockClick}
-          disabled={creatingCheckout}
-          className="w-full max-w-md mx-auto flex items-center justify-center space-x-2 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-semibold shadow-lg transition-all hover:bg-primary-hover hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Lock className="w-5 h-5" />
-          <span>{creatingCheckout ? 'Processing...' : 'Unlock now'}</span>
-        </button>
-        
-        <button 
-          onClick={onSeeIncludedClick}
-          className="mt-3 text-sm text-neutral-600 hover:text-primary transition-colors"
-        >
-          See what is included
-        </button>
+      <div className="bg-gradient-to-br from-primary/5 via-white to-secondary/5 border-2 border-primary/30 rounded-xl p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-bold text-foreground">Unlock the Premium Report</h3>
+            </div>
+            <p className="text-sm text-neutral-600 mb-1">
+              Complete analysis • {priceLabel} one time
+            </p>
+            <p className="text-xs text-secondary font-semibold">
+              ⚡ Join 500+ UAE investors who upgraded
+            </p>
+          </div>
+          <button
+            onClick={onUnlock}
+            disabled={isLoading}
+            className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary-hover transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer"
+          >
+            <Lock className="w-4 h-4" />
+            <span>{isLoading ? 'Processing...' : 'Unlock now'}</span>
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/10 border-2 border-primary/30 rounded-xl p-6 mb-8">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div className="bg-gradient-to-br from-primary/5 via-white to-secondary/5 border-2 border-primary/30 rounded-xl p-8 shadow-lg mb-12">
+      {personalizedMessage && (
+        <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+          <p className="text-sm text-primary font-medium leading-relaxed">
+            {personalizedMessage}
+          </p>
+        </div>
+      )}
+      
+      {/* Social Proof Badge */}
+      <div className="mb-4 inline-flex items-center gap-2 bg-secondary/10 px-4 py-2 rounded-full border border-secondary/20">
+        <div className="flex -space-x-2">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-white"></div>
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-400 to-green-600 border-2 border-white"></div>
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 border-2 border-white"></div>
+        </div>
+        <span className="text-xs font-semibold text-secondary">500+ investors unlocked this week</span>
+      </div>
+      
+      <div className="flex items-start gap-6">
+        <div className="p-4 bg-gradient-to-br from-primary to-primary-hover rounded-2xl flex-shrink-0 shadow-md">
+          <Sparkles className="w-7 h-7 text-white" />
+        </div>
         <div className="flex-1">
-          {personalizedMessage && (
-            <p className="text-sm text-primary bg-white/80 border border-primary/20 rounded-lg p-3 mb-3 leading-relaxed">
-              {personalizedMessage}
-            </p>
-          )}
-          
-          <h3 className="text-xl font-bold text-foreground mb-2">Unlock the Premium Report</h3>
-          <p className="text-sm text-neutral-700 mb-3">
-            Get the full analysis with 5-year projections, exit scenarios, sensitivity tables, and complete breakdowns
+          <div className="flex items-center gap-3 mb-2">
+            <h3 className="text-2xl font-bold text-foreground">
+              Unlock the Premium Report
+            </h3>
+            <span className="px-4 py-1.5 bg-primary text-white rounded-full text-sm font-bold">
+              {priceLabel}
+            </span>
+            <span className="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-bold animate-pulse">
+              LIMITED TIME
+            </span>
+          </div>
+          <p className="text-neutral-600 mb-6 leading-relaxed">
+            One time unlock • Complete investor-grade analysis • Instant PDF download
           </p>
           
-          <div className="flex flex-wrap items-center gap-4">
-            <div>
-              <p className="text-2xl font-bold text-primary">AED 49</p>
-              <p className="text-xs text-neutral-600">one time payment</p>
-            </div>
-            
-            <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-700">
-              <li className="flex items-center space-x-1">
-                <span className="text-success">✓</span>
-                <span>5-year projections</span>
+          <ul className="space-y-3 mb-6">
+            {bullets.map((bullet, index) => (
+              <li key={index} className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-success/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-2 h-2 rounded-full bg-success"></div>
+                </div>
+                <span className="text-sm text-neutral-700 leading-relaxed">{bullet}</span>
               </li>
-              <li className="flex items-center space-x-1">
-                <span className="text-success">✓</span>
-                <span>Exit value analysis</span>
-              </li>
-              <li className="flex items-center space-x-1">
-                <span className="text-success">✓</span>
-                <span>Stress tests</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-        
-        <div className="flex flex-col gap-2">
-          <button 
-            onClick={onUnlockClick}
-            disabled={creatingCheckout}
-            className="flex items-center justify-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold shadow-lg transition-all hover:bg-primary-hover hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            <Lock className="w-5 h-5" />
-            <span>{creatingCheckout ? 'Processing...' : 'Unlock now'}</span>
-          </button>
+            ))}
+          </ul>
           
-          <button 
-            onClick={onSeeIncludedClick}
-            className="text-sm text-neutral-600 hover:text-primary transition-colors"
-          >
-            See what is included
-          </button>
+          {/* Value Stack */}
+          <div className="mb-6 p-4 bg-neutral-50 border border-neutral-200 rounded-lg">
+            <div className="text-xs font-semibold text-neutral-500 mb-2">YOU GET:</div>
+            <div className="grid grid-cols-2 gap-2 text-xs text-neutral-700">
+              <div>✓ 15+ detailed sections</div>
+              <div>✓ 5-year projections</div>
+              <div>✓ Risk analysis</div>
+              <div>✓ PDF export</div>
+              <div>✓ Lifetime access</div>
+              <div>✓ Full audit trail</div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onUnlock}
+              disabled={isLoading}
+              className="inline-flex items-center space-x-2 px-8 py-3.5 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary-hover transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-base cursor-pointer"
+            >
+              <Lock className="w-5 h-5" />
+              <span>{isLoading ? 'Processing...' : `Unlock now for ${priceLabel}`}</span>
+            </button>
+            {onSeeIncluded && (
+              <button
+                onClick={onSeeIncluded}
+                className="text-sm font-medium text-primary hover:text-primary-hover transition-colors underline cursor-pointer"
+              >
+                See what's included
+              </button>
+            )}
+          </div>
+          
+          {/* Trust Badge */}
+          <div className="mt-4 text-xs text-neutral-500 flex items-center gap-4">
+            <span>🔒 Secure payment via Stripe</span>
+            <span>⚡ Instant delivery</span>
+            <span>💯 Used by 500+ investors</span>
+          </div>
         </div>
       </div>
     </div>

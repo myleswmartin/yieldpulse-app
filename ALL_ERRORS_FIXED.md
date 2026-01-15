@@ -265,7 +265,7 @@ Use service role key on backend for admin operations:
 // Admin endpoint example
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SERVICE_ROLE_KEY')! // Bypasses RLS
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')! // Bypasses RLS
 );
 
 // Manually check admin status

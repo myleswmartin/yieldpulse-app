@@ -16,6 +16,16 @@ interface FieldWarning {
   severity: 'warning' | 'info';
 }
 
+// Helper function to format number with commas
+const formatNumberWithCommas = (value: number): string => {
+  return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+};
+
+// Helper function to remove commas and parse number
+const parseFormattedNumber = (value: string): number => {
+  return parseFloat(value.replace(/,/g, '')) || 0;
+};
+
 export default function CalculatorPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -24,21 +34,8 @@ export default function CalculatorPage() {
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [warnings, setWarnings] = useState<FieldWarning[]>([]);
 
-  const savePendingAnalysis = (payload: { inputs: PropertyInputs; results: CalculationResults }) => {
-    try {
-      const key = 'yieldpulse-pending-analyses';
-      const raw = localStorage.getItem(key);
-      const existing = raw ? JSON.parse(raw) : [];
-      const next = Array.isArray(existing) ? existing : [];
-      next.push({ ...payload, createdAt: new Date().toISOString() });
-      localStorage.setItem(key, JSON.stringify(next));
-    } catch (err) {
-      console.warn('Failed to save pending analysis to localStorage:', err);
-    }
-  };
-
-
   const [formData, setFormData] = useState({
+    propertyName: '',
     portalSource: 'Bayut',
     listingUrl: '',
     purchasePrice: 1500000,
@@ -122,7 +119,7 @@ export default function CalculatorPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    const numValue = name === 'portalSource' || name === 'listingUrl' ? value : parseFloat(value) || 0;
+    const numValue = name === 'portalSource' || name === 'listingUrl' || name === 'propertyName' ? value : parseFormattedNumber(value);
     
     setFormData(prev => ({
       ...prev,
@@ -130,7 +127,7 @@ export default function CalculatorPage() {
     }));
 
     // Validate numeric fields
-    if (name !== 'portalSource' && name !== 'listingUrl') {
+    if (name !== 'portalSource' && name !== 'listingUrl' && name !== 'propertyName') {
       validateAndWarn(name, numValue as number);
     }
   };
@@ -139,6 +136,7 @@ export default function CalculatorPage() {
     e.preventDefault();
     
     const inputs: PropertyInputs = {
+      propertyName: formData.propertyName || undefined,
       portalSource: formData.portalSource,
       listingUrl: formData.listingUrl,
       areaSqft: formData.areaSqft,
@@ -171,6 +169,28 @@ export default function CalculatorPage() {
 
         if (error) {
           console.error('Failed to save analysis:', error);
+          
+          // Special handling for 401 errors (session expired)
+          if (error.status === 401) {
+            handleError(
+              'Your session has expired. Please sign in again to save your analysis.',
+              'Session Expired',
+              undefined, // No retry - they need to sign in first
+              requestId
+            );
+            setSaving(false);
+            // Navigate to results without saving - user can sign in and try again
+            navigate('/results', { 
+              state: { 
+                inputs, 
+                results: calculatedResults,
+                isSaved: false 
+              } 
+            });
+            return;
+          }
+          
+          // All other errors
           handleError(
             error.error || 'Failed to save analysis. Please try again before viewing results.',
             'Save Analysis',
@@ -212,7 +232,6 @@ export default function CalculatorPage() {
     } else {
       // Unauthenticated users: navigate with in-memory state only
       setShowSignInPrompt(true);
-      savePendingAnalysis({ inputs, results: calculatedResults });
       navigate('/results', { 
         state: { 
           inputs, 
@@ -280,7 +299,7 @@ export default function CalculatorPage() {
     <div className="min-h-screen bg-neutral-50">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
         {/* Page Header */}
         <div className="mb-12">
           <div className="flex items-center space-x-4 mb-4">
@@ -342,6 +361,21 @@ export default function CalculatorPage() {
               </div>
               
               <div className="grid md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Property Name <span className="text-neutral-400 font-normal">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="propertyName"
+                    value={formData.propertyName}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Dubai Marina 1BR, JBR Penthouse, Business Bay Studio..."
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  />
+                  <p className="mt-1.5 text-xs text-neutral-500">Give this property a memorable name for easy identification in your dashboard and reports</p>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
                     Portal Source
@@ -381,13 +415,11 @@ export default function CalculatorPage() {
                     <Tooltip content="The asking price or agreed purchase price of the property. This is the most significant factor affecting your returns." />
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     name="purchasePrice"
-                    value={formData.purchasePrice}
+                    value={formatNumberWithCommas(formData.purchasePrice)}
                     onChange={handleInputChange}
                     required
-                    min="0"
-                    step="1000"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                   <p className="mt-1.5 text-xs text-neutral-500">Total property cost before fees</p>
@@ -398,12 +430,11 @@ export default function CalculatorPage() {
                     Property Size <span className="text-neutral-500 font-normal">(sqft)</span>
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     name="areaSqft"
-                    value={formData.areaSqft}
+                    value={formatNumberWithCommas(formData.areaSqft)}
                     onChange={handleInputChange}
                     required
-                    min="0"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                   <p className="mt-1.5 text-xs text-neutral-500">Built up area in square feet</p>
@@ -425,12 +456,11 @@ export default function CalculatorPage() {
                     <Tooltip content="Current market rent for similar properties in the area. Check recent listings on Bayut or Property Finder for comparable units. This is the second most influential factor after purchase price." />
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     name="expectedMonthlyRent"
-                    value={formData.expectedMonthlyRent}
+                    value={formatNumberWithCommas(formData.expectedMonthlyRent)}
                     onChange={handleInputChange}
                     required
-                    min="0"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                   <p className="mt-2 text-xs text-neutral-500">
@@ -576,12 +606,11 @@ export default function CalculatorPage() {
                     <Tooltip content="Property and contents insurance. Typically required by mortgage lender. Cost varies by property value and coverage level." />
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     name="insuranceAnnual"
-                    value={formData.insuranceAnnual}
+                    value={formatNumberWithCommas(formData.insuranceAnnual)}
                     onChange={handleInputChange}
                     required
-                    min="0"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                   <p className="mt-1.5 text-xs text-neutral-500">Default: AED 2,000 (typical for AED 1.5M property)</p>
@@ -592,12 +621,11 @@ export default function CalculatorPage() {
                     Other Annual Costs <span className="text-neutral-500 font-normal">(AED)</span>
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     name="otherCostsAnnual"
-                    value={formData.otherCostsAnnual}
+                    value={formatNumberWithCommas(formData.otherCostsAnnual)}
                     onChange={handleInputChange}
                     required
-                    min="0"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                   <p className="mt-1.5 text-xs text-neutral-500">Miscellaneous costs (chiller, inspections, etc.)</p>
@@ -685,7 +713,7 @@ export default function CalculatorPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="group inline-flex items-center space-x-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="group inline-flex items-center space-x-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer"
                 >
                   <span>{saving ? 'Calculating...' : 'Calculate ROI'}</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -729,7 +757,7 @@ export default function CalculatorPage() {
               <div className="mt-8 text-center">
                 <button
                   onClick={() => navigate('/results', { state: { inputs: formData, results } })}
-                  className="inline-flex items-center space-x-2 text-primary font-medium hover:text-primary-hover transition-colors"
+                  className="inline-flex items-center space-x-2 text-primary font-medium hover:text-primary-hover transition-colors cursor-pointer"
                 >
                   <span>View Detailed Analysis</span>
                   <ArrowRight className="w-5 h-5" />
