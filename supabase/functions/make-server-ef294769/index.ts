@@ -3860,6 +3860,36 @@ function generateShareToken(): string {
   return `share_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 }
 
+function mapAnalysisSnapshot(analysis: any) {
+  const toNumber = (value: any) => (value === null || value === undefined ? 0 : Number(value));
+  return {
+    inputs: {
+      propertyName: analysis.property_name || undefined,
+      portalSource: analysis.portal_source || undefined,
+      listingUrl: analysis.listing_url || undefined,
+      areaSqft: toNumber(analysis.area_sqft),
+      purchasePrice: toNumber(analysis.purchase_price),
+      downPaymentPercent: toNumber(analysis.down_payment_percent),
+      mortgageInterestRate: toNumber(analysis.mortgage_interest_rate),
+      mortgageTermYears: toNumber(analysis.mortgage_term_years),
+      expectedMonthlyRent: toNumber(analysis.expected_monthly_rent),
+      serviceChargeAnnual: toNumber(analysis.service_charge_annual),
+      annualMaintenancePercent: toNumber(analysis.annual_maintenance_percent),
+      propertyManagementFeePercent: toNumber(analysis.property_management_fee_percent),
+      dldFeePercent: toNumber(analysis.dld_fee_percent),
+      agentFeePercent: toNumber(analysis.agent_fee_percent),
+      capitalGrowthPercent: toNumber(analysis.capital_growth_percent),
+      rentGrowthPercent: toNumber(analysis.rent_growth_percent),
+      vacancyRatePercent: toNumber(analysis.vacancy_rate_percent),
+      holdingPeriodYears: toNumber(analysis.holding_period_years) || 5,
+      vacancyRate: toNumber(analysis.vacancy_rate_percent),
+      interestRate: toNumber(analysis.mortgage_interest_rate),
+      loanTerm: toNumber(analysis.mortgage_term_years),
+    },
+    results: analysis.calculation_results || null,
+  };
+}
+
 // Create a shareable link for a report (requires authentication)
 app.post("/make-server-ef294769/reports/share", async (c) => {
   try {
@@ -3888,6 +3918,34 @@ app.post("/make-server-ef294769/reports/share", async (c) => {
       return c.json({ error: "Either analysisId or inputs/results required" }, 400);
     }
 
+    let snapshotInputs = inputs || null;
+    let snapshotResults = results || null;
+    let resolvedName = propertyName || null;
+
+    if (analysisId && (!snapshotInputs || !snapshotResults)) {
+      const { data: analysisRecord, error: analysisError } = await supabase
+        .from("analyses")
+        .select(
+          "property_name, portal_source, listing_url, area_sqft, purchase_price, down_payment_percent, mortgage_interest_rate, mortgage_term_years, expected_monthly_rent, service_charge_annual, annual_maintenance_percent, property_management_fee_percent, dld_fee_percent, agent_fee_percent, capital_growth_percent, rent_growth_percent, vacancy_rate_percent, holding_period_years, calculation_results"
+        )
+        .eq("id", analysisId)
+        .maybeSingle();
+
+      if (analysisError || !analysisRecord) {
+        console.error("Share report: failed to load analysis snapshot", analysisError);
+        return c.json({ error: "Failed to load saved analysis for sharing" }, 500);
+      }
+
+      const mapped = mapAnalysisSnapshot(analysisRecord);
+      snapshotInputs = snapshotInputs || mapped.inputs;
+      snapshotResults = snapshotResults || mapped.results;
+      resolvedName = resolvedName || mapped.inputs?.propertyName || analysisRecord.property_name || 'Investment Property';
+    }
+
+    if (!snapshotInputs || !snapshotResults) {
+      return c.json({ error: "Complete analysis snapshot is required to share" }, 400);
+    }
+
     // Generate unique share token
     const shareToken = generateShareToken();
 
@@ -3897,9 +3955,9 @@ app.post("/make-server-ef294769/reports/share", async (c) => {
       analysisId: analysisId || null,
       sharedBy: user.id,
       sharedByEmail: user.email,
-      propertyName: propertyName || 'Investment Property',
-      inputs: inputs || null,
-      results: results || null,
+      propertyName: resolvedName,
+      inputs: snapshotInputs,
+      results: snapshotResults,
       createdAt: new Date().toISOString(),
       viewCount: 0,
       saveCount: 0,

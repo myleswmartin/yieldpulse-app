@@ -134,6 +134,8 @@ export default function SharedReportPage() {
     );
   }
 
+  const hasValidSnapshot = !!report?.inputs && !!report?.results;
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <Header />
@@ -199,19 +201,36 @@ export default function SharedReportPage() {
 
         {/* Report Content */}
         <div className="bg-white rounded-2xl border border-border p-8">
-          <PremiumReport
-            displayResults={report.results}
-            displayInputs={report.inputs}
-            vacancyAmount={report.results.grossAnnualRentalIncome * ((report.inputs.vacancyRate || 0) / 100)}
-            firstYearAmortization={{
-              principal: report.results.annualMortgagePayment - (report.results.loanAmount * ((report.inputs.interestRate || 0) / 100)),
-              interest: report.results.loanAmount * ((report.inputs.interestRate || 0) / 100),
-            }}
-            totalInterestOverTerm={report.results.loanAmount * ((report.inputs.interestRate || 0) / 100) * (report.inputs.loanTerm || 25)}
-            sellingFee={report.inputs.purchasePrice * 0.02}
-            analysisId={null}
-            notes={null}
-          />
+          {!hasValidSnapshot ? (
+            <div className="text-center py-16">
+              <p className="text-xl font-semibold text-foreground mb-2">Report data is unavailable</p>
+              <p className="text-sm text-neutral-600 mb-6">
+                This shared report was generated before the snapshot feature was available.
+                Please ask the sender to re-share or open the calculator to build a new analysis.
+              </p>
+              <Link
+                to="/calculator"
+                className="inline-flex items-center justify-center space-x-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover transition-all font-medium"
+              >
+                <ArrowRight className="w-4 h-4" />
+                <span>Open Calculator</span>
+              </Link>
+            </div>
+          ) : (
+            <PremiumReport
+              displayResults={report.results}
+              displayInputs={report.inputs}
+              vacancyAmount={report.results.grossAnnualRentalIncome * ((report.inputs.vacancyRate || 0) / 100)}
+              firstYearAmortization={{
+                principal: report.results.annualMortgagePayment - (report.results.loanAmount * ((report.inputs.interestRate || 0) / 100)),
+                interest: report.results.loanAmount * ((report.inputs.interestRate || 0) / 100),
+              }}
+              totalInterestOverTerm={report.results.loanAmount * ((report.inputs.interestRate || 0) / 100) * (report.inputs.loanTerm || 25)}
+              sellingFee={report.inputs.purchasePrice * 0.02}
+              analysisId={null}
+              notes={null}
+            />
+          )}
         </div>
 
         {/* Bottom CTA for non-users */}
