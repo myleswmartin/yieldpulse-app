@@ -10,10 +10,10 @@ import { supabase } from "../utils/supabaseClient";
 import { saveAnalysis, claimGuestPurchase } from "../utils/apiClient";
 import {
   loadPendingAnalyses,
-  savePendingAnalyses,
   loadSyncedAnalyses,
   upsertSyncedAnalysis,
   buildPendingSignature,
+  removePendingAnalysis,
 } from "../utils/pendingAnalysis";
 
 interface User {
@@ -113,40 +113,45 @@ export function AuthProvider({
         return;
       }
 
-      const list = loadPendingAnalyses();
-      if (!list.length) {
-        savePendingAnalyses([]);
+      const queue = loadPendingAnalyses();
+      if (!queue.length) {
         return;
       }
 
       const synced = loadSyncedAnalyses();
-      const syncedMap = new Map(synced.map((entry) => [entry.signature, entry.analysisId]));
+      const syncedMap = new Map(
+        synced.map((entry) => [entry.signature, entry.analysisId]),
+      );
       const processed = new Set<string>();
 
-      // Optimistically clear to prevent double-saves on re-renders
-      savePendingAnalyses([]);
-
-      const remaining = [];
-      for (const item of list) {
+      for (const item of queue) {
         if (!item?.inputs || !item?.results) continue;
-        const signature = item.signature || buildPendingSignature(item.inputs, item.results);
+        const signature =
+          item.signature || buildPendingSignature(item.inputs, item.results);
         if (!signature) continue;
+
         if (processed.has(signature)) {
+          removePendingAnalysis(signature);
           continue;
         }
-        if (syncedMap.has(signature)) {
-          continue;
-        }
+
         processed.add(signature);
-        const { data, error } = await saveAnalysis({
-          inputs: item.inputs,
-          results: item.results,
-        }, accessToken);
+
+        if (syncedMap.has(signature)) {
+          removePendingAnalysis(signature);
+          continue;
+        }
+
+        const { data, error } = await saveAnalysis(
+          {
+            inputs: item.inputs,
+            results: item.results,
+          },
+          accessToken,
+        );
+
         if (error) {
-          remaining.push({
-            ...item,
-            signature,
-          });
+          console.warn("Pending analysis sync failed:", error);
           continue;
         }
 
@@ -154,10 +159,9 @@ export function AuthProvider({
         if (analysisId) {
           upsertSyncedAnalysis(signature, analysisId);
           syncedMap.set(signature, analysisId);
+          removePendingAnalysis(signature);
         }
       }
-
-      savePendingAnalyses(remaining);
     } catch (err) {
       console.warn("Failed to sync pending analyses:", err);
     } finally {

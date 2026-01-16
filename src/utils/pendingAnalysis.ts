@@ -84,6 +84,7 @@ export const loadPendingAnalyses = (): PendingAnalysisEntry[] => {
       });
     }
 
+    deduped.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
     return deduped;
   } catch (err) {
     console.warn("Failed to load pending analyses:", err);
@@ -114,12 +115,12 @@ export const addPendingAnalysis = (inputs: any, results: any) => {
     return;
   }
 
-  list.push({
-    inputs,
-    results,
-    timestamp: Date.now(),
-    signature,
-  });
+    list.push({
+      inputs,
+      results,
+      timestamp: Date.now(),
+      signature,
+    });
 
   savePendingAnalyses(list);
 };
@@ -180,4 +181,16 @@ export const upsertSyncedAnalysis = (signature: string, analysisId: string) => {
     list.push({ signature, analysisId, timestamp: Date.now() });
   }
   saveSyncedAnalyses(list);
+};
+
+export const removePendingAnalysis = (signature: string) => {
+  if (!signature) return;
+  try {
+    const current = loadPendingAnalyses();
+    const filtered = current.filter((entry) => entry.signature !== signature);
+    if (filtered.length === current.length) return;
+    savePendingAnalyses(filtered);
+  } catch (err) {
+    console.warn("Failed to remove pending analysis:", err);
+  }
 };

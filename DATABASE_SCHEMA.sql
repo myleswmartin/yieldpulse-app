@@ -96,10 +96,11 @@ CREATE TABLE IF NOT EXISTS analyses (
   net_yield NUMERIC(5,2),
   monthly_cash_flow NUMERIC(10,2),
   annual_cash_flow NUMERIC(10,2),
-  cash_on_cash_return NUMERIC(5,2),
-  
-  -- Complete calculation results (JSONB for flexibility)
-  calculation_results JSONB,
+    cash_on_cash_return NUMERIC(5,2),
+
+    -- Complete calculation results (JSONB for flexibility)
+    calculation_results JSONB,
+    analysis_signature TEXT,
   
   -- Metadata
   is_paid BOOLEAN DEFAULT FALSE,
@@ -111,6 +112,7 @@ CREATE TABLE IF NOT EXISTS analyses (
 CREATE INDEX IF NOT EXISTS idx_analyses_user_id ON analyses(user_id);
 CREATE INDEX IF NOT EXISTS idx_analyses_created_at ON analyses(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_analyses_is_paid ON analyses(is_paid);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_analyses_user_signature ON analyses(user_id, analysis_signature);
 
 -- Enable RLS
 ALTER TABLE analyses ENABLE ROW LEVEL SECURITY;

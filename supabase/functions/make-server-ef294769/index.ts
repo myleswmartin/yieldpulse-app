@@ -7,6 +7,54 @@ import Stripe from "npm:stripe@17";
 
 const app = new Hono();
 
+const hashString = (value: string): string => {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+};
+
+const stableStringify = (value: any): string => {
+  const seen = new WeakSet();
+
+  const normalize = (input: any): any => {
+    if (input === null || input === undefined) return input;
+    if (typeof input !== "object") return input;
+    if (seen.has(input)) return undefined;
+    seen.add(input);
+
+    if (Array.isArray(input)) {
+      return input.map((item) => normalize(item));
+    }
+
+    const output: Record<string, any> = {};
+    const keys = Object.keys(input).sort();
+    for (const key of keys) {
+      if (key === "timestamp" || key === "signature") continue;
+      const normalizedValue = normalize(input[key]);
+      if (normalizedValue !== undefined) {
+        output[key] = normalizedValue;
+      }
+    }
+    return output;
+  };
+
+  return JSON.stringify(normalize(value));
+};
+
+const buildAnalysisSignature = (inputs: any, results: any): string | null => {
+  try {
+    const raw = stableStringify({ inputs, results });
+    if (!raw) return null;
+    return hashString(raw);
+  } catch (err) {
+    console.warn("Failed to build analysis signature:", err);
+    return null;
+  }
+};
+
 // Lazy-load Stripe only when needed to prevent initialization errors
 let stripeInstance: Stripe | null = null;
 
@@ -181,6 +229,7 @@ app.post("/make-server-ef294769/analyses", async (c) => {
     }
 
     const { inputs, results } = await c.req.json();
+    const signature = buildAnalysisSignature(inputs, results);
 
     console.log('📝 [Save Analysis] Received data:', {
       hasPropertyName: !!inputs.propertyName,
@@ -188,6 +237,20 @@ app.post("/make-server-ef294769/analyses", async (c) => {
       portalSource: inputs.portalSource,
       userId: user.id
     });
+
+    if (signature) {
+      const { data: existingAnalysis } = await supabase
+        .from("analyses")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("analysis_signature", signature)
+        .maybeSingle();
+
+      if (existingAnalysis) {
+        console.log("Duplicate analysis detected, returning existing record", existingAnalysis.id);
+        return c.json(existingAnalysis);
+      }
+    }
 
     // Map inputs and results to database columns
     const analysisData = {
@@ -216,6 +279,7 @@ app.post("/make-server-ef294769/analyses", async (c) => {
       annual_cash_flow: results.annualCashFlow,
       cash_on_cash_return: results.cashOnCashReturn,
       calculation_results: results,
+      analysis_signature: signature,
       is_paid: false,
     };
 
@@ -1157,6 +1221,7 @@ app.post("/make-server-ef294769/guest/claim", async (c) => {
     const snapshot = guestPurchase.snapshot || {};
     const inputs = snapshot.inputs || {};
     const results = snapshot.results || {};
+    const guestSignature = buildAnalysisSignature(inputs, results);
 
     const propertyName = inputs.property_name ?? inputs.propertyName ?? null;
     const portalSource = inputs.portal_source ?? inputs.portalSource ?? "Other";
@@ -1208,18 +1273,51 @@ app.post("/make-server-ef294769/guest/claim", async (c) => {
       annual_cash_flow: results.annualCashFlow ?? results.annual_cash_flow,
       cash_on_cash_return: results.cashOnCashReturn ?? results.cash_on_cash_return,
       calculation_results: results,
+      analysis_signature: guestSignature,
       is_paid: true,
     };
 
-    const { data: analysis, error: analysisError } = await adminClient
-      .from("analyses")
-      .insert(analysisData)
-      .select()
-      .single();
+    let finalAnalysisId: string | null = null;
 
-    if (analysisError || !analysis) {
-      console.error("Guest claim: failed to create analysis", analysisError);
-      return c.json({ error: "Failed to create analysis" }, 500);
+    if (guestSignature) {
+      const { data: existingAnalysis } = await adminClient
+        .from("analyses")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("analysis_signature", guestSignature)
+        .maybeSingle();
+      if (existingAnalysis) {
+        finalAnalysisId = existingAnalysis.id;
+      }
+    }
+
+    let analysis: any = null;
+
+    if (!finalAnalysisId) {
+      const { data, error: analysisError } = await adminClient
+        .from("analyses")
+        .insert(analysisData)
+        .select()
+        .single();
+
+      if (analysisError || !data) {
+        console.error("Guest claim: failed to create analysis", analysisError);
+        return c.json({ error: "Failed to create analysis" }, 500);
+      }
+
+      analysis = data;
+      finalAnalysisId = data.id;
+    } else {
+      const { data: existing, error: fetchError } = await adminClient
+        .from("analyses")
+        .select("*")
+        .eq("id", finalAnalysisId)
+        .single();
+      if (fetchError || !existing) {
+        console.error("Guest claim: failed to load existing analysis", fetchError);
+        return c.json({ error: "Failed to load claimed analysis" }, 500);
+      }
+      analysis = existing;
     }
 
     const purchaseInsert = {

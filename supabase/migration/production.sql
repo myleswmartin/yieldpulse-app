@@ -100,14 +100,16 @@ create table if not exists public.analyses (
   annual_cash_flow numeric(10,2),
   cash_on_cash_return numeric(5,2),
   calculation_results jsonb,
+  analysis_signature text,
   is_paid boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
-create index if not exists idx_analyses_user_id on public.analyses(user_id);
-create index if not exists idx_analyses_created_at on public.analyses(created_at desc);
-create index if not exists idx_analyses_is_paid on public.analyses(is_paid);
+  create index if not exists idx_analyses_user_id on public.analyses(user_id);
+  create index if not exists idx_analyses_created_at on public.analyses(created_at desc);
+  create index if not exists idx_analyses_is_paid on public.analyses(is_paid);
+  create unique index if not exists idx_analyses_user_signature on public.analyses(user_id, analysis_signature);
 
 alter table public.analyses enable row level security;
 
