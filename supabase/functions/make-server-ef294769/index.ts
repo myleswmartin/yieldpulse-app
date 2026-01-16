@@ -3952,6 +3952,7 @@ app.post("/make-server-ef294769/reports/share", async (c) => {
     // Prepare share data
     const shareData = {
       token: shareToken,
+      type: 'single',
       analysisId: analysisId || null,
       sharedBy: user.id,
       sharedByEmail: user.email,
@@ -3985,6 +3986,102 @@ app.post("/make-server-ef294769/reports/share", async (c) => {
   }
 });
 
+// Create a shareable comparison link
+app.post("/make-server-ef294769/reports/share/comparison", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) {
+      console.error("Comparison share: Missing Authorization header");
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    if (authError || !user) {
+      console.error("Comparison share: Invalid token", authError);
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const { analysisIds, propertyName } = await c.req.json();
+    if (!Array.isArray(analysisIds) || analysisIds.length < 2) {
+      return c.json({ error: "Comparison requires at least two property IDs" }, 400);
+    }
+
+    const uniqueIds = Array.from(new Set(analysisIds));
+    if (uniqueIds.length < 2) {
+      return c.json({ error: "Please select at least two distinct properties" }, 400);
+    }
+
+    const { data: records, error: queryError } = await supabase
+      .from("analyses")
+      .select(
+        "id, property_name, portal_source, listing_url, area_sqft, purchase_price, down_payment_percent, mortgage_interest_rate, mortgage_term_years, expected_monthly_rent, service_charge_annual, annual_maintenance_percent, property_management_fee_percent, dld_fee_percent, agent_fee_percent, capital_growth_percent, rent_growth_percent, vacancy_rate_percent, holding_period_years, calculation_results"
+      )
+      .in("id", uniqueIds);
+
+    if (queryError || !records) {
+      console.error("Comparison share: failed to load analyses", queryError);
+      return c.json({ error: "Failed to load selected properties" }, 500);
+    }
+
+    const recordMap = new Map<string, any>();
+    for (const record of records) {
+      recordMap.set(record.id, record);
+    }
+
+    const missingIds = uniqueIds.filter((id) => !recordMap.has(id));
+    if (missingIds.length > 0) {
+      return c.json({ error: "Some selected properties could not be found" }, 404);
+    }
+
+    const comparisonItems = uniqueIds.map((id) => {
+      const record = recordMap.get(id);
+      const { inputs, results } = mapAnalysisSnapshot(record);
+      return {
+        propertyName: record.property_name || undefined,
+        inputs,
+        results,
+      };
+    });
+
+    const shareToken = generateShareToken();
+    const shareData = {
+      token: shareToken,
+      type: "comparison",
+      sharedBy: user.id,
+      sharedByEmail: user.email,
+      propertyName:
+        propertyName ||
+        `Comparison (${comparisonItems.length} properties)`,
+      comparisonItems,
+      createdAt: new Date().toISOString(),
+      viewCount: 0,
+    };
+
+    await kv.set(`share:${shareToken}`, shareData);
+    await kv.set(`user_share:${user.id}:${shareToken}`, {
+      token: shareToken,
+      propertyName: shareData.propertyName,
+      createdAt: shareData.createdAt,
+      type: "comparison",
+    });
+
+    console.log("Comparison share link created:", shareToken);
+
+    return c.json({
+      shareToken,
+      shareUrl: `${c.req.header("origin") || "https://yieldpulse.com"}/shared/comparison/${shareToken}`,
+    });
+  } catch (error) {
+    console.error("Comparison share error:", error);
+    return c.json({ error: "Failed to create comparison share link" }, 500);
+  }
+});
+
 // Get a shared report (NO authentication required - public endpoint)
 app.get("/make-server-ef294769/reports/shared/:token", async (c) => {
   try {
@@ -4015,10 +4112,45 @@ app.get("/make-server-ef294769/reports/shared/:token", async (c) => {
       sharedByEmail: shareData.sharedByEmail,
       createdAt: shareData.createdAt,
       viewCount: updatedShareData.viewCount,
+      type: shareData.type || 'single',
     });
   } catch (error) {
     console.error("Error fetching shared report:", error);
     return c.json({ error: "Failed to fetch shared report" }, 500);
+  }
+});
+
+app.get("/make-server-ef294769/reports/shared/comparison/:token", async (c) => {
+  try {
+    const token = c.req.param("token");
+
+    if (!token) {
+      return c.json({ error: "Share token required" }, 400);
+    }
+
+    const shareData = await kv.get(`share:${token}`);
+
+    if (!shareData || shareData.type !== "comparison") {
+      return c.json({ error: "Comparison report not found or expired" }, 404);
+    }
+
+    const updatedShareData = {
+      ...shareData,
+      viewCount: (shareData.viewCount || 0) + 1,
+    };
+    await kv.set(`share:${token}`, updatedShareData);
+
+    return c.json({
+      propertyName: shareData.propertyName,
+      comparisonItems: shareData.comparisonItems,
+      sharedByEmail: shareData.sharedByEmail,
+      createdAt: shareData.createdAt,
+      viewCount: updatedShareData.viewCount,
+      type: "comparison",
+    });
+  } catch (error) {
+    console.error("Error fetching comparison share:", error);
+    return c.json({ error: "Failed to fetch comparison report" }, 500);
   }
 });
 

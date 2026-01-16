@@ -5,7 +5,7 @@ import { Header } from '../components/Header';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency, formatPercent, CalculationResults, PropertyInputs } from '../utils/calculations';
 import { handleError, showSuccess } from '../utils/errorHandling';
-import { getUserAnalyses, checkPurchaseStatus, createShareLink } from '../utils/apiClient';
+import { getUserAnalyses, checkPurchaseStatus, createComparisonShareLink } from '../utils/apiClient';
 import { ShareModal } from '../components/ShareModal';
 import { exportElementToPdf } from '../utils/pdfExport';
 import {
@@ -245,20 +245,21 @@ export default function ComparisonPage() {
   };
 
 const handleShare = async () => {
-    if (comparisonData.length === 0) return;
-    
+    if (comparisonData.length < 2) return;
+
     setCreatingShareLink(true);
     try {
-      // Create a share link for the first property as a representative
-      // In a real implementation, you might want to create a special comparison share endpoint
-      const firstAnalysisId = comparisonData[0].id;
-      const { data, error } = await createShareLink({ analysisId: firstAnalysisId });
-      
+      const analysisIds = comparisonData.map((analysis) => analysis.id);
+      const { data, error } = await createComparisonShareLink({
+        analysisIds,
+        propertyName: `Comparison (${comparisonData.length} properties)`,
+      });
+
       if (error) {
         handleError(error, 'Create Share Link');
         return;
       }
-      
+
       if (data?.shareUrl) {
         setShareUrl(data.shareUrl);
         setShowShareModal(true);

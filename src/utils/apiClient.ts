@@ -220,6 +220,13 @@ export interface CreateShareRequest {
   inputs?: any;
   results?: any;
   propertyName?: string;
+  comparisonItems?: ComparisonShareItem[];
+}
+
+export interface ComparisonShareItem {
+  propertyName?: string;
+  inputs: any;
+  results: any;
 }
 
 /**
@@ -228,6 +235,13 @@ export interface CreateShareRequest {
  */
 export async function createShareLink(payload: CreateShareRequest): Promise<ApiResponse> {
   return apiCall('/make-server-ef294769/reports/share', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createComparisonShareLink(payload: { analysisIds: string[]; propertyName?: string }): Promise<ApiResponse> {
+  return apiCall('/make-server-ef294769/reports/share/comparison', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -267,6 +281,45 @@ export async function getSharedReport(token: string): Promise<ApiResponse> {
     return { data, requestId };
   } catch (err: any) {
     console.error('Failed to fetch shared report:', err);
+    return {
+      error: {
+        error: err.message || 'Network error',
+        status: 0,
+      },
+    };
+  }
+}
+
+export async function getSharedComparison(token: string): Promise<ApiResponse> {
+  try {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${publicAnonKey}`,
+    };
+
+    const response = await fetch(`${BASE_URL}/make-server-ef294769/reports/shared/comparison/${token}`, {
+      method: 'GET',
+      headers,
+    });
+
+    const requestId = response.headers.get('X-Request-ID') || undefined;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      return {
+        error: {
+          error: errorData.error || `HTTP ${response.status}`,
+          requestId,
+          status: response.status,
+        },
+        requestId,
+      };
+    }
+
+    const data = await response.json();
+    return { data, requestId };
+  } catch (err: any) {
+    console.error('Failed to fetch shared comparison report:', err);
     return {
       error: {
         error: err.message || 'Network error',

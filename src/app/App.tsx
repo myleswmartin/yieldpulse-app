@@ -49,6 +49,7 @@ import AdminSettings from '../pages/admin/AdminSettings';
 import AdminSetupPage from '../pages/admin/AdminSetupPage';
 import AdminDiscounts from '../pages/admin/AdminDiscounts';
 import SharedReportPage from '../pages/SharedReportPage';
+import ComparisonSharePage from '../pages/ComparisonSharePage';
 
 // Route to page name mapping for analytics
 const ROUTE_PAGE_NAMES: Record<string, string> = {
@@ -57,6 +58,7 @@ const ROUTE_PAGE_NAMES: Record<string, string> = {
   '/results': 'Results',
   '/dashboard': 'Dashboard',
   '/comparison': 'Comparison',
+  '/shared/comparison': 'Comparison Share',
   '/how-it-works': 'How It Works',
   '/pricing': 'Pricing',
   '/reports': 'Reports',
@@ -189,6 +191,10 @@ function AppRoutes() {
         <Route 
           path="/shared/:token" 
           element={<SharedReportPage />} 
+        />
+        <Route
+          path="/shared/comparison/:token"
+          element={<ComparisonSharePage />}
         />
       </Routes>
       <ToastContainer />
