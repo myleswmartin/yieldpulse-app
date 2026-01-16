@@ -36,9 +36,9 @@ export default function VerifyEmailPage() {
   }, []);
 
   useEffect(() => {
-    // If user is already verified, redirect to calculator
+    // If user is already verified, redirect to dashboard
     if (!authLoading && user?.emailVerified) {
-      navigate('/calculator', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   }, [user, authLoading, navigate]);
 
@@ -79,7 +79,7 @@ export default function VerifyEmailPage() {
         if (currentSession?.user?.email_confirmed_at) {
           showSuccess('Email verified successfully');
           setTimeout(() => {
-            window.location.href = '/calculator';
+            navigate('/dashboard', { replace: true });
           }, 1000);
         } else {
           showInfo('Email not verified yet', 'Please check your inbox and click the verification link.');
@@ -92,7 +92,7 @@ export default function VerifyEmailPage() {
         // Email is verified! Force a page reload to update auth context
         showSuccess('Email verified successfully');
         setTimeout(() => {
-          window.location.href = '/calculator';
+          navigate('/dashboard', { replace: true });
         }, 1000);
       } else {
         showInfo('Email not verified yet', 'Please check your inbox and click the verification link.');
