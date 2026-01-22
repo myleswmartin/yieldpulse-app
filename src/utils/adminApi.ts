@@ -65,7 +65,6 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
 
   const headers = {
     'Content-Type': 'application/json',
-    'apikey': publicAnonKey,
     'Authorization': `Bearer ${token}`,
     ...options.headers,
   };
@@ -163,43 +162,7 @@ export const adminApi = {
 
   // Statistics
   stats: {
-    get: (range?: '7d' | '30d' | '90d') => {
-      const query = range ? `?range=${range.replace('d', '')}` : '';
-      return apiRequest(`/admin/stats${query}`);
-    },
-  },
-
-  // Analytics
-  analytics: {
-    get: (range?: '30d' | '90d' | '1y') => {
-      const normalized = range === '1y' ? '365' : range?.replace('d', '') || '90';
-      return apiRequest(`/admin/analytics?range=${normalized}`);
-    },
-  },
-
-  // Platform Settings
-  settings: {
-    get: () => apiRequest('/admin/settings'),
-    update: (data: any) => apiRequest('/admin/settings', {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-  },
-
-  // Reports
-  reports: {
-    list: (params?: { page?: number; limit?: number; status?: string; search?: string; sort?: string }) => {
-      const sanitized = Object.entries(params || {}).reduce((acc, [key, value]) => {
-        if (value === undefined || value === null || value === '' || value === 'undefined') {
-          return acc;
-        }
-        acc[key] = value as any;
-        return acc;
-      }, {} as Record<string, any>);
-
-      const query = new URLSearchParams(sanitized as any).toString();
-      return apiRequest(`/admin/reports${query ? `?${query}` : ''}`);
-    },
+    get: () => apiRequest('/admin/stats'),
   },
 
   // Documents
@@ -275,7 +238,12 @@ export const adminApi = {
     delete: (code: string) => apiRequest(`/admin/discounts/${code}`, {
       method: 'DELETE',
     }),
-    validate: (code: string) => apiRequest(`/admin/discounts/${code}/validate`),
+    // Uses the public validation endpoint implemented in the edge function
+    validate: (code: string) =>
+      apiRequest('/discounts/validate', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      }),
   },
 };
 

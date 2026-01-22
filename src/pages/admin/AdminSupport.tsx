@@ -15,7 +15,6 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { adminApi } from '../../utils/adminApi';
 
 interface SupportTicket {
   id: string;
@@ -34,57 +33,94 @@ interface SupportTicket {
   responses: number;
 }
 
+const mockTickets: SupportTicket[] = [
+  {
+    id: '1',
+    ticketNumber: 'SUP-1234',
+    userId: 'usr_001',
+    userName: 'Ahmed Hassan',
+    userEmail: 'ahmed.hassan@email.com',
+    subject: 'Unable to download premium report PDF',
+    message: 'I purchased a premium report yesterday but the download button is not working. I get an error message when I click it.',
+    status: 'open',
+    priority: 'high',
+    category: 'technical',
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    responses: 0
+  },
+  {
+    id: '2',
+    ticketNumber: 'SUP-1233',
+    userId: 'usr_002',
+    userName: 'Sarah Al-Mansoori',
+    userEmail: 'sarah.m@email.com',
+    subject: 'Refund request for duplicate purchase',
+    message: 'I accidentally purchased the same report twice. Can I get a refund for the duplicate?',
+    status: 'in-progress',
+    priority: 'medium',
+    category: 'billing',
+    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+    assignedTo: 'Admin',
+    responses: 2
+  },
+  {
+    id: '3',
+    ticketNumber: 'SUP-1232',
+    userId: 'usr_003',
+    userName: 'Mohammed Abdullah',
+    userEmail: 'mohammed.a@email.com',
+    subject: 'Feature request: Export to Excel',
+    message: 'Would be great to have the option to export analysis data to Excel format in addition to PDF.',
+    status: 'resolved',
+    priority: 'low',
+    category: 'feature-request',
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    assignedTo: 'Admin',
+    responses: 3
+  },
+  {
+    id: '4',
+    ticketNumber: 'SUP-1231',
+    userId: 'usr_004',
+    userName: 'Fatima Al-Zaabi',
+    userEmail: 'fatima.z@email.com',
+    subject: 'How to interpret sensitivity analysis?',
+    message: 'I purchased a premium report but I\'m not sure how to read the sensitivity analysis section. Can you provide guidance?',
+    status: 'resolved',
+    priority: 'medium',
+    category: 'general',
+    createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    assignedTo: 'Admin',
+    responses: 1
+  },
+  {
+    id: '5',
+    ticketNumber: 'SUP-1230',
+    userId: 'usr_005',
+    userName: 'Khalid Rahman',
+    userEmail: 'khalid.r@email.com',
+    subject: 'Payment failed but amount debited',
+    message: 'My payment failed during checkout but the amount was debited from my card. Please help!',
+    status: 'in-progress',
+    priority: 'urgent',
+    category: 'billing',
+    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    assignedTo: 'Admin',
+    responses: 1
+  }
+];
+
 export default function AdminSupport() {
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [busyTicketId, setBusyTicketId] = useState<string | null>(null);
+  const [tickets, setTickets] = useState<SupportTicket[]>(mockTickets);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
-  const [selectedMessages, setSelectedMessages] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetchTickets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
-
-  const normalizeTicket = (t: any): SupportTicket => {
-    const ticketNumber = t.ticket_number || `SUP-${(t.id || '').slice(0, 6).toUpperCase()}`;
-    return {
-      id: t.id,
-      ticketNumber,
-      userId: t.user_id || '',
-      userName: t.user_name || t.user_full_name || (t.user_email ? t.user_email.split('@')[0] : 'Guest'),
-      userEmail: t.user_email || t.email || '',
-      subject: t.subject || '',
-      message: t.message || t.last_message || '',
-      status: t.status || 'open',
-      priority: t.priority || 'medium',
-      category: t.category || 'general',
-      createdAt: t.created_at || t.createdAt,
-      updatedAt: t.updated_at || t.updatedAt || t.created_at,
-      assignedTo: t.assigned_to || undefined,
-      responses: t.responses ?? 0,
-    };
-  };
-
-  const fetchTickets = async () => {
-    try {
-      setLoading(true);
-      const data = await adminApi.support.tickets.list({
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-      });
-      const normalized = (data.tickets || []).map(normalizeTicket);
-      setTickets(normalized);
-    } catch (err: any) {
-      console.error('Failed to fetch support tickets:', err);
-      toast.error(err.message || 'Failed to load support tickets');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -155,42 +191,13 @@ export default function AdminSupport() {
     resolved: tickets.filter(t => t.status === 'resolved').length
   };
 
-  const handleStatusChange = async (ticketId: string, newStatus: SupportTicket['status']) => {
-    try {
-      setBusyTicketId(ticketId);
-      await adminApi.support.tickets.update(ticketId, { status: newStatus });
-      setTickets(prev => prev.map(t =>
-        t.id === ticketId
-          ? { ...t, status: newStatus, updatedAt: new Date().toISOString() }
-          : t
-      ));
-      if (selectedTicket?.id === ticketId) {
-        setSelectedTicket({ ...selectedTicket, status: newStatus, updatedAt: new Date().toISOString() });
-      }
-      toast.success('Ticket status updated');
-    } catch (err: any) {
-      console.error('Failed to update ticket:', err);
-      toast.error(err.message || 'Failed to update ticket');
-    } finally {
-      setBusyTicketId(null);
-    }
-  };
-
-  const handleViewTicket = async (ticket: SupportTicket) => {
-    setSelectedTicket(ticket);
-    setSelectedMessages([]);
-    try {
-      setDetailLoading(true);
-      const data = await adminApi.support.tickets.get(ticket.id);
-      const normalized = normalizeTicket(data.ticket || ticket);
-      setSelectedTicket(normalized);
-      setSelectedMessages(data.messages || []);
-    } catch (err: any) {
-      console.error('Failed to load ticket details:', err);
-      toast.error(err.message || 'Failed to load ticket details');
-    } finally {
-      setDetailLoading(false);
-    }
+  const handleStatusChange = (ticketId: string, newStatus: SupportTicket['status']) => {
+    setTickets(prev => prev.map(t => 
+      t.id === ticketId 
+        ? { ...t, status: newStatus, updatedAt: new Date().toISOString() }
+        : t
+    ));
+    toast.success('Ticket status updated');
   };
 
   return (
@@ -283,9 +290,7 @@ export default function AdminSupport() {
 
       {/* Tickets List */}
       <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-neutral-600">Loading tickets...</div>
-        ) : filteredTickets.length === 0 ? (
+        {filteredTickets.length === 0 ? (
           <div className="p-12 text-center">
             <MessageCircle className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">No tickets found</h3>
@@ -369,7 +374,6 @@ export default function AdminSupport() {
                         <select
                           value={ticket.status}
                           onChange={(e) => handleStatusChange(ticket.id, e.target.value as SupportTicket['status'])}
-                          disabled={busyTicketId === ticket.id}
                           className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border ${statusConfig.bg} ${statusConfig.border} ${statusConfig.color} focus:ring-2 focus:ring-primary focus:border-transparent`}
                         >
                           <option value="open">Open</option>
@@ -383,8 +387,8 @@ export default function AdminSupport() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => handleViewTicket(ticket)}
-                          className="inline-flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors cursor-pointer"
+                          onClick={() => setSelectedTicket(ticket)}
+                          className="inline-flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors"
                         >
                           <Eye className="w-4 h-4" />
                           <span>View</span>
@@ -430,7 +434,7 @@ export default function AdminSupport() {
               </div>
               <button
                 onClick={() => setSelectedTicket(null)}
-                className="p-2 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
+                className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5 text-neutral-600" />
               </button>
@@ -481,19 +485,8 @@ export default function AdminSupport() {
               {/* Message */}
               <div>
                 <h3 className="text-sm font-semibold text-neutral-600 mb-2">Message</h3>
-                <div className="bg-neutral-50 rounded-lg p-4 border border-neutral-200 space-y-3">
-                  {detailLoading && <p className="text-neutral-600">Loading conversation...</p>}
-                  {!detailLoading && selectedMessages.length === 0 && (
-                    <p className="text-neutral-600">No messages yet.</p>
-                  )}
-                  {!detailLoading && selectedMessages.map((msg: any) => (
-                    <div key={msg.id} className="p-3 bg-white rounded-lg border border-neutral-200">
-                      <div className="text-xs text-neutral-500 mb-1">
-                        {msg.is_admin ? 'Admin' : 'User'} - {formatTimestamp(msg.created_at)}
-                      </div>
-                      <div className="text-sm text-foreground">{msg.message}</div>
-                    </div>
-                  ))}
+                <div className="bg-neutral-50 rounded-lg p-4 border border-neutral-200">
+                  <p className="text-foreground leading-relaxed">{selectedTicket.message}</p>
                 </div>
               </div>
 
@@ -515,12 +508,14 @@ export default function AdminSupport() {
                     <option value="closed">Closed</option>
                   </select>
                 </div>
-                <a
-                  href={`mailto:${selectedTicket.userEmail}?subject=${encodeURIComponent(`Re: ${selectedTicket.subject}`)}`}
-                  className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors cursor-pointer"
+                <button
+                  onClick={() => {
+                    toast.info('Email reply functionality coming soon');
+                  }}
+                  className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors"
                 >
                   Reply to User
-                </a>
+                </button>
               </div>
             </div>
           </div>

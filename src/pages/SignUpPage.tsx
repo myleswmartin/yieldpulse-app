@@ -1,18 +1,13 @@
 import { useState, FormEvent, useEffect } from 'react';
-import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { TrendingUp, Mail, Lock, User, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { handleError, showSuccess } from '../utils/errorHandling';
-import { addPendingAnalysis } from '../utils/pendingAnalysis';
-import { usePublicPricing } from '../utils/usePublicPricing';
 
 export default function SignUpPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const purchaseId = searchParams.get('purchaseId');
   const { signUp, user, loading: authLoading } = useAuth();
-  const { priceLabel } = usePublicPricing();
   
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -27,22 +22,29 @@ export default function SignUpPage() {
       navigate('/dashboard', { replace: true });
     }
 
-    if (purchaseId && !user) {
-      try {
-        localStorage.setItem('yieldpulse-guest-purchase-id', purchaseId);
-      } catch (err) {
-        console.warn('Failed to store purchaseId for guest signup:', err);
-      }
-    }
-
     // Save pending analysis from location.state to localStorage before sign-up
     // This ensures it will be synced after email verification and authentication
     const state = location.state as any;
     if (state?.inputs && state?.results && !user) {
-      addPendingAnalysis(state.inputs, state.results);
-      console.log('📝 Saved pending analysis to localStorage before sign-up');
+      try {
+        const key = 'yieldpulse-pending-analyses';
+        const existing = localStorage.getItem(key);
+        const list = existing ? JSON.parse(existing) : [];
+        
+        // Add this analysis to the pending list
+        list.push({
+          inputs: state.inputs,
+          results: state.results,
+          timestamp: Date.now()
+        });
+        
+        localStorage.setItem(key, JSON.stringify(list));
+        console.log('📝 Saved pending analysis to localStorage before sign-up');
+      } catch (err) {
+        console.warn('Failed to save pending analysis:', err);
+      }
     }
-  }, [user, authLoading, navigate, location.state, purchaseId]);
+  }, [user, authLoading, navigate, location.state]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -59,14 +61,14 @@ export default function SignUpPage() {
     }
 
     if (!firstName.trim() || !lastName.trim()) {
-      setError('Please enter both first and last name');
+      setError('Please enter your first and last name');
       return;
     }
 
     setLoading(true);
 
     try {
-      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
       await signUp(email, password, fullName);
       showSuccess('Account created successfully. Please verify your email.');
       navigate('/auth/verify-email', { replace: true });
@@ -134,42 +136,41 @@ export default function SignUpPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-semibold text-neutral-700 mb-2">
-                  First Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
-                  <input
-                    id="firstName"
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                    className="w-full pl-12 pr-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#1e2875] focus:border-transparent focus:bg-white transition-all"
-                    placeholder="John"
-                    disabled={loading}
-                  />
-                </div>
+            <div>
+              <label htmlFor="firstName" className="block text-sm font-semibold text-neutral-700 mb-2">
+                First Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                <input
+                  id="firstName"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                  className="w-full pl-12 pr-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#1e2875] focus:border-transparent focus:bg-white transition-all"
+                  placeholder="John"
+                  disabled={loading}
+                />
               </div>
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-semibold text-neutral-700 mb-2">
-                  Last Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
-                  <input
-                    id="lastName"
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                    className="w-full pl-12 pr-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#1e2875] focus:border-transparent focus:bg-white transition-all"
-                    placeholder="Smith"
-                    disabled={loading}
-                  />
-                </div>
+            </div>
+
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-semibold text-neutral-700 mb-2">
+                Last Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                <input
+                  id="lastName"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                  className="w-full pl-12 pr-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#1e2875] focus:border-transparent focus:bg-white transition-all"
+                  placeholder="Smith"
+                  disabled={loading}
+                />
               </div>
             </div>
 
@@ -236,7 +237,7 @@ export default function SignUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-[#1e2875] to-[#2f3aad] text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full py-4 bg-gradient-to-r from-[#1e2875] to-[#2f3aad] text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
@@ -260,7 +261,7 @@ export default function SignUpPage() {
               </li>
               <li className="flex items-start space-x-3">
                 <CheckCircle className="w-5 h-5 text-[#14b8a6] flex-shrink-0 mt-0.5" />
-                <span className="text-sm text-neutral-600">Unlock premium reports for {priceLabel}</span>
+                <span className="text-sm text-neutral-600">Unlock premium reports for AED 49</span>
               </li>
             </ul>
           </div>
@@ -269,7 +270,7 @@ export default function SignUpPage() {
           <div className="mt-8 pt-6 border-t border-neutral-200 text-center">
             <p className="text-neutral-600">
               Already have an account?{' '}
-              <Link to={`/auth/signin${purchaseId ? `?purchaseId=${purchaseId}` : ''}`} className="font-semibold text-[#1e2875] hover:text-[#2f3aad] transition-colors">
+              <Link to="/auth/signin" className="font-semibold text-[#1e2875] hover:text-[#2f3aad] transition-colors">
                 Sign In
               </Link>
             </p>

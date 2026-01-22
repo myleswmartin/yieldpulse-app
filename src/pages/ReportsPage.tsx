@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { CTASection } from '../components/CTASection';
-import { usePublicPricing } from '../utils/usePublicPricing';
 import {
   Calculator,
   FileText,
@@ -15,16 +14,14 @@ import {
 } from 'lucide-react';
 
 export default function ReportsPage() {
-  const { priceLabel } = usePublicPricing();
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 via-white to-neutral-50">
       <Header />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-10 sm:py-16 bg-gradient-to-br from-[#1e2875] to-[#2f3aad]">
+      <section className="relative overflow-hidden py-16 bg-gradient-to-br from-[#1e2875] to-[#2f3aad]">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1IiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-30" />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-4 sm:px-6 lg:px-8 text-center">
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl sm:text-5xl font-bold text-white mb-6">
             Free vs Premium Reports
           </h1>
@@ -37,7 +34,7 @@ export default function ReportsPage() {
 
       {/* Comparison Table */}
       <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Quick Comparison Table */}
           <div className="mb-16">
             <h2 className="text-3xl font-bold text-neutral-900 mb-8 text-center">
@@ -91,7 +88,7 @@ export default function ReportsPage() {
                   <tr className="bg-gradient-to-r from-neutral-50 to-white font-semibold">
                     <td className="p-4 text-neutral-900">Price</td>
                     <td className="p-4 text-center text-[#14b8a6] text-xl">AED 0</td>
-                    <td className="p-4 text-center text-[#1e2875] text-xl">{priceLabel}</td>
+                    <td className="p-4 text-center text-[#1e2875] text-xl">AED 49</td>
                   </tr>
                 </tbody>
               </table>
@@ -209,7 +206,7 @@ export default function ReportsPage() {
                   <h2 className="text-2xl font-bold">Premium Report</h2>
                 </div>
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-4xl font-bold">{priceLabel}</span>
+                  <span className="text-4xl font-bold">AED 49</span>
                   <span className="text-white/80">per report</span>
                 </div>
               </div>
@@ -303,7 +300,7 @@ export default function ReportsPage() {
 
       {/* Detailed Explanations */}
       <section className="py-20 bg-gradient-to-b from-white to-neutral-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-neutral-900 mb-4">
               Understanding Each Report Type
@@ -478,7 +475,7 @@ export default function ReportsPage() {
 
       {/* Example Scenarios */}
       <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-neutral-900 mb-4">
               When to Use Each Report Type
@@ -558,7 +555,7 @@ export default function ReportsPage() {
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-br from-[#1e2875] to-[#2f3aad] text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold mb-6">
             Start with Free, Upgrade When Ready
           </h2>

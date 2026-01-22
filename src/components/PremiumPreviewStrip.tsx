@@ -82,7 +82,7 @@ export function PremiumPreviewStrip({ onPreviewClick }: PremiumPreviewStripProps
               
               <button
                 onClick={() => onPreviewClick(item.id)}
-                className="text-xs font-medium text-primary hover:text-primary-hover transition-colors underline text-left cursor-pointer"
+                className="text-xs font-medium text-primary hover:text-primary-hover transition-colors underline text-left"
               >
                 Preview →
               </button>

@@ -29,11 +29,8 @@ import { Breadcrumbs } from '../components/Breadcrumbs';
 import { FeedbackWidget } from '../components/FeedbackWidget';
 import { InteractiveROICalculator } from '../components/InteractiveROICalculator';
 import { useEffect } from 'react';
-import { usePublicPricing } from '../utils/usePublicPricing';
 
 export default function PremiumReportGuidePage() {
-  const { priceLabel } = usePublicPricing();
-
   // Track page view for analytics
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).gtag) {
@@ -51,7 +48,7 @@ export default function PremiumReportGuidePage() {
 
       {/* Breadcrumbs */}
       <div className="bg-white border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-4">
           <Breadcrumbs items={[
             { label: 'Resources', path: '/premium-report-guide' },
             { label: 'Premium Report Guide' }
@@ -61,7 +58,7 @@ export default function PremiumReportGuidePage() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-white to-secondary/5 border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-20 text-center">
           <div className="inline-flex items-center space-x-2 bg-secondary/10 px-4 py-2 rounded-full mb-6">
             <BookOpen className="w-4 h-4 text-secondary" />
             <span className="text-sm font-medium text-secondary">Complete Learning Guide</span>
@@ -98,7 +95,7 @@ export default function PremiumReportGuidePage() {
 
       {/* Quick Navigation */}
       <section className="bg-white border-b border-border sticky top-20 z-40 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-4">
           <nav className="flex items-center justify-center gap-6 flex-wrap text-sm">
             <a href="#basics" className="text-neutral-600 hover:text-primary transition-colors font-medium">Property 101</a>
             <a href="#sections" className="text-neutral-600 hover:text-primary transition-colors font-medium">Report Walkthrough</a>
@@ -110,7 +107,7 @@ export default function PremiumReportGuidePage() {
         </div>
       </section>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+      <div className="max-w-4xl mx-auto px-6 lg:px-8 py-16">
         
         {/* Introduction Section */}
         <section className="mb-20">
@@ -278,19 +275,19 @@ export default function PremiumReportGuidePage() {
           </div>
 
           <p className="text-lg text-neutral-600 mb-8 leading-relaxed">
-            Your Premium Report is divided into clear sections. Here's what each section tells you and why it matters:
+            Your Premium Report contains an Executive Summary plus 7 comprehensive sections. Here's what each section tells you and why it matters:
           </p>
 
           <div className="space-y-8">
-            {/* Section 1: Investment Summary */}
+            {/* Executive Summary */}
             <div className="bg-white border border-border rounded-xl p-8">
               <div className="flex items-start space-x-4 mb-6">
                 <div className="p-3 bg-primary/10 rounded-lg">
-                  <PieChart className="w-6 h-6 text-primary" />
+                  <Zap className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">1. Investment Summary</h3>
-                  <p className="text-sm text-neutral-600">The "at-a-glance" overview of your entire investment</p>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Executive Summary</h3>
+                  <p className="text-sm text-neutral-600">Ultra-lean 3×3 KPI grid with 9 critical metrics for instant decision-making</p>
                 </div>
               </div>
 
@@ -300,105 +297,171 @@ export default function PremiumReportGuidePage() {
                   <ul className="space-y-2 text-sm text-neutral-600">
                     <li className="flex items-start space-x-2">
                       <CheckCircle className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
-                      <span><strong>Total Investment Required:</strong> Upfront cash needed (down payment + buying costs)</span>
+                      <span><strong>3×3 KPI Grid:</strong> Gross Yield, Net Yield, Cap Rate in row 1; Annual Cash Flow, Monthly Cash Flow, CoC Return in row 2; Cost per sqft, Rent per sqft, Break-Even Point in row 3</span>
                     </li>
                     <li className="flex items-start space-x-2">
                       <CheckCircle className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
-                      <span><strong>Property Value:</strong> Purchase price of the property</span>
+                      <span><strong>Color-Coded Performance:</strong> Green for excellent metrics, amber for average, red for concerning indicators</span>
                     </li>
                     <li className="flex items-start space-x-2">
                       <CheckCircle className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
-                      <span><strong>Expected Rental Yield:</strong> Annual rental income percentage</span>
-                    </li>
-                    <li className="flex items-start space-x-2">
-                      <CheckCircle className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
-                      <span><strong>5-Year ROI:</strong> Total return after 5 years</span>
+                      <span><strong>Interpretation Box:</strong> Plain-English explanation of what these numbers mean for your specific investment</span>
                     </li>
                   </ul>
                 </div>
 
                 <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg p-4">
                   <p className="text-sm text-foreground">
-                    <strong>💡 Quick Decision Rule:</strong> If the 5-year ROI is above 30% and rental yield is above 5%, 
-                    you're looking at a strong investment opportunity by UAE standards.
+                    <strong>💡 Quick Decision Rule:</strong> If Net Yield {'>'} 4%, CoC Return is positive, and Cash Flow is green, 
+                    you're looking at a solid investment opportunity by UAE standards.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Section 2: Financial Breakdown */}
+            {/* Section 1: Five-Year Investment Outcome */}
             <div className="bg-white border border-border rounded-xl p-8">
               <div className="flex items-start space-x-4 mb-6">
                 <div className="p-3 bg-secondary/10 rounded-lg">
-                  <Calculator className="w-6 h-6 text-secondary" />
+                  <TrendingUp className="w-6 h-6 text-secondary" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">2. Financial Breakdown</h3>
-                  <p className="text-sm text-neutral-600">Every dirham accounted for - where your money goes</p>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Section 1: Five-Year Investment Outcome</h3>
+                  <p className="text-sm text-neutral-600">Complete 5-year projection with ROI, total profit, and wealth growth</p>
                 </div>
               </div>
 
               <div className="space-y-4">
+                <p className="text-sm text-neutral-600 leading-relaxed">
+                  This section answers the critical question: "How much money will I make in 5 years?" It shows your total profit 
+                  combining rental income and property appreciation, plus your overall ROI percentage.
+                </p>
+
                 <div className="border-l-4 border-primary/30 pl-4">
-                  <h4 className="font-semibold text-foreground mb-2">Initial Costs:</h4>
+                  <h4 className="font-semibold text-foreground mb-2">What You'll See:</h4>
                   <ul className="space-y-2 text-sm text-neutral-600">
                     <li className="flex items-start space-x-2">
-                      <span className="font-mono text-primary">→</span>
-                      <span><strong>Down Payment:</strong> Usually 20-25% of property value (UAE standard for mortgages)</span>
+                      <Target className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>5-Year ROI:</strong> Total return percentage after 5 years (combines cash flow + property appreciation)</span>
                     </li>
                     <li className="flex items-start space-x-2">
-                      <span className="font-mono text-primary">→</span>
-                      <span><strong>Dubai Land Department (DLD) Fee:</strong> 4% of property value (one-time government fee)</span>
+                      <DollarSign className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                      <span><strong>Total Profit Breakdown:</strong> Cumulative rental profit + equity gained + appreciation - all costs</span>
                     </li>
                     <li className="flex items-start space-x-2">
-                      <span className="font-mono text-primary">→</span>
-                      <span><strong>Agent Commission:</strong> Typically 2% of property value</span>
-                    </li>
-                    <li className="flex items-start space-x-2">
-                      <span className="font-mono text-primary">→</span>
-                      <span><strong>Mortgage Registration:</strong> 0.25% of loan amount (if financing)</span>
-                    </li>
-                    <li className="flex items-start space-x-2">
-                      <span className="font-mono text-primary">→</span>
-                      <span><strong>Valuation & Admin Fees:</strong> AED 2,500-5,000 (bank fees)</span>
+                      <LineChart className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Wealth Growth Summary:</strong> Your initial investment vs. your total wealth after 5 years</span>
                     </li>
                   </ul>
                 </div>
 
-                <div className="border-l-4 border-secondary/30 pl-4 mt-6">
-                  <h4 className="font-semibold text-foreground mb-2">Ongoing Costs (Annual):</h4>
+                <div className="bg-gradient-to-r from-secondary/5 to-primary/5 rounded-lg p-4">
+                  <p className="text-sm text-foreground">
+                    <strong>💡 Investment Benchmark:</strong> A 5-year ROI of 30-45% is considered strong in the UAE property market. 
+                    Anything above 50% is exceptional and worth serious consideration.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Year-by-Year Financial Trajectory */}
+            <div className="bg-white border border-border rounded-xl p-8">
+              <div className="flex items-start space-x-4 mb-6">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Calendar className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Section 2: Year-by-Year Financial Trajectory</h3>
+                  <p className="text-sm text-neutral-600">Detailed annual breakdown showing exactly what happens each year</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-neutral-600 leading-relaxed">
+                  This section shows the complete financial story for each of the 5 years - annual rent, operating expenses, 
+                  mortgage payments, cash flow, equity buildup, and property value growth. See exactly how your investment performs year-over-year.
+                </p>
+
+                <div className="border-l-4 border-secondary/30 pl-4">
+                  <h4 className="font-semibold text-foreground mb-2">What You'll See:</h4>
                   <ul className="space-y-2 text-sm text-neutral-600">
                     <li className="flex items-start space-x-2">
-                      <span className="font-mono text-secondary">→</span>
-                      <span><strong>Service Charges:</strong> Building maintenance (AED 5-25 per sqft/year)</span>
+                      <Calendar className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Annual Performance Table:</strong> Year-by-year data for rental income, expenses, mortgage payments, and net cash flow</span>
                     </li>
                     <li className="flex items-start space-x-2">
-                      <span className="font-mono text-secondary">→</span>
-                      <span><strong>DEWA (Utilities):</strong> If vacant or included in rent agreement</span>
+                      <LineChart className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                      <span><strong>Equity Growth Chart:</strong> Visual chart showing property value vs. loan balance - watch your equity grow over time</span>
                     </li>
                     <li className="flex items-start space-x-2">
-                      <span className="font-mono text-secondary">→</span>
-                      <span><strong>Chiller/Cooling:</strong> Common in Dubai apartments (varies by usage)</span>
-                    </li>
-                    <li className="flex items-start space-x-2">
-                      <span className="font-mono text-secondary">→</span>
-                      <span><strong>Property Management:</strong> 5-8% of annual rent (if using agent)</span>
-                    </li>
-                    <li className="flex items-start space-x-2">
-                      <span className="font-mono text-secondary">→</span>
-                      <span><strong>Maintenance Reserve:</strong> 1-2% of property value annually (recommended)</span>
+                      <TrendingUp className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Cumulative Profit Tracking:</strong> Running total of profit accumulation from year 1 through year 5</span>
                     </li>
                   </ul>
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
+                <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg p-4">
+                  <p className="text-sm text-foreground">
+                    <strong>💡 Investment Insight:</strong> Watch for positive cash flow in year 1. If you're cash flow negative in early years, 
+                    ensure you have reserves to cover shortfalls until rental income increases or mortgage payments decrease.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Sensitivity Analysis */}
+            <div className="bg-white border border-border rounded-xl p-8">
+              <div className="flex items-start space-x-4 mb-6">
+                <div className="p-3 bg-secondary/10 rounded-lg">
+                  <BarChart3 className="w-6 h-6 text-secondary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Section 3: Sensitivity Analysis</h3>
+                  <p className="text-sm text-neutral-600">"What-if" scenarios to stress-test your investment assumptions</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-neutral-600 leading-relaxed">
+                  This section shows how your returns change if key assumptions don't match reality. 
+                  All three analyses are always visible so you can see best-case and worst-case scenarios immediately.
+                </p>
+
+                <div className="border-l-4 border-primary/30 pl-4">
+                  <h4 className="font-semibold text-foreground mb-2">Three Critical Analyses (Always Visible):</h4>
+                  <ul className="space-y-3 text-sm text-neutral-600">
+                    <li className="flex items-start space-x-2">
+                      <Percent className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                      <div>
+                        <strong>Rent Sensitivity:</strong> Impact if actual rent is -20%, -10%, 0%, +10%, or +20% from expected. 
+                        See how cash flow and CoC return change with rent fluctuations.
+                      </div>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <Home className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <div>
+                        <strong>Vacancy Rate Sensitivity:</strong> Impact of 0%, 5%, 10%, 15%, 20% vacancy. 
+                        Shows how empty months affect annual cash flow and profitability.
+                      </div>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <Percent className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                      <div>
+                        <strong>Interest Rate Sensitivity:</strong> Impact if mortgage rates change by ±1% or ±2%. 
+                        Critical for understanding rate risk exposure if you have a mortgage.
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                   <div className="flex items-start space-x-3">
                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm text-amber-900 font-semibold mb-1">Common Beginner Mistake:</p>
+                      <p className="text-sm text-amber-900 font-semibold mb-1">Pro Investor Tip:</p>
                       <p className="text-sm text-amber-800">
-                        Many first-time investors only budget for the down payment and forget buying costs. 
-                        Always add 7-10% extra for fees and costs. Our calculator includes everything automatically.
+                        Always check the -10% rent and 10% vacancy scenarios. If you can't afford these downside cases, 
+                        the property might be too risky for your financial situation. Never invest assuming best-case scenarios.
                       </p>
                     </div>
                   </div>
@@ -406,153 +469,234 @@ export default function PremiumReportGuidePage() {
               </div>
             </div>
 
-            {/* Section 3: Cash Flow Analysis */}
+            {/* Section 4: Year One Financial Deep Dive */}
             <div className="bg-white border border-border rounded-xl p-8">
               <div className="flex items-start space-x-4 mb-6">
                 <div className="p-3 bg-primary/10 rounded-lg">
-                  <LineChart className="w-6 h-6 text-primary" />
+                  <Calculator className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">3. Cash Flow Analysis</h3>
-                  <p className="text-sm text-neutral-600">Monthly and annual money in vs. money out</p>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Section 4: Year One Financial Deep Dive</h3>
+                  <p className="text-sm text-neutral-600">Month-by-month breakdown of your first year's finances</p>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <h4 className="font-semibold text-green-900">Positive Cash Flow</h4>
-                    </div>
-                    <p className="text-sm text-green-800 mb-2">
-                      Rental income exceeds all expenses. The property generates extra income monthly.
-                    </p>
-                    <p className="text-xs font-mono text-green-700">
-                      ✓ Rent: AED 5,000/mo<br />
-                      ✓ Expenses: AED 3,000/mo<br />
-                      = <strong>+AED 2,000 profit/mo</strong>
-                    </p>
-                  </div>
+                <p className="text-sm text-neutral-600 leading-relaxed">
+                  Year 1 is the most critical year of your investment journey. This section shows exactly what happens each month - 
+                  when rent payments arrive, when mortgage is due, when service charges are paid, and your monthly cash flow position.
+                </p>
 
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                      <h4 className="font-semibold text-red-900">Negative Cash Flow</h4>
+                <div className="border-l-4 border-secondary/30 pl-4">
+                  <h4 className="font-semibold text-foreground mb-2">What You'll See:</h4>
+                  <ul className="space-y-2 text-sm text-neutral-600">
+                    <li className="flex items-start space-x-2">
+                      <Calendar className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Monthly Cash Flow Table:</strong> All 12 months showing rental income, mortgage payments, operating costs, and net position</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <DollarSign className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                      <span><strong>Expense Breakdown:</strong> Detailed view of where your money goes - service charges, maintenance, insurance, property management</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <LineChart className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Cumulative Cash Position:</strong> Running balance showing if you're building reserves or drawing down cash each month</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-gradient-to-r from-secondary/5 to-primary/5 rounded-lg p-4">
+                  <p className="text-sm text-foreground">
+                    <strong>💡 First-Year Tip:</strong> In Dubai, most landlords collect rent annually or in 1-4 cheques. Plan your cash flow around 
+                    these large lump-sum payments. If cash flow is tight, negotiate for more cheques to spread income throughout the year.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 5: Upfront Capital Requirement */}
+            <div className="bg-white border border-border rounded-xl p-8">
+              <div className="flex items-start space-x-4 mb-6">
+                <div className="p-3 bg-secondary/10 rounded-lg">
+                  <Receipt className="w-6 h-6 text-secondary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Section 5: Upfront Capital Requirement</h3>
+                  <p className="text-sm text-neutral-600">Every single dirham you need to close the deal</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-neutral-600 leading-relaxed">
+                  This is your complete shopping list of upfront costs. Many first-time investors underestimate closing costs - 
+                  this section ensures you know exactly how much cash you need to have ready on day one.
+                </p>
+
+                <div className="border-l-4 border-primary/30 pl-4">
+                  <h4 className="font-semibold text-foreground mb-2">Complete Cost Breakdown:</h4>
+                  <ul className="space-y-2 text-sm text-neutral-600">
+                    <li className="flex items-start space-x-2">
+                      <Home className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Down Payment:</strong> Minimum 20-25% of property value (15% if first-time buyer under AED 5M)</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <FileText className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                      <span><strong>Dubai Land Department (DLD) Fee:</strong> 4% of property value for transfer fee</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <Receipt className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Real Estate Agency Fee:</strong> Typically 2% + VAT (split between buyer and seller, or paid by buyer)</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <Building2 className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                      <span><strong>Mortgage Arrangement Fee:</strong> Typically 1% of loan amount if financing</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <FileCheck className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Additional Costs:</strong> Valuation fee (AED 2,500-3,500), trustee fee, mortgage registration, property insurance</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-amber-900 font-semibold mb-1">Critical Warning:</p>
+                      <p className="text-sm text-amber-800">
+                        Total upfront costs typically range 27-33% of property value in Dubai. For a AED 1M property, expect to need 
+                        AED 270,000-330,000 in cash. Never proceed without this full amount secured.
+                      </p>
                     </div>
-                    <p className="text-sm text-red-800 mb-2">
-                      Expenses exceed rental income. You need to cover the difference from your pocket.
-                    </p>
-                    <p className="text-xs font-mono text-red-700">
-                      ✗ Rent: AED 4,000/mo<br />
-                      ✗ Expenses: AED 5,500/mo<br />
-                      = <strong>-AED 1,500 loss/mo</strong>
-                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 6: Mortgage Breakdown */}
+            <div className="bg-white border border-border rounded-xl p-8">
+              <div className="flex items-start space-x-4 mb-6">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Banknote className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Section 6: Mortgage Breakdown</h3>
+                  <p className="text-sm text-neutral-600">Complete mortgage details and amortization schedule</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-neutral-600 leading-relaxed">
+                  If you're financing the property, this section shows exactly how your mortgage works - monthly payments, 
+                  how much goes to interest vs. principal, and how quickly you build equity over time.
+                </p>
+
+                <div className="border-l-4 border-secondary/30 pl-4">
+                  <h4 className="font-semibold text-foreground mb-2">What You'll See:</h4>
+                  <ul className="space-y-2 text-sm text-neutral-600">
+                    <li className="flex items-start space-x-2">
+                      <Calculator className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Loan Summary:</strong> Loan amount, interest rate, term length, monthly payment amount</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <PieChart className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                      <span><strong>Principal vs. Interest Split:</strong> See how much of each payment builds equity vs. pays interest</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <LineChart className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Amortization Chart:</strong> Visual representation of loan balance decreasing and equity increasing over the full term</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <DollarSign className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                      <span><strong>Total Interest Paid:</strong> Lifetime interest cost - understand the true cost of financing</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg p-4">
+                  <p className="text-sm text-foreground">
+                    <strong>💡 Mortgage Strategy:</strong> In the early years, most of your payment goes to interest. After year 10-12, 
+                    the balance shifts and you start building equity faster. Consider refinancing if rates drop 1% or more.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 7: Input and Assumption Verification */}
+            <div className="bg-white border-2 border-primary/30 rounded-xl p-8">
+              <div className="flex items-start space-x-4 mb-6">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <FileCheck className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Section 7: Input and Assumption Verification</h3>
+                  <p className="text-sm text-neutral-600">Always visible for maximum transparency - verify every single input and assumption</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-4">
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-foreground font-semibold mb-1">Transparency Commitment:</p>
+                      <p className="text-sm text-neutral-700">
+                        Unlike typical investment reports that hide assumptions in fine print, YieldPulse makes Section 7 always visible and non-collapsible. 
+                        You can verify every single number that went into your report's calculations.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-sm text-neutral-600 leading-relaxed">
+                  This section lists all inputs you provided (property price, rent, down payment, interest rate) and all assumptions 
+                  the calculator used (appreciation rate, vacancy rate, maintenance costs, etc.). Verify these match your expectations.
+                </p>
+
+                <div className="border-l-4 border-secondary/30 pl-4">
+                  <h4 className="font-semibold text-foreground mb-2">What You'll See:</h4>
+                  <ul className="space-y-2 text-sm text-neutral-600">
+                    <li className="flex items-start space-x-2">
+                      <Home className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Property Inputs:</strong> Property value, expected rent, property size, down payment percentage, mortgage terms</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <Percent className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                      <span><strong>Growth Assumptions:</strong> Annual appreciation rate, rental growth rate, inflation rate</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <Receipt className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Cost Assumptions:</strong> Service charges, maintenance (% of property value), property management fees, insurance</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <Calculator className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                      <span><strong>Transaction Costs:</strong> DLD fee (4%), agency fee (2% + VAT), mortgage arrangement fee, valuation fee</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <AlertCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span><strong>Vacancy Rate:</strong> Percentage of year property assumed to be vacant (typically 5-10% in Dubai)</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-amber-900 font-semibold mb-1">Action Required:</p>
+                      <p className="text-sm text-amber-800">
+                        Carefully review every assumption in this section. If any don't match your research or expectations, 
+                        recalculate the report with updated inputs. Your investment decision is only as good as your assumptions.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg p-4">
                   <p className="text-sm text-foreground">
-                    <strong>💡 Pro Tip:</strong> Negative cash flow isn't always bad if property appreciation is strong. 
-                    But positive cash flow is safer for beginners. Aim for at least break-even monthly.
+                    <strong>💡 Verification Checklist:</strong> Cross-reference property price with recent sales data, verify rent with 3+ comparable listings, 
+                    confirm service charges with developer/management company, and validate mortgage rates with 2-3 banks before proceeding.
                   </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 4: ROI Projections */}
-            <div className="bg-white border border-border rounded-xl p-8">
-              <div className="flex items-start space-x-4 mb-6">
-                <div className="p-3 bg-secondary/10 rounded-lg">
-                  <TrendingUp className="w-6 h-6 text-secondary" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">4. ROI Projections (5, 10, 20 Years)</h3>
-                  <p className="text-sm text-neutral-600">Your investment growth over time</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <p className="text-sm text-neutral-600 leading-relaxed">
-                  This section shows how your wealth grows over different time horizons. It combines rental income profits 
-                  AND property value appreciation to give you the complete picture.
-                </p>
-
-                <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-foreground mb-3">What the Numbers Mean:</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-start space-x-3">
-                      <Calendar className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">5-Year ROI</p>
-                        <p className="text-xs text-neutral-600">Short-term outlook. Good for investors who may need liquidity sooner.</p>
-                        <p className="text-xs text-neutral-500 mt-1">Benchmark: 25-40% is strong in UAE</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <Calendar className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">10-Year ROI</p>
-                        <p className="text-xs text-neutral-600">Medium-term. Standard investment horizon for rental properties.</p>
-                        <p className="text-xs text-neutral-500 mt-1">Benchmark: 60-100% is strong in UAE</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <Calendar className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">20-Year ROI</p>
-                        <p className="text-xs text-neutral-600">Long-term wealth building. Property often paid off by year 20-25.</p>
-                        <p className="text-xs text-neutral-500 mt-1">Benchmark: 150-300%+ is strong in UAE</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-secondary/5 to-primary/5 rounded-lg p-4">
-                  <p className="text-sm text-foreground">
-                    <strong>💡 Investment Strategy:</strong> Most successful UAE property investors hold for 7-15 years minimum. 
-                    This allows time for both rental profits to accumulate AND property appreciation to compound.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 5: Comparison Insights */}
-            <div className="bg-white border border-border rounded-xl p-8">
-              <div className="flex items-start space-x-4 mb-6">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <Building2 className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">5. Market Comparison</h3>
-                  <p className="text-sm text-neutral-600">How your property stacks up against UAE benchmarks</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <p className="text-sm text-neutral-600 leading-relaxed">
-                  Your report compares your property's performance against UAE market averages. This helps you understand 
-                  if you're getting a good deal or overpaying.
-                </p>
-
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                    <p className="text-xs font-semibold text-green-700 uppercase mb-1">Above Average</p>
-                    <p className="text-2xl font-bold text-green-600 mb-1">👍</p>
-                    <p className="text-xs text-green-800">Your property performs better than typical UAE properties</p>
-                  </div>
-
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
-                    <p className="text-xs font-semibold text-amber-700 uppercase mb-1">Average</p>
-                    <p className="text-2xl font-bold text-amber-600 mb-1">👌</p>
-                    <p className="text-xs text-amber-800">Your property is in line with market standards</p>
-                  </div>
-
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                    <p className="text-xs font-semibold text-red-700 uppercase mb-1">Below Average</p>
-                    <p className="text-2xl font-bold text-red-600 mb-1">⚠️</p>
-                    <p className="text-xs text-red-800">Consider negotiating price or looking at other options</p>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1120,7 +1264,7 @@ export default function PremiumReportGuidePage() {
             
             <p className="text-lg text-neutral-600 mb-8 leading-relaxed">
               You've learned the fundamentals. Now put this knowledge to work with YieldPulse's powerful calculator 
-              and get your first professional-grade Premium Report for just {priceLabel}.
+              and get your first professional-grade Premium Report for just AED 49.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

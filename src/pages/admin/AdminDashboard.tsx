@@ -12,9 +12,6 @@ interface AdminStats {
   pendingPurchases: number;
   paidPurchases: number;
   recentPurchases: number;
-  revenueByDay?: RevenueData[];
-  userGrowthByDay?: UserGrowthData[];
-  rangeDays?: number;
 }
 
 interface RevenueData {
@@ -35,21 +32,21 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
 
+  // Mock data for charts (in production, these would come from API)
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [userGrowthData, setUserGrowthData] = useState<UserGrowthData[]>([]);
 
   useEffect(() => {
     fetchStats();
-  }, [timeRange]);
+    generateMockChartData();
+  }, []);
 
   const fetchStats = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await adminApi.stats.get(timeRange);
+      const data = await adminApi.stats.get();
       setStats(data);
-      setRevenueData(data.revenueByDay || []);
-      setUserGrowthData(data.userGrowthByDay || []);
     } catch (err: any) {
       console.error('Failed to fetch stats:', err);
       setError(err.message || 'Failed to load dashboard stats');
@@ -57,6 +54,34 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Generate mock chart data (replace with real API data in production)
+  const generateMockChartData = () => {
+    const days = 30;
+    const revenue: RevenueData[] = [];
+    const users: UserGrowthData[] = [];
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      
+      revenue.push({
+        date: dateStr,
+        revenue: Math.floor(Math.random() * 500) + 200,
+        purchases: Math.floor(Math.random() * 10) + 2,
+      });
+      
+      users.push({
+        date: dateStr,
+        users: Math.floor(Math.random() * 50) + (days - i) * 5,
+        newUsers: Math.floor(Math.random() * 15) + 3,
+      });
+    }
+    
+    setRevenueData(revenue);
+    setUserGrowthData(users);
   };
 
   if (loading) {
@@ -89,7 +114,7 @@ export default function AdminDashboard() {
             <div className="text-sm text-red-700 mt-1">{error}</div>
             <button
               onClick={fetchStats}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors cursor-pointer"
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
             >
               Retry
             </button>
@@ -99,13 +124,12 @@ export default function AdminDashboard() {
     );
   }
 
-  const rangeLabel = stats?.rangeDays ? `Last ${stats.rangeDays} days` : 'Live';
   const kpiCards = [
     { 
       label: 'Total Users', 
       value: stats?.totalUsers || 0, 
       icon: Users, 
-      trend: rangeLabel,
+      trend: '+12% vs last month',
       trendUp: true,
       bgGradient: 'from-blue-500 to-blue-600',
     },
@@ -113,7 +137,7 @@ export default function AdminDashboard() {
       label: 'Total Revenue', 
       value: `AED ${(stats?.totalRevenue || 0).toLocaleString()}`, 
       icon: DollarSign, 
-      trend: rangeLabel,
+      trend: '+18% vs last month',
       trendUp: true,
       bgGradient: 'from-green-500 to-emerald-600',
     },
@@ -121,7 +145,7 @@ export default function AdminDashboard() {
       label: 'Conversion Rate', 
       value: `${stats?.conversionRate || 0}%`, 
       icon: TrendingUp, 
-      trend: rangeLabel,
+      trend: '+3.2% vs last month',
       trendUp: true,
       bgGradient: 'from-purple-500 to-purple-600',
     },
@@ -154,7 +178,7 @@ export default function AdminDashboard() {
           <div className="flex items-center space-x-3">
             <button
               onClick={fetchStats}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 font-medium transition-colors flex items-center space-x-2 cursor-pointer"
+              className="px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 font-medium transition-colors flex items-center space-x-2"
             >
               <Activity className="w-4 h-4" />
               <span>Refresh</span>

@@ -1,17 +1,14 @@
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { FileText } from 'lucide-react';
-import { usePublicPricing } from '../utils/usePublicPricing';
 
 export default function TermsOfServicePage() {
-  const { priceLabel } = usePublicPricing();
-
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Header />
       
       <main className="flex-grow">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-16">
           {/* Page Header */}
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-4">
@@ -78,7 +75,7 @@ export default function TermsOfServicePage() {
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1.5">•</span>
                   <div>
-                    <strong>"Premium Report"</strong> refers to enhanced analytical reports available for purchase at {priceLabel} per report
+                    <strong>"Premium Report"</strong> refers to enhanced analytical reports available for purchase at AED 49 per report
                   </div>
                 </li>
                 <li className="flex items-start gap-2">
@@ -372,7 +369,7 @@ export default function TermsOfServicePage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1.5">•</span>
-                  <span><strong>Premium Reports:</strong> {priceLabel} per report, one-time payment</span>
+                  <span><strong>Premium Reports:</strong> AED 49 per report, one-time payment</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1.5">•</span>
@@ -654,7 +651,7 @@ export default function TermsOfServicePage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-red-600 mt-1.5">•</span>
-                    <span>IN NO EVENT SHALL OUR TOTAL LIABILITY EXCEED THE AMOUNT YOU PAID TO US IN THE 12 MONTHS PRECEDING THE CLAIM, OR {priceLabel} (THE COST OF ONE PREMIUM REPORT), WHICHEVER IS GREATER</span>
+                    <span>IN NO EVENT SHALL OUR TOTAL LIABILITY EXCEED THE AMOUNT YOU PAID TO US IN THE 12 MONTHS PRECEDING THE CLAIM, OR AED 49 (THE COST OF ONE PREMIUM REPORT), WHICHEVER IS GREATER</span>
                   </li>
                 </ul>
                 <p className="mt-4 text-red-800">

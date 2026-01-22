@@ -145,7 +145,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-neutral-100 hover:bg-neutral-200 rounded-md transition-colors group cursor-pointer"
+      className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-neutral-100 hover:bg-neutral-200 rounded-md transition-colors group"
     >
       <span className="font-mono">{label || text}</span>
       {copied ? (
@@ -235,7 +235,7 @@ function CodeSnippet({ code, language = 'css' }: { code: string; language?: stri
         <span className="text-xs text-neutral-400 font-medium uppercase">{language}</span>
         <button
           onClick={handleCopy}
-          className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors"
         >
           {copied ? (
             <>
@@ -264,7 +264,7 @@ export default function InteractiveBrandGuidelines() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary via-primary-hover to-secondary text-white py-16 sm:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -290,7 +290,7 @@ export default function InteractiveBrandGuidelines() {
 
       {/* Tab Navigation */}
       <div className="sticky top-16 z-40 bg-white border-b border-border shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             {tabs.map((tab) => (
               <button
@@ -300,7 +300,7 @@ export default function InteractiveBrandGuidelines() {
                   activeTab === tab.id
                     ? 'border-primary text-primary'
                     : 'border-transparent text-neutral-600 hover:text-foreground hover:border-neutral-300'
-                } cursor-pointer`}
+                }`}
               >
                 <tab.icon className="w-4 h-4" />
                 <span className="hidden sm:inline">{tab.label}</span>
@@ -312,7 +312,7 @@ export default function InteractiveBrandGuidelines() {
       </div>
 
       {/* Tab Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <AnimatePresence mode="wait">
           {/* Overview Tab */}
           {activeTab === 'overview' && (
@@ -723,7 +723,7 @@ export default function InteractiveBrandGuidelines() {
                           >
                             Primary Action
                           </motion.button>
-                          <button className="px-6 py-3 bg-primary text-white rounded-lg font-medium opacity-50 cursor-not-allowed cursor-pointer">
+                          <button className="px-6 py-3 bg-primary text-white rounded-lg font-medium opacity-50 cursor-not-allowed">
                             Disabled
                           </button>
                         </div>
@@ -744,7 +744,7 @@ export default function InteractiveBrandGuidelines() {
                           >
                             Secondary Action
                           </motion.button>
-                          <button className="px-6 py-3 bg-white border-2 border-border text-neutral-700 rounded-lg font-medium opacity-50 cursor-not-allowed cursor-pointer">
+                          <button className="px-6 py-3 bg-white border-2 border-border text-neutral-700 rounded-lg font-medium opacity-50 cursor-not-allowed">
                             Disabled
                           </button>
                         </div>
@@ -1204,7 +1204,7 @@ export default function InteractiveBrandGuidelines() {
 
       {/* Footer */}
       <footer className="bg-gradient-to-br from-primary via-primary-hover to-secondary text-white py-12 mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="p-3 bg-white rounded-xl">
               <TrendingUp className="w-8 h-8 text-primary" />

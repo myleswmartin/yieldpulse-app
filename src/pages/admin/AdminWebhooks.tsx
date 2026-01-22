@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   Webhook, 
   Search,
@@ -13,7 +13,6 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { adminApi } from '../../utils/adminApi';
 
 interface WebhookEvent {
   id: string;
@@ -28,50 +27,136 @@ interface WebhookEvent {
   nextRetry?: string;
   createdAt: string;
   processedAt?: string;
-  sessionId?: string;
 }
 
+const mockWebhookEvents: WebhookEvent[] = [
+  {
+    id: '1',
+    eventId: 'evt_1AbCd123456789',
+    eventType: 'payment_intent.succeeded',
+    status: 'success',
+    source: 'stripe',
+    payload: {
+      id: 'pi_3AbCd123456789',
+      amount: 4900,
+      currency: 'aed',
+      customer: 'cus_Ahmed123',
+      metadata: {
+        reportId: 'RPT-2401-XYZ',
+        userId: 'usr_001'
+      }
+    },
+    response: {
+      status: 200,
+      message: 'Payment processed successfully'
+    },
+    attempts: 1,
+    createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+    processedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: '2',
+    eventId: 'evt_2XyZ987654321',
+    eventType: 'payment_intent.payment_failed',
+    status: 'success',
+    source: 'stripe',
+    payload: {
+      id: 'pi_3Failed12345',
+      amount: 4900,
+      currency: 'aed',
+      last_payment_error: {
+        message: 'Your card was declined'
+      }
+    },
+    response: {
+      status: 200,
+      message: 'Payment failure logged'
+    },
+    attempts: 1,
+    createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    processedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: '3',
+    eventId: 'evt_3Failed678',
+    eventType: 'charge.refunded',
+    status: 'failed',
+    source: 'stripe',
+    payload: {
+      id: 'ch_refund123',
+      amount: 4900,
+      currency: 'aed',
+      refunded: true
+    },
+    errorMessage: 'Database connection timeout',
+    attempts: 3,
+    nextRetry: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: '4',
+    eventId: 'evt_4Pending999',
+    eventType: 'payment_intent.created',
+    status: 'retrying',
+    source: 'stripe',
+    payload: {
+      id: 'pi_3Pending111',
+      amount: 4900,
+      currency: 'aed',
+      status: 'requires_payment_method'
+    },
+    errorMessage: 'Temporary service unavailable',
+    attempts: 2,
+    nextRetry: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  },
+  {
+    id: '5',
+    eventId: 'evt_5Success555',
+    eventType: 'customer.created',
+    status: 'success',
+    source: 'stripe',
+    payload: {
+      id: 'cus_NewUser456',
+      email: 'newuser@email.com',
+      created: Date.now() / 1000
+    },
+    response: {
+      status: 200,
+      message: 'Customer record created'
+    },
+    attempts: 1,
+    createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    processedAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: '6',
+    eventId: 'evt_6System111',
+    eventType: 'report.generated',
+    status: 'success',
+    source: 'system',
+    payload: {
+      reportId: 'RPT-2401-ABC',
+      userId: 'usr_002',
+      propertyName: '2BR Villa - Arabian Ranches',
+      type: 'premium'
+    },
+    response: {
+      status: 200,
+      message: 'PDF generated and stored'
+    },
+    attempts: 1,
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    processedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  }
+];
+
 export default function AdminWebhooks() {
-  const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>(mockWebhookEvents);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [selectedEvent, setSelectedEvent] = useState<WebhookEvent | null>(null);
-
-  useEffect(() => {
-    fetchWebhooks();
-  }, []);
-
-  const normalizeLog = (log: any): WebhookEvent => ({
-    id: log.id || log.event_id || log.eventId || log.key || crypto.randomUUID(),
-    eventId: log.event_id || log.eventId || log.id || 'unknown',
-    eventType: log.event_type || log.eventType || 'unknown',
-    status: log.status || 'pending',
-    source: log.source || 'stripe',
-    payload: log.payload || {},
-    response: log.response,
-    errorMessage: log.error_message || log.errorMessage,
-    attempts: log.attempts ?? 1,
-    nextRetry: log.next_retry || log.nextRetry,
-    createdAt: log.created_at || log.createdAt || new Date().toISOString(),
-    processedAt: log.processed_at || log.processedAt,
-    sessionId: log.session_id || log.sessionId,
-  });
-
-  const fetchWebhooks = async () => {
-    try {
-      setLoading(true);
-      const data = await adminApi.webhooks.list();
-      const logs = (data.logs || []).map(normalizeLog);
-      setWebhookEvents(logs);
-    } catch (err: any) {
-      console.error('Failed to fetch webhook logs:', err);
-      toast.error(err.message || 'Failed to load webhook logs');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -126,19 +211,13 @@ export default function AdminWebhooks() {
     retrying: webhookEvents.filter(e => e.status === 'retrying').length
   };
 
-  const handleRetry = async (event: WebhookEvent) => {
-    if (!event.sessionId) {
-      toast.error('Retry is only available for checkout sessions');
-      return;
-    }
-    try {
-      await adminApi.webhooks.retry(event.sessionId);
-      toast.success('Webhook retry queued');
-      await fetchWebhooks();
-    } catch (err: any) {
-      console.error('Webhook retry failed:', err);
-      toast.error(err.message || 'Failed to retry webhook');
-    }
+  const handleRetry = (eventId: string) => {
+    setWebhookEvents(prev => prev.map(e => 
+      e.id === eventId
+        ? { ...e, status: 'retrying' as const, attempts: e.attempts + 1 }
+        : e
+    ));
+    toast.info('Webhook event queued for retry');
   };
 
   return (
@@ -229,9 +308,7 @@ export default function AdminWebhooks() {
 
       {/* Webhook Events Table */}
       <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-neutral-600">Loading webhook logs...</div>
-        ) : filteredEvents.length === 0 ? (
+        {filteredEvents.length === 0 ? (
           <div className="p-12 text-center">
             <Webhook className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">No webhook events found</h3>
@@ -314,15 +391,15 @@ export default function AdminWebhooks() {
                       <td className="px-6 py-4 text-right space-x-2">
                         <button
                           onClick={() => setSelectedEvent(event)}
-                          className="inline-flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors cursor-pointer"
+                          className="inline-flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors"
                         >
                           <Eye className="w-4 h-4" />
                           <span>View</span>
                         </button>
-                        {event.status === 'failed' && event.sessionId && (
+                        {event.status === 'failed' && (
                           <button
-                            onClick={() => handleRetry(event)}
-                            className="inline-flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            onClick={() => handleRetry(event.id)}
+                            className="inline-flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           >
                             <RefreshCw className="w-4 h-4" />
                             <span>Retry</span>
@@ -361,7 +438,7 @@ export default function AdminWebhooks() {
               </div>
               <button
                 onClick={() => setSelectedEvent(null)}
-                className="p-2 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
+                className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5 text-neutral-600" />
               </button>

@@ -102,7 +102,7 @@ export default function AdminUsers() {
               setSelectedUser(null);
               setUserDetails(null);
             }}
-            className="text-primary hover:underline mb-4 inline-flex items-center cursor-pointer"
+            className="text-primary hover:underline mb-4 inline-flex items-center"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
             Back to Users
@@ -292,7 +292,7 @@ export default function AdminUsers() {
               </div>
               <button
                 onClick={handleSearch}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors cursor-pointer"
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
               >
                 Search
               </button>
@@ -326,7 +326,7 @@ export default function AdminUsers() {
         </p>
         <button
           onClick={fetchUsers}
-          className="text-primary hover:underline inline-flex items-center text-sm cursor-pointer"
+          className="text-primary hover:underline inline-flex items-center text-sm"
         >
           <RefreshCw className="w-4 h-4 mr-1" />
           Refresh
@@ -380,7 +380,7 @@ export default function AdminUsers() {
                         <div className="flex items-center justify-end space-x-2">
                           <button
                             onClick={() => handleViewDetails(user)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="View Details"
                           >
                             <Eye className="w-4 h-4" />
@@ -391,14 +391,14 @@ export default function AdminUsers() {
                               user.is_admin 
                                 ? 'text-orange-600 hover:bg-orange-50' 
                                 : 'text-green-600 hover:bg-green-50'
-                            } cursor-pointer`}
+                            }`}
                             title={user.is_admin ? 'Remove Admin' : 'Make Admin'}
                           >
                             {user.is_admin ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user.id, user.email)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete User"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -417,7 +417,7 @@ export default function AdminUsers() {
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-border rounded-lg hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-border rounded-lg hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Previous
@@ -428,7 +428,7 @@ export default function AdminUsers() {
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-border rounded-lg hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-border rounded-lg hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                   <ChevronRight className="w-4 h-4 ml-1" />

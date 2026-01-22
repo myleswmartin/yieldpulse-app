@@ -36,9 +36,9 @@ export default function VerifyEmailPage() {
   }, []);
 
   useEffect(() => {
-    // If user is already verified, redirect to dashboard
+    // If user is already verified, redirect to calculator
     if (!authLoading && user?.emailVerified) {
-      navigate('/dashboard', { replace: true });
+      navigate('/calculator', { replace: true });
     }
   }, [user, authLoading, navigate]);
 
@@ -79,7 +79,7 @@ export default function VerifyEmailPage() {
         if (currentSession?.user?.email_confirmed_at) {
           showSuccess('Email verified successfully');
           setTimeout(() => {
-            navigate('/dashboard', { replace: true });
+            window.location.href = '/calculator';
           }, 1000);
         } else {
           showInfo('Email not verified yet', 'Please check your inbox and click the verification link.');
@@ -92,7 +92,7 @@ export default function VerifyEmailPage() {
         // Email is verified! Force a page reload to update auth context
         showSuccess('Email verified successfully');
         setTimeout(() => {
-          navigate('/dashboard', { replace: true });
+          window.location.href = '/calculator';
         }, 1000);
       } else {
         showInfo('Email not verified yet', 'Please check your inbox and click the verification link.');
@@ -198,7 +198,7 @@ export default function VerifyEmailPage() {
             <button
               onClick={handleCheckVerification}
               disabled={checkingVerification}
-              className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer"
+              className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               {checkingVerification ? 'Checking...' : 'I Have Verified My Email'}
             </button>
@@ -206,7 +206,7 @@ export default function VerifyEmailPage() {
             <button
               onClick={handleResendEmail}
               disabled={resending}
-              className="w-full py-4 bg-muted text-foreground rounded-xl font-medium hover:bg-muted/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 cursor-pointer"
+              className="w-full py-4 bg-muted text-foreground rounded-xl font-medium hover:bg-muted/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               <RefreshCw className={`w-4 h-4 ${resending ? 'animate-spin' : ''}`} />
               <span>{resending ? 'Sending...' : 'Resend Verification Email'}</span>

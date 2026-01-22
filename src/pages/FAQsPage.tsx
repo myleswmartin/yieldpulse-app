@@ -5,12 +5,10 @@ import { Footer } from '../components/Footer';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { FeedbackWidget } from '../components/FeedbackWidget';
 import { useState, useEffect } from 'react';
-import { usePublicPricing } from '../utils/usePublicPricing';
 
 export default function FAQsPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const { priceLabel } = usePublicPricing();
 
   // Track page view for analytics
   useEffect(() => {
@@ -30,7 +28,7 @@ export default function FAQsPage() {
       faqs: [
         {
           question: 'What is YieldPulse and how does it work?',
-          answer: `YieldPulse is a professional UAE property investment calculator that helps you analyze potential real estate investments. Enter your property details (price, rent, down payment), and we instantly generate a comprehensive financial analysis. Our free report shows basic metrics, while our Premium Report (${priceLabel}) includes detailed ROI projections, cash flow analysis, comparison insights, and professional formatting you can share with financial advisors or partners.`
+          answer: 'YieldPulse is a professional UAE property investment calculator that helps you analyze potential real estate investments. Enter your property details (price, rent, down payment), and we instantly generate a comprehensive financial analysis. Our free report shows basic metrics, while our Premium Report (AED 49) includes detailed ROI projections, cash flow analysis, comparison insights, and professional formatting you can share with financial advisors or partners.'
         },
         {
           question: 'Do I need to create an account to use the calculator?',
@@ -52,7 +50,7 @@ export default function FAQsPage() {
       faqs: [
         {
           question: 'What\'s the difference between Free and Premium Reports?',
-          answer: `Free Reports show core metrics: ROI, rental yield, basic cash flow, and break-even point. Premium Reports (${priceLabel}) include: 5/10/20-year ROI projections, detailed year-by-year cash flow, comprehensive cost breakdowns, market comparison insights, visual charts, professional PDF formatting, and lifetime access. Think of free as "quick check" and premium as "investment-ready analysis."`
+          answer: 'Free Reports show core metrics: ROI, rental yield, basic cash flow, and break-even point. Premium Reports (AED 49) include: 5/10/20-year ROI projections, detailed year-by-year cash flow, comprehensive cost breakdowns, market comparison insights, visual charts, professional PDF formatting, and lifetime access. Think of free as "quick check" and premium as "investment-ready analysis."'
         },
         {
           question: 'How accurate are the calculations?',
@@ -77,8 +75,8 @@ export default function FAQsPage() {
       icon: '⭐',
       faqs: [
         {
-          question: `Why does a Premium Report cost ${priceLabel}?`,
-          answer: `${priceLabel} is intentionally affordable - less than a single coffee meeting with an agent. You get: institutional-grade financial analysis, multi-decade projections, professional PDF report, unlimited access, and support. Compare this to hiring a financial analyst (AED 500-2,000 per property) or making a poor AED 500,000+ investment decision. It's the cheapest insurance policy for your investment.`
+          question: 'Why does a Premium Report cost AED 49?',
+          answer: 'AED 49 is intentionally affordable - less than a single coffee meeting with an agent. You get: institutional-grade financial analysis, multi-decade projections, professional PDF report, unlimited access, and support. Compare this to hiring a financial analyst (AED 500-2,000 per property) or making a poor AED 500,000+ investment decision. It\'s the cheapest insurance policy for your investment.'
         },
         {
           question: 'How do I purchase a Premium Report?',
@@ -186,7 +184,7 @@ export default function FAQsPage() {
         },
         {
           question: 'Do you offer phone support?',
-          answer: `Currently, we provide support exclusively via email and our Contact form. This allows us to keep costs low and maintain our affordable ${priceLabel} pricing. Email support lets us provide detailed, documented responses and share screenshots/examples. Most inquiries are resolved in 1-2 email exchanges.`
+          answer: 'Currently, we provide support exclusively via email and our Contact form. This allows us to keep costs low and maintain our affordable AED 49 pricing. Email support lets us provide detailed, documented responses and share screenshots/examples. Most inquiries are resolved in 1-2 email exchanges.'
         },
         {
           question: 'Can you provide property investment advice?',
@@ -220,7 +218,7 @@ export default function FAQsPage() {
 
       {/* Breadcrumbs */}
       <div className="bg-white border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-4">
           <Breadcrumbs items={[
             { label: 'Resources', path: '/premium-report-guide' },
             { label: 'FAQs' }
@@ -230,7 +228,7 @@ export default function FAQsPage() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-white to-secondary/5 border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-20 text-center">
           <div className="inline-flex items-center space-x-2 bg-secondary/10 px-4 py-2 rounded-full mb-6">
             <HelpCircle className="w-4 h-4 text-secondary" />
             <span className="text-sm font-medium text-secondary">Frequently Asked Questions</span>
@@ -269,7 +267,7 @@ export default function FAQsPage() {
         </div>
       </section>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+      <div className="max-w-4xl mx-auto px-6 lg:px-8 py-16">
         
         {filteredCategories.length > 0 ? (
           <div className="space-y-12">
@@ -293,7 +291,7 @@ export default function FAQsPage() {
                         <button
                           type="button"
                           onClick={() => toggleFAQ(currentIndex)}
-                          className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-neutral-50 transition-colors cursor-pointer"
+                          className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-neutral-50 transition-colors"
                         >
                           <span className="font-semibold text-foreground pr-4">{faq.question}</span>
                           <ChevronDown
@@ -318,13 +316,13 @@ export default function FAQsPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-10 sm:py-16">
+          <div className="text-center py-16">
             <Search className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">No FAQs found</h3>
             <p className="text-neutral-600 mb-6">Try a different search term or browse all categories below.</p>
             <button
               onClick={() => setSearchTerm('')}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors font-medium cursor-pointer"
+              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors font-medium"
             >
               Show All FAQs
             </button>

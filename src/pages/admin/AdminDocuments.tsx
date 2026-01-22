@@ -164,7 +164,7 @@ export default function AdminDocuments() {
         </div>
         <button
           onClick={() => setShowUploadModal(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors cursor-pointer"
+          className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors"
         >
           <Plus className="w-4 h-4" />
           <span>Upload Document</span>
@@ -181,7 +181,7 @@ export default function AdminDocuments() {
           </p>
           <button
             onClick={() => setShowUploadModal(true)}
-            className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors cursor-pointer"
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>Upload Document</span>
@@ -225,14 +225,14 @@ export default function AdminDocuments() {
                 <div className="flex items-center space-x-2 ml-4">
                   <button
                     onClick={() => handleDownload(doc)}
-                    className="p-2 text-neutral-600 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
+                    className="p-2 text-neutral-600 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
                     title="Download"
                   >
                     <Download className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(doc.id, doc.name)}
-                    className="p-2 text-neutral-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                    className="p-2 text-neutral-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -252,7 +252,7 @@ export default function AdminDocuments() {
               <h2 className="text-2xl font-bold text-foreground">Upload Document</h2>
               <button
                 onClick={() => setShowUploadModal(false)}
-                className="p-2 text-neutral-600 hover:text-foreground hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
+                className="p-2 text-neutral-600 hover:text-foreground hover:bg-neutral-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -325,7 +325,7 @@ export default function AdminDocuments() {
                 <button
                   type="submit"
                   disabled={uploading}
-                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Upload className="w-4 h-4" />
                   <span>{uploading ? 'Uploading...' : 'Upload'}</span>
@@ -334,7 +334,7 @@ export default function AdminDocuments() {
                   type="button"
                   onClick={() => setShowUploadModal(false)}
                   disabled={uploading}
-                  className="px-4 py-2 border border-border text-neutral-700 rounded-lg hover:bg-neutral-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="px-4 py-2 border border-border text-neutral-700 rounded-lg hover:bg-neutral-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>

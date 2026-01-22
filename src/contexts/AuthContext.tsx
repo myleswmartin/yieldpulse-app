@@ -7,14 +7,7 @@ import {
   useRef,
 } from "react";
 import { supabase } from "../utils/supabaseClient";
-import { saveAnalysis, claimGuestPurchase } from "../utils/apiClient";
-import {
-  loadPendingAnalyses,
-  loadSyncedAnalyses,
-  upsertSyncedAnalysis,
-  buildPendingSignature,
-  removePendingAnalysis,
-} from "../utils/pendingAnalysis";
+import { saveAnalysis } from "../utils/apiClient";
 
 interface User {
   id: string;
@@ -83,120 +76,41 @@ export function AuthProvider({
   const [sessionExpired, setSessionExpired] = useState(false);
 
   const pendingSyncRef = useRef(false);
-  const pendingGuestClaimRef = useRef(false);
-
-
-  const waitForSessionToken = async (): Promise<string | null> => {
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) {
-          console.warn('Session check failed during pending sync:', error.message);
-        }
-        const token = data?.session?.access_token || null;
-        if (token) return token;
-      } catch (err) {
-        // ignore and retry
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300));
-    }
-    return null;
-  };
 
   const syncPendingAnalyses = async () => {
     if (pendingSyncRef.current) return;
     pendingSyncRef.current = true;
     try {
-      const accessToken = await waitForSessionToken();
-      if (!accessToken) {
-        console.warn('Pending sync skipped: session token not ready');
+      const key = "yieldpulse-pending-analyses";
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list) || list.length === 0) {
+        localStorage.removeItem(key);
         return;
       }
 
-      const queue = loadPendingAnalyses();
-      if (!queue.length) {
-        return;
-      }
-
-      const synced = loadSyncedAnalyses();
-      const syncedMap = new Map(
-        synced.map((entry) => [entry.signature, entry.analysisId]),
-      );
-      const processed = new Set<string>();
-
-      for (const item of queue) {
+      const remaining = [];
+      for (const item of list) {
         if (!item?.inputs || !item?.results) continue;
-        const signature =
-          item.signature || buildPendingSignature(item.inputs, item.results);
-        if (!signature) continue;
-
-        if (processed.has(signature)) {
-          removePendingAnalysis(signature);
-          continue;
-        }
-
-        processed.add(signature);
-
-        if (syncedMap.has(signature)) {
-          removePendingAnalysis(signature);
-          continue;
-        }
-
-        const { data, error } = await saveAnalysis(
-          {
-            inputs: item.inputs,
-            results: item.results,
-          },
-          accessToken,
-        );
-
+        const { error } = await saveAnalysis({
+          inputs: item.inputs,
+          results: item.results,
+        });
         if (error) {
-          console.warn("Pending analysis sync failed:", error);
-          continue;
+          remaining.push(item);
         }
+      }
 
-        const analysisId = (data as any)?.id;
-        if (analysisId) {
-          upsertSyncedAnalysis(signature, analysisId);
-          syncedMap.set(signature, analysisId);
-          removePendingAnalysis(signature);
-        }
+      if (remaining.length > 0) {
+        localStorage.setItem(key, JSON.stringify(remaining));
+      } else {
+        localStorage.removeItem(key);
       }
     } catch (err) {
       console.warn("Failed to sync pending analyses:", err);
     } finally {
       pendingSyncRef.current = false;
-    }
-  };
-
-  const syncGuestPurchase = async () => {
-    if (pendingGuestClaimRef.current) return;
-    const purchaseId = (() => {
-      try {
-        return localStorage.getItem("yieldpulse-guest-purchase-id");
-      } catch (err) {
-        return null;
-      }
-    })();
-
-    if (!purchaseId) return;
-    pendingGuestClaimRef.current = true;
-
-    try {
-      const { error } = await claimGuestPurchase(purchaseId);
-      if (error) {
-        console.warn("Guest purchase claim failed:", error.error);
-        return;
-      }
-      try {
-        localStorage.removeItem("yieldpulse-guest-purchase-id");
-      } catch (err) {
-        // ignore localStorage errors
-      }
-    } catch (err) {
-      console.warn("Guest purchase claim exception:", err);
-    } finally {
-      pendingGuestClaimRef.current = false;
     }
   };
 
@@ -285,7 +199,6 @@ export function AuthProvider({
         });
 
         void syncPendingAnalyses();
-        void syncGuestPurchase();
 
         // Fetch profile in background (never await here)
         fetchUserProfile(
@@ -329,7 +242,6 @@ export function AuthProvider({
         });
 
         void syncPendingAnalyses();
-        void syncGuestPurchase();
 
         setSessionExpired(false);
 
@@ -407,7 +319,7 @@ export function AuthProvider({
         });
 
         console.log(
-          "? User state updated, fetching profile in background...",
+          "✅ User state updated, fetching profile in background...",
         );
 
         // Fetch profile in background - don't block sign in on this
@@ -417,22 +329,14 @@ export function AuthProvider({
           emailConfirmed,
         )
           .then(() =>
-            console.log("? Profile loaded successfully"),
+            console.log("✅ Profile loaded successfully"),
           )
           .catch((err) =>
             console.warn(
-              "?? Profile fetch failed (user still authenticated):",
+              "⚠️ Profile fetch failed (user still authenticated):",
               err.message,
             ),
           );
-
-        // Sync pending analyses before redirect so dashboard shows immediately
-        try {
-          await syncPendingAnalyses();
-          await syncGuestPurchase();
-        } catch (err) {
-          console.warn('Pending sync after sign-in failed:', err);
-        }
 
         // Clear pending verification email from localStorage
         try {
@@ -441,7 +345,6 @@ export function AuthProvider({
           // Ignore localStorage errors
         }
       }
-
     } catch (error: any) {
       // Re-throw authentication errors
       if (

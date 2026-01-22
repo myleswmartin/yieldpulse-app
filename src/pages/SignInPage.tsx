@@ -1,15 +1,13 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { TrendingUp, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
+import { TrendingUp, Mail, Lock, AlertCircle, ArrowLeft, Info } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { handleError } from '../utils/errorHandling';
-import { addPendingAnalysis } from '../utils/pendingAnalysis';
 
 export default function SignInPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const purchaseId = searchParams.get('purchaseId');
   
   // Safely access useAuth with error boundary
   let authContext;
@@ -53,18 +51,25 @@ export default function SignInPage() {
     // This ensures it will be synced after authentication
     const state = location.state as any;
     if (state?.inputs && state?.results && !user) {
-      addPendingAnalysis(state.inputs, state.results);
-      console.log('📝 Saved pending analysis to localStorage before sign-in');
-    }
-    
-    if (purchaseId && !user) {
       try {
-        localStorage.setItem('yieldpulse-guest-purchase-id', purchaseId);
+        const key = 'yieldpulse-pending-analyses';
+        const existing = localStorage.getItem(key);
+        const list = existing ? JSON.parse(existing) : [];
+        
+        // Add this analysis to the pending list
+        list.push({
+          inputs: state.inputs,
+          results: state.results,
+          timestamp: Date.now()
+        });
+        
+        localStorage.setItem(key, JSON.stringify(list));
+        console.log('📝 Saved pending analysis to localStorage before sign-in');
       } catch (err) {
-        console.warn('Failed to store purchaseId for guest sign-in:', err);
+        console.warn('Failed to save pending analysis:', err);
       }
     }
-  }, [user, authLoading, navigate, redirectTo, location.state, purchaseId]);
+  }, [user, authLoading, navigate, redirectTo, location.state]);
 
   const handleDemoMode = () => {
     console.log('🎭 Entering demo mode - bypassing authentication');
@@ -90,11 +95,13 @@ export default function SignInPage() {
       const message = err.message?.toLowerCase() || '';
       
       if (message.includes('invalid login credentials') || message.includes('invalid credentials')) {
-        setError('Email or password is incorrect. Please try again.');
+        setError('Email or password is incorrect. Please check your credentials and try again. If you don\'t have an account yet, please sign up below.');
       } else if (message.includes('email not confirmed')) {
-        setError('Please verify your email address before signing in.');
+        setError('Please verify your email address before signing in. Check your inbox for the verification link.');
+      } else if (message.includes('user not found')) {
+        setError('No account found with this email address. Please sign up to create an account.');
       } else {
-        setError('Unable to sign in. Please try again.');
+        setError('Unable to sign in. Please check your credentials and try again.');
       }
       
       // Also show toast for network errors
@@ -154,6 +161,16 @@ export default function SignInPage() {
             </div>
           )}
 
+          {!error && !sessionMessage && (
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start space-x-3">
+              <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-blue-800 leading-relaxed">
+                <p className="font-semibold mb-1">First time here?</p>
+                <p>Create a free account to save your property analyses and access premium reports. Use the <strong>Sign Up</strong> link below to get started.</p>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-semibold text-foreground mb-2">
@@ -204,7 +221,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-[#1e2875] to-[#2f3aad] text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full py-4 bg-gradient-to-r from-[#1e2875] to-[#2f3aad] text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </button>

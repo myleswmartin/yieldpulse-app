@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage() {
       <Header />
       
       <main className="flex-grow">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-16">
           {/* Page Header */}
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-4">

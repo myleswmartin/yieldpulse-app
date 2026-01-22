@@ -99,7 +99,7 @@ export default function ForgotPasswordPage() {
                     setSuccess(false);
                     setEmail('');
                   }}
-                  className="w-full py-3 text-primary hover:text-primary-hover font-medium transition-colors cursor-pointer"
+                  className="w-full py-3 text-primary hover:text-primary-hover font-medium transition-colors"
                 >
                   Try a Different Email
                 </button>
@@ -141,7 +141,7 @@ export default function ForgotPasswordPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer"
+                  className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   {loading ? 'Sending Reset Link...' : 'Send Reset Link'}
                 </button>

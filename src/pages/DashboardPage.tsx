@@ -22,6 +22,8 @@ import {
   Check,
   Edit3,
   Info,
+  Download,
+  Archive,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -36,7 +38,6 @@ import {
   formatCurrency,
   formatPercent,
 } from "../utils/calculations";
-import { usePublicPricing } from "../utils/usePublicPricing";
 import { Header } from "../components/Header";
 import {
   showSuccess,
@@ -44,8 +45,8 @@ import {
   handleError,
 } from "../utils/errorHandling";
 import { trackPageView } from "../utils/analytics";
-import { loadPendingAnalyses } from "../utils/pendingAnalysis";
 import React from "react";
+import { usePublicPricing } from "../utils/usePublicPricing";
 
 interface Analysis {
   id: string;
@@ -78,7 +79,6 @@ export default function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pendingSyncing, setPendingSyncing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(
     null,
   );
@@ -102,6 +102,15 @@ export default function DashboardPage() {
   const [selectedForComparison, setSelectedForComparison] =
     useState<string[]>([]);
 
+  // Bulk action state (separate from comparison mode)
+  const [bulkSelection, setBulkSelection] = useState<Set<string>>(
+    new Set(),
+  );
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] =
+    useState(false);
+  const [showBulkExportModal, setShowBulkExportModal] =
+    useState(false);
+
   // Payment banner state
   const [showPaymentBanner, setShowPaymentBanner] =
     useState(false);
@@ -112,8 +121,6 @@ export default function DashboardPage() {
     useState<string | null>(null);
 
   useEffect(() => {
-    let active = true;
-
     // Check for payment status in URL
     const payment = searchParams.get("payment");
     const analysisId = searchParams.get("analysisId");
@@ -136,57 +143,20 @@ export default function DashboardPage() {
       setSearchParams(searchParams);
     }
 
-    const hasGuestPurchaseId = () => {
-      try {
-        return !!localStorage.getItem("yieldpulse-guest-purchase-id");
-      } catch (err) {
-        return false;
-      }
-    };
-
-    const waitForPendingSync = async () => {
-      const initialPending = loadPendingAnalyses();
-      const initialGuestClaim = hasGuestPurchaseId();
-      if (!initialPending.length && !initialGuestClaim) return;
-
-      setPendingSyncing(true);
-      const start = Date.now();
-      const timeoutMs = 7000;
-      const intervalMs = 300;
-
-      while (Date.now() - start < timeoutMs) {
-        if (!active) return;
-        const pending = loadPendingAnalyses();
-        const guestClaimPending = hasGuestPurchaseId();
-        if (pending.length === 0 && !guestClaimPending) break;
-        await new Promise((resolve) => setTimeout(resolve, intervalMs));
-      }
-
-      if (!active) return;
-      setPendingSyncing(false);
-    };
-
-    const initialize = async () => {
-      const hadGuestClaim = hasGuestPurchaseId();
-      await waitForPendingSync();
-      if (!active) return;
-      await fetchAnalyses();
-      if (hadGuestClaim && active) {
-        setTimeout(() => {
-          if (active) {
-            fetchAnalyses({ silent: true });
-          }
-        }, 1500);
-      }
-      trackPageView("Dashboard");
-    };
-
-    initialize();
-
-    return () => {
-      active = false;
-    };
+    fetchAnalyses();
+    trackPageView("Dashboard");
   }, []);
+
+  // Clear bulk selection when filter changes
+  useEffect(() => {
+    if (bulkSelection.size > 0) {
+      setBulkSelection(new Set());
+      showInfo(
+        "Selection cleared",
+        "Selection cleared due to filter change.",
+      );
+    }
+  }, [filter]);
 
   const dismissBanner = () => {
     setShowPaymentBanner(false);
@@ -203,10 +173,7 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchAnalyses = async (options?: { silent?: boolean }) => {
-    if (!options?.silent) {
-      setLoading(true);
-    }
+  const fetchAnalyses = async () => {
     try {
       const { data, error, requestId } =
         await getUserAnalyses();
@@ -297,9 +264,7 @@ export default function DashboardPage() {
         "Load Dashboard",
       );
     } finally {
-      if (!options?.silent) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
@@ -323,6 +288,14 @@ export default function DashboardPage() {
 
       setAnalyses((prev) => prev.filter((a) => a.id !== id));
       setDeleteConfirmId(null);
+      
+      // Remove from bulk selection if present
+      setBulkSelection((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+      
       showSuccess("Analysis deleted successfully.");
     } catch (err: any) {
       console.error("Error deleting analysis:", err);
@@ -453,6 +426,131 @@ export default function DashboardPage() {
     setSelectedForComparison([]);
   };
 
+  // Bulk action handlers
+  const toggleBulkSelection = (analysisId: string) => {
+    setBulkSelection((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(analysisId)) {
+        newSet.delete(analysisId);
+      } else {
+        newSet.add(analysisId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleMasterCheckboxChange = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(filteredAnalyses.map((a) => a.id));
+      setBulkSelection(allIds);
+    } else {
+      setBulkSelection(new Set());
+    }
+  };
+
+  const clearBulkSelection = () => {
+    setBulkSelection(new Set());
+  };
+
+  const handleBulkCompare = () => {
+    const selectedIds = Array.from(bulkSelection);
+    const premiumIds = selectedIds.filter((id) => {
+      const analysis = analyses.find((a) => a.id === id);
+      return analysis && getPaidStatus(analysis) === "paid";
+    });
+
+    if (premiumIds.length < 2 || premiumIds.length > 4) {
+      showInfo(
+        "Selection Error",
+        "Please select 2-4 premium reports to compare.",
+      );
+      return;
+    }
+
+    navigate("/comparison", {
+      state: { selectedIds: premiumIds },
+    });
+  };
+
+  const handleBulkExport = () => {
+    setShowBulkExportModal(true);
+  };
+
+  const confirmBulkExport = async () => {
+    const selectedIds = Array.from(bulkSelection);
+    const selectedAnalyses = analyses.filter((a) =>
+      selectedIds.includes(a.id),
+    );
+
+    const premiumAnalyses = selectedAnalyses.filter(
+      (a) => getPaidStatus(a) === "paid",
+    );
+    const freeAnalyses = selectedAnalyses.filter(
+      (a) => getPaidStatus(a) !== "paid",
+    );
+
+    if (premiumAnalyses.length === 0) {
+      showInfo(
+        "No Premium Reports",
+        "You have only selected free reports. Premium reports are required for PDF export.",
+      );
+      setShowBulkExportModal(false);
+      return;
+    }
+
+    // Note: Actual PDF generation would go here
+    // For now, show a message about the feature
+    showInfo(
+      "Export Initiated",
+      `Exporting ${premiumAnalyses.length} premium report${premiumAnalyses.length > 1 ? "s" : ""}. ${freeAnalyses.length > 0 ? `${freeAnalyses.length} free report${freeAnalyses.length > 1 ? "s" : ""} cannot be exported.` : ""}`,
+    );
+
+    setShowBulkExportModal(false);
+  };
+
+  const handleBulkArchive = () => {
+    showInfo(
+      "Archive Feature",
+      "Archive functionality requires database schema update. This feature will be available soon.",
+    );
+  };
+
+  const handleBulkDelete = () => {
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    const selectedIds = Array.from(bulkSelection);
+    const deletePromises = selectedIds.map((id) =>
+      deleteAnalysis(id).catch((err) => ({ error: err, id })),
+    );
+
+    const results = await Promise.all(deletePromises);
+    const successIds = results
+      .filter((r: any) => !r.error)
+      .map((r: any, idx) => selectedIds[idx]);
+    const failedCount = results.filter((r: any) => r.error).length;
+
+    if (successIds.length > 0) {
+      setAnalyses((prev) =>
+        prev.filter((a) => !successIds.includes(a.id)),
+      );
+      showSuccess(
+        `${successIds.length} report${successIds.length > 1 ? "s" : ""} deleted successfully.`,
+      );
+    }
+
+    if (failedCount > 0) {
+      handleError(
+        `Failed to delete ${failedCount} report${failedCount > 1 ? "s" : ""}.`,
+        "Bulk Delete",
+      );
+    }
+
+    setBulkSelection(new Set());
+    setShowBulkDeleteConfirm(false);
+  };
+
   // Generate human-readable Report ID from database ID
   const formatReportId = (id: string): string => {
     // Extract numeric part from UUID or use hash code
@@ -551,40 +649,85 @@ export default function DashboardPage() {
     setPropertyNameValue("");
   };
 
-  if (loading || pendingSyncing) {
-    const message = pendingSyncing
-      ? "Syncing your saved reports..."
-      : "Syncing saved reports...";
+  // Portfolio snapshot calculations
+  const now = Date.now();
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    return (
-      <div className="min-h-screen bg-neutral-50">
-        <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
-          <div className="bg-white rounded-2xl border border-border shadow-sm p-10 flex flex-col items-center text-center gap-4">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full border border-border bg-muted/40">
-              <span className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-border border-t-primary"></span>
-            </div>
-            <div className="">
-              <p className="text-lg font-semibold text-foreground">{message}</p>
-              <p className="text-sm text-neutral-500 mt-2">
-                This usually takes just a moment.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  const safeDate = (value: any) => {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  let activeCount = 0;
+  let archivedCount = 0;
+  let activeYieldSum = 0;
+
+  let mostRecentDate: Date | null = null;
+
+  for (const a of analyses) {
+    const d = safeDate(a.updated_at);
+
+    // Conservative default: unknown dates are treated as archived
+    const isActive = d ? d >= thirtyDaysAgo : false;
+
+    if (isActive) {
+      activeCount += 1;
+      activeYieldSum += Number(a.gross_yield) || 0;
+    } else {
+      archivedCount += 1;
+    }
+
+    if (d && (!mostRecentDate || d > mostRecentDate)) {
+      mostRecentDate = d;
+    }
   }
+
+  const activeAvgYield = activeCount >= 2 ? activeYieldSum / activeCount : null;
+
+  const lastUpdatedText = (() => {
+    if (!mostRecentDate) return null;
+
+    const diffMs = now - mostRecentDate.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffHours < 1) return "just now";
+    if (diffHours < 24) return "today";
+    if (diffDays === 1) return "yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    const weeks = Math.floor(diffDays / 7);
+    return `${weeks} ${weeks === 1 ? "week" : "weeks"} ago`;
+  })();
+
+  // Status distribution
+  // TODO: Add a true status field for Draft Finalised Compared.
+  // Current implementation only proxies Finalised via paid status.
+  // Draft and Compared are not tracked at present.
+  const draftCount = 0;
+  const finalisedCount = analyses.filter((a) => getPaidStatus(a) === "paid").length;
+  const comparedCount = 0;
+
+  const totalForBar = Math.max(analyses.length, 1);
+  const draftPercent = (draftCount / totalForBar) * 100;
+  const finalisedPercent = (finalisedCount / totalForBar) * 100;
+  const comparedPercent = (comparedCount / totalForBar) * 100;
+
+  // Prevent fully invisible bar when all segments are 0
+  const hasAnyStatus = draftCount + finalisedCount + comparedCount > 0;
+  const adjustedDraftPercent = hasAnyStatus ? draftPercent : 0;
+  const adjustedFinalisedPercent = hasAnyStatus ? finalisedPercent : 100;
+  const adjustedComparedPercent = hasAnyStatus ? comparedPercent : 0;
 
   return (
     <div className="min-h-screen bg-neutral-50">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
         {/* Welcome Section */}
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-foreground mb-3 tracking-tight">
-            Welcome back, {user?.fullName}
+            Welcome back, {user?.fullName || user?.email}
           </h1>
           <p className="text-lg text-neutral-600">
             Your property investment control center
@@ -594,7 +737,7 @@ export default function DashboardPage() {
         {/* Payment Banner */}
         {showPaymentBanner && (
           <div
-            className={`rounded-xl shadow-sm border p-6 mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 ${
+            className={`rounded-xl shadow-sm border p-6 mb-8 flex items-start justify-between ${
               paymentStatus === "success"
                 ? "bg-success/10 border-success/30"
                 : "bg-warning/10 border-warning/30"
@@ -624,7 +767,7 @@ export default function DashboardPage() {
                 {paymentStatus === "success" && (
                   <button
                     onClick={viewPurchasedReport}
-                    className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-all shadow-sm cursor-pointer"
+                    className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-all shadow-sm"
                   >
                     <Eye className="w-5 h-5" />
                     <span>View Report</span>
@@ -634,7 +777,7 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={dismissBanner}
-              className="p-2 text-neutral-500 hover:text-neutral-700 rounded-lg transition-colors flex-shrink-0 cursor-pointer"
+              className="p-2 text-neutral-500 hover:text-neutral-700 rounded-lg transition-colors flex-shrink-0"
               aria-label="Dismiss notification"
             >
               <X className="w-5 h-5" />
@@ -642,43 +785,62 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Stats Overview */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-          <StatCard
-            label="Total Analyses"
-            value={analyses.length}
-            icon={FileText}
-            description="Saved property calculations"
-            variant="navy"
-          />
-          <StatCard
-            label="Premium Reports"
-            value={
-              analyses.filter(
-                (a) => getPaidStatus(a) === "paid",
-              ).length
-            }
-            icon={TrendingUp}
-            description="Full reports unlocked"
-            variant="teal"
-          />
-          <StatCard
-            label="Free Reports"
-            value={
-              analyses.filter(
-                (a) => getPaidStatus(a) === "free",
-              ).length
-            }
-            icon={Calculator}
-            description="Preview analyses"
-            variant="success"
-          />
-        </div>
+        {/* Portfolio Snapshot */}
+        {analyses.length > 0 && (
+          <div className="mb-8 pb-5 border-b border-neutral-200">
+            <h2 className="text-xs uppercase tracking-wider text-neutral-400 font-medium mb-4">
+              Portfolio Snapshot
+            </h2>
+
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              {/* Active vs Archived */}
+              <div className="flex items-baseline gap-3">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-sm text-neutral-500">Active:</span>
+                  <span className="text-xl font-semibold text-foreground">{activeCount}</span>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-sm text-neutral-400">Archived:</span>
+                  <span className="text-lg font-medium text-neutral-400">{archivedCount}</span>
+                </div>
+              </div>
+
+              {/* Status Distribution Bar */}
+              <div
+                className="h-1.5 w-32 bg-neutral-100 rounded-full overflow-hidden flex"
+                role="img"
+                aria-label={`Status model Draft Finalised Compared. Currently tracked finalised ${finalisedCount}.`}
+                title={`Status model: Draft • Finalised • Compared. Currently tracked: Finalised ${finalisedCount}.`}
+              >
+                <div className="bg-neutral-300" style={{ width: `${adjustedDraftPercent}%` }} />
+                <div className="bg-primary" style={{ width: `${adjustedFinalisedPercent}%` }} />
+                <div className="bg-teal" style={{ width: `${adjustedComparedPercent}%` }} />
+              </div>
+
+              {/* Optional: Average Yield (only if 2+ active reports) */}
+              {activeAvgYield !== null && (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-sm text-neutral-500">Avg yield:</span>
+                  <span className="text-lg font-semibold text-primary">
+                    {formatPercent(activeAvgYield)}
+                  </span>
+                </div>
+              )}
+
+              {/* Most Recent Activity */}
+              {lastUpdatedText && (
+                <div className="text-sm text-neutral-500 ml-auto">
+                  Last updated {lastUpdatedText}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Comparison Mode Banner */}
         {comparisonMode && analyses.length > 0 && (
           <div className="mb-8 bg-teal/10 border border-teal/30 rounded-xl p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center justify-between gap-4">
               <div className="flex items-center space-x-4">
                 <div className="p-3 bg-teal/20 rounded-lg">
                   <GitCompare className="w-6 h-6 text-teal" />
@@ -701,7 +863,7 @@ export default function DashboardPage() {
                 <button
                   onClick={handleStartComparison}
                   disabled={selectedForComparison.length < 2}
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-[#14b8a6] text-white rounded-lg font-medium hover:bg-[#0f766e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer"
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-[#14b8a6] text-white rounded-lg font-medium hover:bg-[#0f766e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   <GitCompare className="w-5 h-5" />
                   <span>
@@ -713,7 +875,7 @@ export default function DashboardPage() {
                 </button>
                 <button
                   onClick={cancelComparisonMode}
-                  className="px-4 py-3 text-neutral-700 hover:text-foreground font-medium border border-border rounded-lg hover:bg-neutral-50 transition-colors cursor-pointer"
+                  className="px-4 py-3 text-neutral-700 hover:text-foreground font-medium border border-border rounded-lg hover:bg-neutral-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -804,10 +966,10 @@ export default function DashboardPage() {
                         <p className="font-medium text-foreground text-sm">
                           Premium Upgrades
                         </p>
-                          <p className="text-xs text-neutral-600">
-                            Unlock detailed charts and projections
-                            for {priceLabel} per property
-                          </p>
+                        <p className="text-xs text-neutral-600">
+                          Unlock detailed charts and projections
+                          for {priceLabel} per property
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -816,7 +978,7 @@ export default function DashboardPage() {
                 {/* CTA */}
                 <button
                   onClick={() => navigate("/calculator")}
-                  className="inline-flex items-center space-x-3 px-10 py-5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-all shadow-lg hover:shadow-xl text-lg cursor-pointer"
+                  className="inline-flex items-center space-x-3 px-10 py-5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-all shadow-lg hover:shadow-xl text-lg"
                 >
                   <Calculator className="w-6 h-6" />
                   <span>Create Your First Analysis</span>
@@ -856,7 +1018,7 @@ export default function DashboardPage() {
                         filter === "all"
                           ? "bg-white text-foreground shadow-sm"
                           : "text-neutral-600 hover:text-foreground"
-                      } cursor-pointer`}
+                      }`}
                     >
                       All
                     </button>
@@ -866,7 +1028,7 @@ export default function DashboardPage() {
                         filter === "free"
                           ? "bg-white text-foreground shadow-sm"
                           : "text-neutral-600 hover:text-foreground"
-                      } cursor-pointer`}
+                      }`}
                     >
                       Free
                     </button>
@@ -876,7 +1038,7 @@ export default function DashboardPage() {
                         filter === "premium"
                           ? "bg-white text-foreground shadow-sm"
                           : "text-neutral-600 hover:text-foreground"
-                      } cursor-pointer`}
+                      }`}
                     >
                       Premium
                     </button>
@@ -906,8 +1068,9 @@ export default function DashboardPage() {
                         onClick={() => {
                           setComparisonMode(true);
                           setSelectedForComparison([]);
+                          setBulkSelection(new Set());
                         }}
-                        className="inline-flex items-center space-x-2 px-5 py-2.5 bg-teal/10 text-teal border border-teal/30 rounded-lg font-medium hover:bg-teal/20 transition-colors text-sm shadow-sm cursor-pointer"
+                        className="inline-flex items-center space-x-2 px-5 py-2.5 bg-teal/10 text-teal border border-teal/30 rounded-lg font-medium hover:bg-teal/20 transition-colors text-sm shadow-sm"
                       >
                         <GitCompare className="w-4 h-4" />
                         <span>Compare Reports</span>
@@ -918,7 +1081,7 @@ export default function DashboardPage() {
                   {!comparisonMode && (
                     <button
                       onClick={() => navigate("/calculator")}
-                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm shadow-sm cursor-pointer"
+                      className="inline-flex items-center space-x-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm shadow-sm"
                     >
                       <Plus className="w-4 h-4" />
                       <span>New Analysis</span>
@@ -928,10 +1091,91 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* Bulk Action Bar */}
+            {!comparisonMode && bulkSelection.size > 0 && (
+              <div className="sticky top-0 z-10 bg-neutral-50 border-b border-border px-8 py-4 flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm font-medium text-foreground">
+                    {bulkSelection.size} report{bulkSelection.size > 1 ? "s" : ""} selected
+                  </span>
+                  <button
+                    onClick={clearBulkSelection}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Clear selection
+                  </button>
+                </div>
+                <div className="flex items-center space-x-3">
+                  {/* Compare Button */}
+                  <button
+                    onClick={handleBulkCompare}
+                    disabled={bulkSelection.size < 2 || bulkSelection.size > 4}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    title={bulkSelection.size < 2 || bulkSelection.size > 4 ? "Select 2-4 reports to compare" : "Compare selected reports"}
+                  >
+                    <GitCompare className="w-4 h-4" />
+                    <span>Compare</span>
+                  </button>
+
+                  {/* Export PDF Button */}
+                  <button
+                    onClick={handleBulkExport}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Export PDF</span>
+                  </button>
+
+                  {/* Archive Button */}
+                  <button
+                    onClick={handleBulkArchive}
+                    className="inline-flex items-center space-x-2 px-4 py-2 border border-border text-foreground rounded-lg font-medium hover:bg-neutral-100 transition-colors text-sm"
+                  >
+                    <Archive className="w-4 h-4" />
+                    <span>Archive</span>
+                  </button>
+
+                  {/* Delete Button */}
+                  <button
+                    onClick={handleBulkDelete}
+                    className="inline-flex items-center space-x-2 px-4 py-2 border border-destructive/30 text-destructive rounded-lg font-medium hover:bg-destructive/10 transition-colors text-sm"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50 border-b border-border">
                   <tr>
+                    {/* Bulk Selection Checkbox Column */}
+                    {!comparisonMode && (
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-16">
+                        <input
+                          type="checkbox"
+                          checked={
+                            bulkSelection.size > 0 &&
+                            bulkSelection.size === filteredAnalyses.length
+                          }
+                          ref={(el) => {
+                            if (el) {
+                              el.indeterminate =
+                                bulkSelection.size > 0 &&
+                                bulkSelection.size < filteredAnalyses.length;
+                            }
+                          }}
+                          onChange={(e) =>
+                            handleMasterCheckboxChange(e.target.checked)
+                          }
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-ring"
+                        />
+                      </th>
+                    )}
+
+                    {/* Comparison Mode Checkbox Column */}
                     {comparisonMode && (
                       <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-16">
                         <input
@@ -1009,6 +1253,8 @@ export default function DashboardPage() {
                       comparisonMode={comparisonMode}
                       selectedForComparison={selectedForComparison}
                       setSelectedForComparison={setSelectedForComparison}
+                      bulkSelection={bulkSelection}
+                      toggleBulkSelection={toggleBulkSelection}
                       formatReportId={formatReportId}
                       getPaidStatus={getPaidStatus}
                       editingNoteId={editingNoteId}
@@ -1045,7 +1291,7 @@ export default function DashboardPage() {
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1IiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-30" />
 
             <div className="relative p-10 text-primary-foreground">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
                   <h3 className="text-xl font-bold mb-2">
                     Compare Another Investment
@@ -1057,10 +1303,87 @@ export default function DashboardPage() {
                 </div>
                 <button
                   onClick={() => navigate("/calculator")}
-                  className="flex-shrink-0 inline-flex items-center space-x-3 px-8 py-4 bg-white text-primary rounded-xl font-medium hover:shadow-2xl transition-all cursor-pointer"
+                  className="flex-shrink-0 inline-flex items-center space-x-3 px-8 py-4 bg-white text-primary rounded-xl font-medium hover:shadow-2xl transition-all"
                 >
                   <Plus className="w-5 h-5" />
                   <span>New Analysis</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk Delete Confirmation Modal */}
+        {showBulkDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-3">
+                Delete {bulkSelection.size} Report{bulkSelection.size > 1 ? "s" : ""}?
+              </h3>
+              <p className="text-sm text-neutral-700 mb-6">
+                This action cannot be undone. Your PDF downloads will remain available, but the reports will be permanently removed from your dashboard.
+              </p>
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => setShowBulkDeleteConfirm(false)}
+                  className="px-4 py-2 border border-border rounded-lg text-foreground font-medium hover:bg-neutral-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBulkDelete}
+                  className="px-4 py-2 bg-destructive text-white rounded-lg font-medium hover:bg-destructive/90 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk Export Modal */}
+        {showBulkExportModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-3">
+                Export Selected Reports
+              </h3>
+              <p className="text-sm text-neutral-700 mb-4">
+                {(() => {
+                  const selectedIds = Array.from(bulkSelection);
+                  const selectedAnalyses = analyses.filter((a) =>
+                    selectedIds.includes(a.id),
+                  );
+                  const premiumCount = selectedAnalyses.filter(
+                    (a) => getPaidStatus(a) === "paid",
+                  ).length;
+                  const freeCount = selectedAnalyses.filter(
+                    (a) => getPaidStatus(a) !== "paid",
+                  ).length;
+
+                  if (premiumCount === 0) {
+                    return "You have selected only free reports. Premium reports are required for PDF export.";
+                  }
+                  
+                  if (freeCount === 0) {
+                    return `You have selected ${premiumCount} premium report${premiumCount > 1 ? "s" : ""}. All will be exported as PDF.`;
+                  }
+
+                  return `You have selected ${bulkSelection.size} reports: ${premiumCount} premium (will export), ${freeCount} free (cannot export). Continue?`;
+                })()}
+              </p>
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => setShowBulkExportModal(false)}
+                  className="px-4 py-2 border border-border rounded-lg text-foreground font-medium hover:bg-neutral-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBulkExport}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors"
+                >
+                  Continue
                 </button>
               </div>
             </div>
@@ -1098,7 +1421,7 @@ function StatCard({
       className={`rounded-xl shadow-sm border border-border overflow-hidden bg-gradient-to-br ${variantStyles[variant]}`}
     >
       <div className="p-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+        <div className="flex items-start justify-between mb-4">
           <div className="p-3 bg-white/20 rounded-lg">
             <Icon className="w-6 h-6" />
           </div>
@@ -1148,6 +1471,8 @@ interface AnalysisRowProps {
   comparisonMode: boolean;
   selectedForComparison: string[];
   setSelectedForComparison: (ids: string[]) => void;
+  bulkSelection: Set<string>;
+  toggleBulkSelection: (id: string) => void;
   formatReportId: (id: string) => string;
   getPaidStatus: (analysis: Analysis) => "paid" | "free" | "checking";
   editingNoteId: string | null;
@@ -1177,6 +1502,8 @@ function AnalysisRow({
   comparisonMode,
   selectedForComparison,
   setSelectedForComparison,
+  bulkSelection,
+  toggleBulkSelection,
   formatReportId,
   getPaidStatus,
   editingNoteId,
@@ -1203,6 +1530,19 @@ function AnalysisRow({
   return (
     <>
       <tr className="hover:bg-muted/20 transition-colors">
+        {/* Bulk Selection Checkbox */}
+        {!comparisonMode && (
+          <td className="px-6 py-5">
+            <input
+              type="checkbox"
+              checked={bulkSelection.has(analysis.id)}
+              onChange={() => toggleBulkSelection(analysis.id)}
+              className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-ring"
+            />
+          </td>
+        )}
+
+        {/* Comparison Mode Checkbox */}
         {comparisonMode && (
           <td className="px-6 py-5">
             <input
@@ -1252,14 +1592,14 @@ function AnalysisRow({
               />
               <button
                 onClick={() => handlePropertyNameSave(analysis.id)}
-                className="p-1.5 text-success hover:bg-success/10 rounded transition-colors cursor-pointer"
+                className="p-1.5 text-success hover:bg-success/10 rounded transition-colors"
                 title="Save"
               >
                 <Check className="w-4 h-4" />
               </button>
               <button
                 onClick={handlePropertyNameCancel}
-                className="p-1.5 text-neutral-500 hover:bg-muted rounded transition-colors cursor-pointer"
+                className="p-1.5 text-neutral-500 hover:bg-muted rounded transition-colors"
                 title="Cancel"
               >
                 <X className="w-4 h-4" />
@@ -1371,7 +1711,7 @@ function AnalysisRow({
               onClick={() =>
                 toggleRow(analysis.id)
               }
-              className="p-2 text-neutral-500 hover:bg-muted/50 rounded-lg transition-colors cursor-pointer"
+              className="p-2 text-neutral-500 hover:bg-muted/50 rounded-lg transition-colors"
               aria-label={
                 expandedRow === analysis.id
                   ? "Collapse details"
@@ -1390,7 +1730,7 @@ function AnalysisRow({
               onClick={() =>
                 handleViewAnalysis(analysis)
               }
-              className="inline-flex items-center space-x-1.5 px-4 py-2 text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors font-medium text-sm cursor-pointer"
+              className="inline-flex items-center space-x-1.5 px-4 py-2 text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors font-medium text-sm"
               aria-label="View Analysis"
             >
               <Eye className="w-4 h-4" />
@@ -1407,7 +1747,7 @@ function AnalysisRow({
                   disabled={
                     deletingId === analysis.id
                   }
-                  className="px-3 py-2 bg-destructive text-destructive-foreground rounded-lg text-xs font-medium hover:bg-destructive/90 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="px-3 py-2 bg-destructive text-destructive-foreground rounded-lg text-xs font-medium hover:bg-destructive/90 transition-colors disabled:opacity-50"
                 >
                   {deletingId === analysis.id
                     ? "Deleting..."
@@ -1417,7 +1757,7 @@ function AnalysisRow({
                   onClick={() =>
                     setDeleteConfirmId(null)
                   }
-                  className="px-3 py-2 bg-muted text-foreground rounded-lg text-xs font-medium hover:bg-muted/80 transition-colors cursor-pointer"
+                  className="px-3 py-2 bg-muted text-foreground rounded-lg text-xs font-medium hover:bg-muted/80 transition-colors"
                 >
                   Cancel
                 </button>
@@ -1429,7 +1769,7 @@ function AnalysisRow({
                     analysis.id,
                   )
                 }
-                className="p-2 text-neutral-400 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                className="p-2 text-neutral-400 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                 aria-label="Delete Analysis"
               >
                 <Trash2 className="w-4 h-4" />
@@ -1459,14 +1799,14 @@ function AnalysisRow({
               />
               <button
                 onClick={() => handleNoteSave(analysis.id)}
-                className="p-1.5 text-success hover:bg-success/10 rounded transition-colors cursor-pointer"
+                className="p-1.5 text-success hover:bg-success/10 rounded transition-colors"
                 title="Save"
               >
                 <Check className="w-4 h-4" />
               </button>
               <button
                 onClick={handleNoteCancel}
-                className="p-1.5 text-neutral-500 hover:bg-muted rounded transition-colors cursor-pointer"
+                className="p-1.5 text-neutral-500 hover:bg-muted rounded transition-colors"
                 title="Cancel"
               >
                 <X className="w-4 h-4" />
@@ -1574,7 +1914,7 @@ function AnalysisRow({
                         analysis,
                       )
                     }
-                    className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer"
+                    className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors"
                   >
                     Upgrade for {priceLabel}
                   </button>

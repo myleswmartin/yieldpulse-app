@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, DollarSign, AlertTriangle, CheckCircle, XCircle, BarChart3, Minus, Plus, Download, Share2 } from 'lucide-react';
+import { ArrowLeft, TrendingUp, DollarSign, AlertTriangle, CheckCircle, XCircle, BarChart3, Minus, Plus, Download, Share2, Edit3, Check, X } from 'lucide-react';
 import { Header } from '../components/Header';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency, formatPercent, CalculationResults, PropertyInputs } from '../utils/calculations';
 import { handleError, showSuccess } from '../utils/errorHandling';
-import { getUserAnalyses, checkPurchaseStatus, createComparisonShareLink } from '../utils/apiClient';
+import { getUserAnalyses, checkPurchaseStatus, createShareLink, updatePropertyName } from '../utils/apiClient';
 import { ShareModal } from '../components/ShareModal';
-import { exportElementToPdf } from '../utils/pdfExport';
+import { generateComparisonPDF } from '../utils/comparisonPdfGenerator';
 import {
   BarChart,
   Bar,
@@ -50,7 +50,6 @@ export default function ComparisonPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [generatingPDF, setGeneratingPDF] = useState(false);
-  const comparisonRef = useRef<HTMLDivElement | null>(null);
   const [creatingShareLink, setCreatingShareLink] = useState(false);
   
   // Get pre-selected analysis IDs from navigation state
@@ -60,6 +59,51 @@ export default function ComparisonPage() {
   // Helper function to determine paid status (same logic as Dashboard)
   const getPaidStatus = (analysis: SavedAnalysis) =>
     analysis.paid_status ?? (analysis.is_paid ? "paid" : "free");
+
+  // Property name editing state
+  const [editingPropertyNameId, setEditingPropertyNameId] = useState<string | null>(null);
+  const [propertyNameValue, setPropertyNameValue] = useState<string>("");
+
+  const handlePropertyNameEdit = (analysis: SavedAnalysis) => {
+    setEditingPropertyNameId(analysis.id);
+    setPropertyNameValue(analysis.property_name || "");
+  };
+
+  const handlePropertyNameSave = async (analysisId: string) => {
+    try {
+      const { error } = await updatePropertyName(analysisId, propertyNameValue);
+      
+      if (error) {
+        handleError(error, 'Update Property Name');
+        return;
+      }
+      
+      // Update both analyses list and comparisonData
+      setAnalyses((prev) =>
+        prev.map((a) =>
+          a.id === analysisId ? { ...a, property_name: propertyNameValue } : a
+        )
+      );
+      setComparisonData((prev) =>
+        prev.map((a) =>
+          a.id === analysisId ? { ...a, property_name: propertyNameValue } : a
+        )
+      );
+      setEditingPropertyNameId(null);
+      showSuccess("Property name updated successfully.");
+    } catch (err: any) {
+      console.error("Error saving property name:", err);
+      handleError(
+        err.message || "Failed to save property name. Please try again.",
+        "Update Property Name"
+      );
+    }
+  };
+
+  const handlePropertyNameCancel = () => {
+    setEditingPropertyNameId(null);
+    setPropertyNameValue("");
+  };
 
   useEffect(() => {
     if (!user) {
@@ -206,60 +250,35 @@ export default function ComparisonPage() {
   };
 
   // Handle PDF Download
-    const handleDownloadPDF = async () => {
-    if (!comparisonRef.current) {
-      handleError('PDF export is not ready yet. Please try again.', 'Export Comparison PDF');
-      return;
-    }
-
-    const nameParts = comparisonData
-      .map((analysis) => analysis.property_name || 'Property')
-      .slice(0, 2)
-      .join('_vs_');
-    const safeName = nameParts.replace(/[^a-z0-9]/gi, '_').slice(0, 40) || 'Comparison';
-    const dateStamp = new Date().toISOString().split('T')[0];
-    const fileName = `YieldPulse_Comparison_${safeName}_${dateStamp}.pdf`;
-
+  const handleDownloadPDF = async () => {
     setGeneratingPDF(true);
-    let timeoutId: number | undefined;
     try {
-      const timeoutPromise = new Promise<void>((_, reject) => {
-        timeoutId = window.setTimeout(() => {
-          reject(new Error('PDF export timed out. Please try again.'));
-        }, 45000);
-      });
-      await Promise.race([
-        exportElementToPdf(comparisonRef.current, { fileName }),
-        timeoutPromise,
-      ]);
+      await generateComparisonPDF(comparisonData);
       showSuccess('Comparison PDF downloaded successfully!');
     } catch (error) {
       console.error('Error generating comparison PDF:', error);
       handleError(error, 'Generate Comparison PDF', handleDownloadPDF);
     } finally {
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
       setGeneratingPDF(false);
     }
   };
 
-const handleShare = async () => {
-    if (comparisonData.length < 2) return;
-
+  // Handle Share - For comparison, we'll create a descriptive title
+  const handleShare = async () => {
+    if (comparisonData.length === 0) return;
+    
     setCreatingShareLink(true);
     try {
-      const analysisIds = comparisonData.map((analysis) => analysis.id);
-      const { data, error } = await createComparisonShareLink({
-        analysisIds,
-        propertyName: `Comparison (${comparisonData.length} properties)`,
-      });
-
+      // Create a share link for the first property as a representative
+      // In a real implementation, you might want to create a special comparison share endpoint
+      const firstAnalysisId = comparisonData[0].id;
+      const { data, error } = await createShareLink({ analysisId: firstAnalysisId });
+      
       if (error) {
         handleError(error, 'Create Share Link');
         return;
       }
-
+      
       if (data?.shareUrl) {
         setShareUrl(data.shareUrl);
         setShowShareModal(true);
@@ -351,11 +370,21 @@ const handleShare = async () => {
 
   const colors = ['#1e2875', '#14b8a6', '#f59e0b', '#6366f1'];
 
+  // Generate human-readable Report ID from database ID
+  const formatReportId = (id: string): string => {
+    // Extract numeric part from UUID or use hash code
+    const numericHash = id.split('').reduce((acc, char) => {
+      return acc + char.charCodeAt(0);
+    }, 0);
+    const reportNumber = (numericHash % 999999).toString().padStart(6, '0');
+    return `YP-${reportNumber}`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-50">
         <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -370,24 +399,12 @@ const handleShare = async () => {
   return (
     <div className="min-h-screen bg-neutral-50">
       <Header />
-      {generatingPDF && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="flex items-center gap-4 rounded-xl bg-white px-6 py-5 shadow-xl">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Generating PDF</p>
-              <p className="text-xs text-neutral-600">This may take a few seconds. Please keep this tab open.</p>
-            </div>
-          </div>
-        </div>
-      )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div ref={comparisonRef} className="pdf-export-scope">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
         {/* Navigation */}
         <Link 
           to="/dashboard" 
-          data-html2canvas-ignore="true" className="inline-flex items-center space-x-2 text-sm text-neutral-600 hover:text-primary mb-8 transition-colors font-medium"
+          className="inline-flex items-center space-x-2 text-sm text-neutral-600 hover:text-primary mb-8 transition-colors font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Dashboard</span>
@@ -495,18 +512,18 @@ const handleShare = async () => {
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex gap-3">
               <button
                 onClick={handleCompare}
                 disabled={selectedIds.length < 2}
-                className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Compare {selectedIds.length > 0 && `(${selectedIds.length})`} Properties
               </button>
               {selectedIds.length > 0 && (
                 <button
                   onClick={() => setSelectedIds([])}
-                  className="px-6 py-3 bg-white border-2 border-neutral-200 text-neutral-700 rounded-lg font-medium hover:bg-neutral-50 transition-all cursor-pointer"
+                  className="px-6 py-3 bg-white border-2 border-neutral-200 text-neutral-700 rounded-lg font-medium hover:bg-neutral-50 transition-all"
                 >
                   Clear Selection
                 </button>
@@ -523,7 +540,7 @@ const handleShare = async () => {
               </h2>
               <button
                 onClick={handleClearComparison}
-                className="px-4 py-2 bg-white border border-border text-neutral-700 rounded-lg font-medium hover:bg-neutral-50 transition-all cursor-pointer"
+                className="px-4 py-2 bg-white border border-border text-neutral-700 rounded-lg font-medium hover:bg-neutral-50 transition-all"
               >
                 <Minus className="w-4 h-4 inline mr-2" />
                 Change Selection
@@ -540,15 +557,62 @@ const handleShare = async () => {
                     <tr className="border-b-2 border-border">
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Metric</th>
                       {comparisonData.map((analysis, idx) => (
-                        <th key={analysis.id} className="text-right py-3 px-4 font-semibold text-foreground">
+                        <th key={analysis.id} className="text-right py-3 px-4 font-semibold text-foreground align-top">
                           <div className="flex flex-col items-end">
                             <div
-                              className="w-3 h-3 rounded-full mb-1"
+                              className="w-3 h-3 rounded-full mb-2"
                               style={{ backgroundColor: colors[idx] }}
                             ></div>
-                            <span className="text-sm">Property {idx + 1}</span>
-                            <span className="text-xs font-normal text-neutral-500 mt-1">
-                              {analysis.property_name || 'Unnamed'}
+                            {editingPropertyNameId === analysis.id ? (
+                              <div className="flex items-center space-x-1 mb-1">
+                                <input
+                                  type="text"
+                                  value={propertyNameValue}
+                                  onChange={(e) => setPropertyNameValue(e.target.value)}
+                                  onBlur={() => handlePropertyNameSave(analysis.id)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handlePropertyNameSave(analysis.id);
+                                    } else if (e.key === "Escape") {
+                                      handlePropertyNameCancel();
+                                    }
+                                  }}
+                                  maxLength={100}
+                                  autoFocus
+                                  className="w-full px-2 py-1 text-xs font-semibold border border-primary rounded-md focus:ring-2 focus:ring-primary focus:border-transparent text-right"
+                                  placeholder="Enter property name..."
+                                />
+                                <button
+                                  onClick={() => handlePropertyNameSave(analysis.id)}
+                                  className="p-0.5 text-success hover:bg-success/10 rounded transition-colors flex-shrink-0"
+                                  title="Save"
+                                >
+                                  <Check className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={handlePropertyNameCancel}
+                                  className="p-0.5 text-neutral-500 hover:bg-muted rounded transition-colors flex-shrink-0"
+                                  title="Cancel"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePropertyNameEdit(analysis);
+                                }}
+                                className="group cursor-pointer mb-1"
+                              >
+                                <div className="text-xs font-semibold text-foreground flex items-center justify-end space-x-1">
+                                  <span>{analysis.property_name || 'Unnamed Property'}</span>
+                                  <Edit3 className="w-2.5 h-2.5 text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                                </div>
+                              </div>
+                            )}
+                            <span className="text-[10px] font-mono text-neutral-500">
+                              {formatReportId(analysis.id)}
                             </span>
                           </div>
                         </th>
@@ -847,6 +911,8 @@ const handleShare = async () => {
             {/* Yield & Return Comparison Chart */}
             <div className="bg-white rounded-2xl border border-border p-8">
               <h3 className="text-xl font-semibold text-foreground mb-6">Yield & Return Comparison</h3>
+              
+              {/* Chart */}
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={prepareChartData()}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -864,12 +930,62 @@ const handleShare = async () => {
                   ))}
                 </BarChart>
               </ResponsiveContainer>
+              
+              {/* Data Table */}
+              <div className="mt-8 overflow-x-auto">
+                <table className="w-full border border-border rounded-lg">
+                  <thead>
+                    <tr className="bg-neutral-50">
+                      <th className="py-3 px-4 text-left text-sm font-semibold text-foreground border-b border-border">
+                        Metric
+                      </th>
+                      {comparisonData.map((analysis, idx) => (
+                        <th
+                          key={analysis.id}
+                          className="py-3 px-4 text-right text-sm font-semibold border-b border-border"
+                          style={{ color: colors[idx] }}
+                        >
+                          {analysis.property_name || `Property ${idx + 1}`}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-border">
+                      <td className="py-3 px-4 text-sm font-medium text-neutral-700">Gross Yield %</td>
+                      {comparisonData.map((analysis) => (
+                        <td key={analysis.id} className="py-3 px-4 text-sm text-right font-medium text-neutral-900">
+                          {formatPercent(analysis.calculation_results.grossRentalYield)}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="border-b border-border">
+                      <td className="py-3 px-4 text-sm font-medium text-neutral-700">Net Yield %</td>
+                      {comparisonData.map((analysis) => (
+                        <td key={analysis.id} className="py-3 px-4 text-sm text-right font-medium text-neutral-900">
+                          {formatPercent(analysis.calculation_results.netRentalYield)}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4 text-sm font-medium text-neutral-700">Cash on Cash %</td>
+                      {comparisonData.map((analysis) => (
+                        <td key={analysis.id} className="py-3 px-4 text-sm text-right font-medium text-neutral-900">
+                          {formatPercent(analysis.calculation_results.cashOnCashReturn)}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* 5-Year Cash Flow Trajectory */}
             {comparisonData.every(a => a.calculation_results.projection) && (
               <div className="bg-white rounded-2xl border border-border p-8">
                 <h3 className="text-xl font-semibold text-foreground mb-6">5-Year Cash Flow Trajectory</h3>
+                
+                {/* Chart */}
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={prepareCashFlowData()}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -889,6 +1005,41 @@ const handleShare = async () => {
                     ))}
                   </LineChart>
                 </ResponsiveContainer>
+                
+                {/* Data Table */}
+                <div className="mt-8 overflow-x-auto">
+                  <table className="w-full border border-border rounded-lg">
+                    <thead>
+                      <tr className="bg-neutral-50">
+                        <th className="py-3 px-4 text-left text-sm font-semibold text-foreground border-b border-border">
+                          Year
+                        </th>
+                        {comparisonData.map((analysis, idx) => (
+                          <th
+                            key={analysis.id}
+                            className="py-3 px-4 text-right text-sm font-semibold border-b border-border"
+                            style={{ color: colors[idx] }}
+                          >
+                            {analysis.property_name || `Property ${idx + 1}`}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[1, 2, 3, 4, 5].map((year) => (
+                        <tr key={year} className={year < 5 ? 'border-b border-border' : ''}>
+                          <td className="py-3 px-4 text-sm font-medium text-neutral-700">Year {year}</td>
+                          {comparisonData.map((analysis) => (
+                            <td key={analysis.id} className="py-3 px-4 text-sm text-right font-medium text-neutral-900">
+                              {formatCurrency(analysis.calculation_results.projection[year - 1].cashFlow)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
                 <p className="text-sm text-neutral-600 mt-4">
                   This chart shows how annual cash flow evolves over 5 years for each property. 
                   Properties with upward trajectories benefit from rent growth outpacing fixed mortgage payments.
@@ -902,6 +1053,8 @@ const handleShare = async () => {
               <p className="text-sm text-neutral-600 mb-6">
                 Higher scores indicate lower risk. This radar chart visualizes the relative risk profile across key factors.
               </p>
+              
+              {/* Chart */}
               <ResponsiveContainer width="100%" height={400}>
                 <RadarChart data={prepareRiskData()}>
                   <PolarGrid />
@@ -921,6 +1074,49 @@ const handleShare = async () => {
                   ))}
                 </RadarChart>
               </ResponsiveContainer>
+              
+              {/* Data Table */}
+              <div className="mt-8 overflow-x-auto">
+                <table className="w-full border border-border rounded-lg">
+                  <thead>
+                    <tr className="bg-neutral-50">
+                      <th className="py-3 px-4 text-left text-sm font-semibold text-foreground border-b border-border">
+                        Risk Factor
+                      </th>
+                      {comparisonData.map((analysis, idx) => (
+                        <th
+                          key={analysis.id}
+                          className="py-3 px-4 text-center text-sm font-semibold border-b border-border"
+                          style={{ color: colors[idx] }}
+                        >
+                          {analysis.property_name || `Property ${idx + 1}`}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prepareRiskData().map((dataPoint, rowIdx) => (
+                      <tr key={rowIdx} className={rowIdx < prepareRiskData().length - 1 ? 'border-b border-border' : ''}>
+                        <td className="py-3 px-4 text-sm font-medium text-neutral-700">{dataPoint.factor}</td>
+                        {comparisonData.map((analysis, idx) => {
+                          const score = dataPoint[`Property ${idx + 1}`] as number;
+                          return (
+                            <td key={analysis.id} className="py-3 px-4 text-sm text-center font-medium">
+                              <span className={
+                                score >= 80 ? 'text-success' :
+                                score >= 60 ? 'text-warning' :
+                                'text-destructive'
+                              }>
+                                {score.toFixed(0)}/100
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Investment Decision Helper */}
@@ -1066,10 +1262,10 @@ const handleShare = async () => {
             )}
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex gap-3">
               <button
                 onClick={handleClearComparison}
-                className="px-6 py-3 bg-white border-2 border-neutral-200 text-neutral-700 rounded-lg font-medium hover:bg-neutral-50 transition-all cursor-pointer"
+                className="px-6 py-3 bg-white border-2 border-neutral-200 text-neutral-700 rounded-lg font-medium hover:bg-neutral-50 transition-all"
               >
                 Compare Different Properties
               </button>
@@ -1080,17 +1276,17 @@ const handleShare = async () => {
                 Back to Dashboard
               </Link>
               <button
-                data-html2canvas-ignore="true" onClick={handleDownloadPDF}
+                onClick={handleDownloadPDF}
                 disabled={generatingPDF}
-                className="px-6 py-3 bg-teal text-white rounded-lg font-medium hover:bg-teal/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="px-6 py-3 bg-teal text-white rounded-lg font-medium hover:bg-teal/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download className="w-4 h-4 inline mr-2" />
                 {generatingPDF ? 'Generating...' : 'Export PDF'}
               </button>
               <button
-                data-html2canvas-ignore="true" onClick={handleShare}
+                onClick={handleShare}
                 disabled={creatingShareLink}
-                className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Share2 className="w-4 h-4 inline mr-2" />
                 {creatingShareLink ? 'Creating Link...' : 'Share'}
@@ -1098,19 +1294,16 @@ const handleShare = async () => {
             </div>
           </div>
         )}
-        </div>
       </div>
 
       {/* Share Modal */}
-      <div data-html2canvas-ignore="true">
-        {showShareModal && shareUrl && (
-          <ShareModal
+      {showShareModal && shareUrl && (
+        <ShareModal
           shareUrl={shareUrl}
           propertyName={`Property Comparison (${comparisonData.length} properties)`}
           onClose={() => setShowShareModal(false)}
-          />
-        )}
-      </div>
+        />
+      )}
     </div>
   );
 }

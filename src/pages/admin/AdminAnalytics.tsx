@@ -1,100 +1,62 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, DollarSign, Users, Calendar, Download } from 'lucide-react';
+import { BarChart3, TrendingUp, DollarSign, Users, Calendar, Download, Filter } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart, ComposedChart } from 'recharts';
 import { toast } from 'sonner';
-import { adminApi } from '../../utils/adminApi';
 
 interface AnalyticsData {
-  revenueByMonth: Array<{ month: string; revenue: number; count: number; users?: number }>;
+  revenueByMonth: Array<{ month: string; revenue: number; count: number }>;
   usersByMonth: Array<{ month: string; users: number }>;
-  topProperties: Array<{ name: string; views: number; reports: number; avgROI?: number }>;
-  conversionFunnel: Array<{ stage: string; users: number; percentage: number; color: string }>;
+  topProperties: Array<{ name: string; views: number; reports: number }>;
+  conversionFunnel: Array<{ stage: string; users: number; percentage: number }>;
   averageROI: number;
   avgReportValue: number;
 }
 
 export default function AdminAnalytics() {
-  const [loading, setLoading] = useState(true);
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState<'30d' | '90d' | '1y'>('90d');
   const [selectedMetric, setSelectedMetric] = useState<'revenue' | 'users' | 'reports'>('revenue');
 
-  const fetchAnalytics = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await adminApi.analytics.get(timeRange);
-      setAnalytics(data);
-    } catch (err: any) {
-      console.error('Failed to fetch analytics:', err);
-      setError(err.message || 'Failed to load analytics');
-      toast.error(err.message || 'Failed to load analytics');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Mock data - in production, fetch from API
+  const revenueByMonth = [
+    { month: 'Jan', revenue: 2450, count: 50, users: 120 },
+    { month: 'Feb', revenue: 3200, count: 65, users: 145 },
+    { month: 'Mar', revenue: 4100, count: 84, users: 178 },
+    { month: 'Apr', revenue: 3800, count: 78, users: 165 },
+    { month: 'May', revenue: 5200, count: 106, users: 210 },
+    { month: 'Jun', revenue: 6100, count: 124, users: 245 },
+  ];
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [timeRange]);
+  const topProperties = [
+    { name: 'Dubai Marina Apartments', views: 1250, reports: 85, avgROI: 7.2 },
+    { name: 'Downtown Dubai Units', views: 1100, reports: 72, avgROI: 6.8 },
+    { name: 'Business Bay Studios', views: 950, reports: 68, avgROI: 8.1 },
+    { name: 'JBR Beach Residences', views: 820, reports: 54, avgROI: 6.5 },
+    { name: 'Palm Jumeirah Villas', views: 750, reports: 48, avgROI: 5.9 },
+    { name: 'Arabian Ranches', views: 680, reports: 42, avgROI: 7.5 },
+  ];
 
-  const usersByMonth = analytics?.usersByMonth || [];
-  const usersByMonthMap = new Map(usersByMonth.map((item) => [item.month, item.users]));
-  const revenueByMonth = (analytics?.revenueByMonth || []).map((item) => ({
-    ...item,
-    users: item.users ?? usersByMonthMap.get(item.month) ?? 0,
-  }));
-  const topProperties = analytics?.topProperties || [];
-  const conversionFunnel = analytics?.conversionFunnel || [];
+  const conversionFunnel = [
+    { stage: 'Visitors', users: 10000, percentage: 100, color: '#1e2875' },
+    { stage: 'Started Calculator', users: 4500, percentage: 45, color: '#2f3aad' },
+    { stage: 'Completed Analysis', users: 3200, percentage: 32, color: '#14b8a6' },
+    { stage: 'Signed Up', users: 1500, percentage: 15, color: '#0d9488' },
+    { stage: 'Purchased Report', users: 480, percentage: 4.8, color: '#10b981' },
+  ];
 
   const revenueBySource = [
-    { name: 'Paid Reports', value: 100, revenue: analytics?.avgReportValue ? analytics.avgReportValue * (revenueByMonth.reduce((sum, r) => sum + r.count, 0)) : 0, color: '#1e2875' },
+    { name: 'Organic Search', value: 45, revenue: 28000, color: '#1e2875' },
+    { name: 'Direct Traffic', value: 30, revenue: 18500, color: '#14b8a6' },
+    { name: 'Social Media', value: 15, revenue: 9200, color: '#f59e0b' },
+    { name: 'Referrals', value: 10, revenue: 6100, color: '#10b981' },
   ];
 
   const avgMetrics = {
-    reportValue: analytics?.avgReportValue || 0,
-    roiPerReport: analytics?.averageROI || 0,
-    timeToConversion: 0,
-    customerLifetimeValue: analytics?.avgReportValue ? analytics.avgReportValue * 3 : 0,
+    reportValue: 49,
+    roiPerReport: 7.2,
+    timeToConversion: 2.5,
+    customerLifetimeValue: 147,
   };
-
-  if (loading) {
-    return (
-      <div className="p-6 lg:p-8 bg-slate-50 min-h-screen">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-slate-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {[1, 2].map((i) => (
-              <div key={i} className="h-80 bg-slate-200 rounded-xl"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6 lg:p-8 bg-slate-50 min-h-screen">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-          <div className="font-semibold text-red-900">Failed to load analytics</div>
-          <div className="text-sm text-red-700 mt-1">{error}</div>
-          <button
-            onClick={fetchAnalytics}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors cursor-pointer"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   const exportData = () => {
     toast.success('Analytics data exported successfully');
@@ -112,7 +74,7 @@ export default function AdminAnalytics() {
           <div className="flex items-center space-x-3">
             <button
               onClick={exportData}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 font-medium transition-colors flex items-center space-x-2 cursor-pointer"
+              className="px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 font-medium transition-colors flex items-center space-x-2"
             >
               <Download className="w-4 h-4" />
               <span>Export Data</span>
@@ -202,7 +164,7 @@ export default function AdminAnalytics() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <div className="mb-6">
             <h3 className="text-lg font-bold text-slate-900">Conversion Funnel</h3>
-            <p className="text-sm text-slate-600">Known user funnel based on saved analyses and paid reports</p>
+            <p className="text-sm text-slate-600">User journey from visitor to customer</p>
           </div>
           <div className="space-y-4">
             {conversionFunnel.map((stage, index) => {
@@ -247,8 +209,8 @@ export default function AdminAnalytics() {
         {/* Revenue by Source */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <div className="mb-6">
-            <h3 className="text-lg font-bold text-slate-900">Revenue Breakdown</h3>
-            <p className="text-sm text-slate-600">Paid report revenue in the selected period</p>
+            <h3 className="text-lg font-bold text-slate-900">Revenue by Traffic Source</h3>
+            <p className="text-sm text-slate-600">Where your customers are coming from</p>
           </div>
           <div className="flex items-center justify-center mb-6">
             <ResponsiveContainer width="100%" height={200}>
@@ -307,41 +269,33 @@ export default function AdminAnalytics() {
               </tr>
             </thead>
             <tbody>
-              {topProperties.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">
-                    No property analytics available yet.
-                  </td>
-                </tr>
-              ) : (
-                topProperties.map((property, index) => {
-                  const conversionRate = property.views ? ((property.reports / property.views) * 100).toFixed(1) : '0.0';
-                  return (
-                    <tr key={`${property.name}-${index}`} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="py-4 px-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center font-bold text-sm">
-                            {index + 1}
-                          </div>
-                          <span className="font-medium text-slate-900">{property.name}</span>
+              {topProperties.map((property, index) => {
+                const conversionRate = ((property.reports / property.views) * 100).toFixed(1);
+                return (
+                  <tr key={property.name} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td className="py-4 px-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center font-bold text-sm">
+                          {index + 1}
                         </div>
-                      </td>
-                      <td className="text-right py-4 px-4 text-slate-600">{property.views.toLocaleString()}</td>
-                      <td className="text-right py-4 px-4 text-slate-600">{property.reports}</td>
-                      <td className="text-right py-4 px-4">
-                        <span className="text-green-600 font-semibold">{property.avgROI ?? 0}%</span>
-                      </td>
-                      <td className="text-right py-4 px-4">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          parseFloat(conversionRate) > 7 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {conversionRate}%
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                        <span className="font-medium text-slate-900">{property.name}</span>
+                      </div>
+                    </td>
+                    <td className="text-right py-4 px-4 text-slate-600">{property.views.toLocaleString()}</td>
+                    <td className="text-right py-4 px-4 text-slate-600">{property.reports}</td>
+                    <td className="text-right py-4 px-4">
+                      <span className="text-green-600 font-semibold">{property.avgROI}%</span>
+                    </td>
+                    <td className="text-right py-4 px-4">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        parseFloat(conversionRate) > 7 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {conversionRate}%
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

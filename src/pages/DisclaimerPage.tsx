@@ -8,7 +8,7 @@ export default function DisclaimerPage() {
       <Header />
       
       <main className="flex-grow">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-16">
           {/* Page Header */}
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-4">
@@ -416,10 +416,10 @@ export default function DisclaimerPage() {
             </div>
           </section>
 
-          {/* Section 5 - Investment Risks */}
+          {/* Section 5 - Sensitivity Analysis */}
           <section className="mb-10">
             <h2 className="text-2xl font-bold text-neutral-900 mb-4">
-              5. Investment Risks
+              5. Sensitivity Analysis
             </h2>
             <div className="space-y-4 text-neutral-600 leading-relaxed">
               <p className="font-medium text-neutral-700">

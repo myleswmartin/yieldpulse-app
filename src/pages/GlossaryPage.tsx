@@ -192,7 +192,7 @@ export default function GlossaryPage() {
 
       {/* Breadcrumbs */}
       <div className="bg-white border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-4">
           <Breadcrumbs items={[
             { label: 'Resources', path: '/premium-report-guide' },
             { label: 'Investment Glossary' }
@@ -202,7 +202,7 @@ export default function GlossaryPage() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-secondary/5 via-white to-primary/5 border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-20 text-center">
           <div className="inline-flex items-center space-x-2 bg-primary/10 px-4 py-2 rounded-full mb-6">
             <BookOpen className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-primary">Quick Reference</span>
@@ -241,7 +241,7 @@ export default function GlossaryPage() {
         </div>
       </section>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+      <div className="max-w-4xl mx-auto px-6 lg:px-8 py-16">
         
         {/* Category Legend */}
         <div className="bg-white border border-border rounded-xl p-6 mb-12">
@@ -290,13 +290,13 @@ export default function GlossaryPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-10 sm:py-16">
+          <div className="text-center py-16">
             <Search className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">No terms found</h3>
             <p className="text-neutral-600 mb-6">Try a different search term or browse all terms below.</p>
             <button
               onClick={() => setSearchTerm('')}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors font-medium cursor-pointer"
+              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors font-medium"
             >
               Show All Terms
             </button>

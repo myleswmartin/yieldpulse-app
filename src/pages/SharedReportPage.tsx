@@ -96,7 +96,7 @@ export default function SharedReportPage() {
     return (
       <div className="min-h-screen bg-neutral-50">
         <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -112,7 +112,7 @@ export default function SharedReportPage() {
     return (
       <div className="min-h-screen bg-neutral-50">
         <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
           <div className="text-center max-w-md mx-auto">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <TrendingUp className="w-8 h-8 text-red-600" />
@@ -134,13 +134,11 @@ export default function SharedReportPage() {
     );
   }
 
-  const hasValidSnapshot = !!report?.inputs && !!report?.results;
-
   return (
     <div className="min-h-screen bg-neutral-50">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
         {/* Header with CTA */}
         <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-8 mb-8 text-white">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -172,7 +170,7 @@ export default function SharedReportPage() {
                 <button
                   onClick={handleSaveReport}
                   disabled={saving || saved}
-                  className="flex items-center space-x-2 px-6 py-3 bg-white text-primary rounded-lg hover:bg-white/90 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="flex items-center space-x-2 px-6 py-3 bg-white text-primary rounded-lg hover:bg-white/90 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="w-4 h-4" />
                   <span>{saved ? 'Saved!' : saving ? 'Saving...' : 'Save to Dashboard'}</span>
@@ -181,7 +179,7 @@ export default function SharedReportPage() {
                 <>
                   <button
                     onClick={handleSaveReport}
-                    className="flex items-center space-x-2 px-6 py-3 bg-white text-primary rounded-lg hover:bg-white/90 transition-all font-medium cursor-pointer"
+                    className="flex items-center space-x-2 px-6 py-3 bg-white text-primary rounded-lg hover:bg-white/90 transition-all font-medium"
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>Sign Up & Save</span>
@@ -201,36 +199,19 @@ export default function SharedReportPage() {
 
         {/* Report Content */}
         <div className="bg-white rounded-2xl border border-border p-8">
-          {!hasValidSnapshot ? (
-            <div className="text-center py-16">
-              <p className="text-xl font-semibold text-foreground mb-2">Report data is unavailable</p>
-              <p className="text-sm text-neutral-600 mb-6">
-                This shared report was generated before the snapshot feature was available.
-                Please ask the sender to re-share or open the calculator to build a new analysis.
-              </p>
-              <Link
-                to="/calculator"
-                className="inline-flex items-center justify-center space-x-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover transition-all font-medium"
-              >
-                <ArrowRight className="w-4 h-4" />
-                <span>Open Calculator</span>
-              </Link>
-            </div>
-          ) : (
-            <PremiumReport
-              displayResults={report.results}
-              displayInputs={report.inputs}
-              vacancyAmount={report.results.grossAnnualRentalIncome * ((report.inputs.vacancyRate || 0) / 100)}
-              firstYearAmortization={{
-                principal: report.results.annualMortgagePayment - (report.results.loanAmount * ((report.inputs.interestRate || 0) / 100)),
-                interest: report.results.loanAmount * ((report.inputs.interestRate || 0) / 100),
-              }}
-              totalInterestOverTerm={report.results.loanAmount * ((report.inputs.interestRate || 0) / 100) * (report.inputs.loanTerm || 25)}
-              sellingFee={report.inputs.purchasePrice * 0.02}
-              analysisId={null}
-              notes={null}
-            />
-          )}
+          <PremiumReport
+            displayResults={report.results}
+            displayInputs={report.inputs}
+            vacancyAmount={report.results.grossAnnualRentalIncome * ((report.inputs.vacancyRate || 0) / 100)}
+            firstYearAmortization={{
+              principal: report.results.annualMortgagePayment - (report.results.loanAmount * ((report.inputs.interestRate || 0) / 100)),
+              interest: report.results.loanAmount * ((report.inputs.interestRate || 0) / 100),
+            }}
+            totalInterestOverTerm={report.results.loanAmount * ((report.inputs.interestRate || 0) / 100) * (report.inputs.loanTerm || 25)}
+            sellingFee={report.inputs.purchasePrice * 0.02}
+            analysisId={null}
+            notes={null}
+          />
         </div>
 
         {/* Bottom CTA for non-users */}

@@ -48,8 +48,8 @@ export function Header({ variant = 'default' }: HeaderProps) {
 
   return (
     <header className={`sticky top-0 z-50 ${baseClasses}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 group">
             <div className="p-2.5 bg-gradient-to-br from-primary to-primary-hover rounded-xl shadow-sm transition-all group-hover:shadow-md">
@@ -82,7 +82,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                   isActive('/premium-report-guide') || isActive('/glossary') || isActive('/faqs') 
                     ? 'text-primary bg-primary/10' 
                     : ''
-                } cursor-pointer`}
+                }`}
               >
                 <BookOpen className="w-4 h-4" />
                 <span>Resources</span>
@@ -175,7 +175,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                   <button
                     type="button"
                     onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                    className="flex cursor-pointer items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground hover:bg-primary-hover transition-colors"
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground hover:bg-primary-hover transition-colors"
                     aria-label="Profile menu"
                   >
                     <User className="w-5 h-5" />
@@ -208,7 +208,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                               setProfileMenuOpen(false);
                               handleSignOut();
                             }}
-                            className="flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors w-full text-left cursor-pointer"
+                            className="flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors w-full text-left"
                           >
                             <LogOut className="w-4 h-4" />
                             <span>Sign Out</span>
@@ -236,7 +236,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer"
+            className="md:hidden p-2 text-foreground hover:bg-muted rounded-lg transition-colors"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -339,7 +339,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                         setMobileMenuOpen(false);
                         handleSignOut();
                       }}
-                      className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors w-full text-left cursor-pointer"
+                      className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors w-full text-left"
                     >
                       <LogOut className="w-4 h-4" />
                       <span>Sign Out</span>

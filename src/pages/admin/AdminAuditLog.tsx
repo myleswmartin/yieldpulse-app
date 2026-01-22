@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import {
+import { useState } from 'react';
+import { 
   FileText, 
   Search, 
   Filter,
@@ -15,8 +15,6 @@ import {
   Database,
   AlertCircle
 } from 'lucide-react';
-import { toast } from 'sonner';
-import { adminApi } from '../../utils/adminApi';
 
 interface AuditLogEntry {
   id: string;
@@ -34,54 +32,165 @@ interface AuditLogEntry {
   severity: 'info' | 'warning' | 'critical';
 }
 
+const mockAuditLogs: AuditLogEntry[] = [
+  {
+    id: '1',
+    timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    actor: 'Admin User',
+    actorEmail: 'admin@yieldpulse.com',
+    actorRole: 'admin',
+    action: 'Updated platform settings',
+    actionType: 'update',
+    resource: 'Platform Settings',
+    resourceType: 'setting',
+    details: 'Changed premium report price from AED 45 to AED 49',
+    ipAddress: '192.168.1.100',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+    severity: 'warning'
+  },
+  {
+    id: '2',
+    timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+    actor: 'Ahmed Hassan',
+    actorEmail: 'ahmed.hassan@email.com',
+    actorRole: 'user',
+    action: 'Purchased premium report',
+    actionType: 'payment',
+    resource: 'Report #RPT-2401-XYZ',
+    resourceType: 'purchase',
+    details: 'Payment successful: AED 49.00 via Stripe',
+    ipAddress: '85.123.45.67',
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)',
+    severity: 'info'
+  },
+  {
+    id: '3',
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    actor: 'System',
+    actorEmail: 'system@yieldpulse.com',
+    actorRole: 'system',
+    action: 'Deleted expired session',
+    actionType: 'delete',
+    resource: 'Session #sess_abc123',
+    resourceType: 'session',
+    details: 'Automatically removed session older than 30 days',
+    ipAddress: 'internal',
+    userAgent: 'System Cron Job',
+    severity: 'info'
+  },
+  {
+    id: '4',
+    timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    actor: 'Admin User',
+    actorEmail: 'admin@yieldpulse.com',
+    actorRole: 'admin',
+    action: 'Exported user data',
+    actionType: 'export',
+    resource: 'All Users Report',
+    resourceType: 'user',
+    details: 'Exported 1,234 user records to CSV',
+    ipAddress: '192.168.1.100',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+    severity: 'warning'
+  },
+  {
+    id: '5',
+    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    actor: 'Sarah Al-Mansoori',
+    actorEmail: 'sarah.m@email.com',
+    actorRole: 'user',
+    action: 'Generated free analysis',
+    actionType: 'create',
+    resource: 'Analysis #ANL-5678',
+    resourceType: 'report',
+    details: 'Created analysis for Dubai Marina property',
+    ipAddress: '91.234.56.78',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+    severity: 'info'
+  },
+  {
+    id: '6',
+    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    actor: 'Admin User',
+    actorEmail: 'admin@yieldpulse.com',
+    actorRole: 'admin',
+    action: 'Uploaded document',
+    actionType: 'create',
+    resource: 'UAE Property Investment Guide.pdf',
+    resourceType: 'document',
+    details: 'Added new document to Documents Library (2.4 MB)',
+    ipAddress: '192.168.1.100',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+    severity: 'info'
+  },
+  {
+    id: '7',
+    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    actor: 'Mohammed Abdullah',
+    actorEmail: 'mohammed.a@email.com',
+    actorRole: 'user',
+    action: 'Failed login attempt',
+    actionType: 'login',
+    resource: 'Login Page',
+    resourceType: 'session',
+    details: 'Invalid password (3rd attempt)',
+    ipAddress: '45.67.89.123',
+    userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
+    severity: 'critical'
+  },
+  {
+    id: '8',
+    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+    actor: 'Admin User',
+    actorEmail: 'admin@yieldpulse.com',
+    actorRole: 'admin',
+    action: 'Deleted user account',
+    actionType: 'delete',
+    resource: 'User #usr_999',
+    resourceType: 'user',
+    details: 'User requested account deletion via support ticket',
+    ipAddress: '192.168.1.100',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+    severity: 'critical'
+  },
+  {
+    id: '9',
+    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    actor: 'Fatima Al-Zaabi',
+    actorEmail: 'fatima.z@email.com',
+    actorRole: 'user',
+    action: 'Downloaded premium report',
+    actionType: 'view',
+    resource: 'Report #RPT-2401-ABC',
+    resourceType: 'report',
+    details: 'Downloaded PDF report for JBR property analysis',
+    ipAddress: '88.77.66.55',
+    userAgent: 'Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X)',
+    severity: 'info'
+  },
+  {
+    id: '10',
+    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    actor: 'System',
+    actorEmail: 'system@yieldpulse.com',
+    actorRole: 'system',
+    action: 'Database backup completed',
+    actionType: 'create',
+    resource: 'Database Backup',
+    resourceType: 'setting',
+    details: 'Automated daily backup (1.2 GB) stored successfully',
+    ipAddress: 'internal',
+    userAgent: 'System Cron Job',
+    severity: 'info'
+  }
+];
+
 export default function AdminAuditLog() {
-  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [logs, setLogs] = useState<AuditLogEntry[]>(mockAuditLogs);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionTypeFilter, setActionTypeFilter] = useState<string>('all');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [actorRoleFilter, setActorRoleFilter] = useState<string>('all');
-
-  useEffect(() => {
-    fetchAuditLogs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const normalizeLog = (entry: any): AuditLogEntry => {
-    const action = entry.action || entry.event || 'Action';
-    const actorRole = entry.actor_role || entry.actorRole || 'admin';
-    const resource = entry.resource || entry.entity || 'system';
-    const severity = entry.severity || 'info';
-    return {
-      id: entry.id || entry.key || crypto.randomUUID(),
-      timestamp: entry.timestamp || entry.created_at || new Date().toISOString(),
-      actor: entry.actor || entry.admin_name || 'Admin',
-      actorEmail: entry.actor_email || entry.admin_email || 'admin@yieldpulse.com',
-      actorRole,
-      action,
-      actionType: entry.action_type || entry.actionType || 'update',
-      resource,
-      resourceType: entry.resource_type || entry.resourceType || 'setting',
-      details: entry.details || entry.data?.details || JSON.stringify(entry.data || {}),
-      ipAddress: entry.ip_address || entry.ipAddress || 'internal',
-      userAgent: entry.user_agent || entry.userAgent || 'system',
-      severity,
-    };
-  };
-
-  const fetchAuditLogs = async () => {
-    try {
-      setLoading(true);
-      const data = await adminApi.auditLog.list();
-      const entries = (data.actions || data.logs || []).map(normalizeLog);
-      setLogs(entries);
-    } catch (err: any) {
-      console.error('Failed to fetch audit logs:', err);
-      toast.error(err.message || 'Failed to load audit logs');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getActionIcon = (actionType: string) => {
     const icons = {
@@ -282,9 +391,7 @@ export default function AdminAuditLog() {
 
       {/* Audit Log Table */}
       <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-neutral-600">Loading audit logs...</div>
-        ) : filteredLogs.length === 0 ? (
+        {filteredLogs.length === 0 ? (
           <div className="p-12 text-center">
             <FileText className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">No audit logs found</h3>

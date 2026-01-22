@@ -58,7 +58,7 @@ export function ShareModal({ shareUrl, propertyName, onClose }: ShareModalProps)
           </div>
           <button
             onClick={onClose}
-            className="text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer"
+            className="text-neutral-400 hover:text-neutral-600 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -79,7 +79,7 @@ export function ShareModal({ shareUrl, propertyName, onClose }: ShareModalProps)
             />
             <button
               onClick={copyToClipboard}
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium flex items-center space-x-2 cursor-pointer"
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium flex items-center space-x-2"
             >
               {copied ? (
                 <>
@@ -105,7 +105,7 @@ export function ShareModal({ shareUrl, propertyName, onClose }: ShareModalProps)
             {/* WhatsApp */}
             <button
               onClick={shareViaWhatsApp}
-              className="flex items-center space-x-3 px-4 py-3 border-2 border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer"
+              className="flex items-center space-x-3 px-4 py-3 border-2 border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all group"
             >
               <MessageCircle className="w-5 h-5 text-[#25D366] group-hover:scale-110 transition-transform" />
               <span className="font-medium text-neutral-700 group-hover:text-primary">WhatsApp</span>
@@ -114,7 +114,7 @@ export function ShareModal({ shareUrl, propertyName, onClose }: ShareModalProps)
             {/* Email */}
             <button
               onClick={shareViaEmail}
-              className="flex items-center space-x-3 px-4 py-3 border-2 border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer"
+              className="flex items-center space-x-3 px-4 py-3 border-2 border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all group"
             >
               <Mail className="w-5 h-5 text-[#EA4335] group-hover:scale-110 transition-transform" />
               <span className="font-medium text-neutral-700 group-hover:text-primary">Email</span>
@@ -123,7 +123,7 @@ export function ShareModal({ shareUrl, propertyName, onClose }: ShareModalProps)
             {/* LinkedIn */}
             <button
               onClick={shareViaLinkedIn}
-              className="flex items-center space-x-3 px-4 py-3 border-2 border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer"
+              className="flex items-center space-x-3 px-4 py-3 border-2 border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all group"
             >
               <Linkedin className="w-5 h-5 text-[#0A66C2] group-hover:scale-110 transition-transform" />
               <span className="font-medium text-neutral-700 group-hover:text-primary">LinkedIn</span>
@@ -132,7 +132,7 @@ export function ShareModal({ shareUrl, propertyName, onClose }: ShareModalProps)
             {/* Twitter */}
             <button
               onClick={shareViaTwitter}
-              className="flex items-center space-x-3 px-4 py-3 border-2 border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer"
+              className="flex items-center space-x-3 px-4 py-3 border-2 border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all group"
             >
               <Twitter className="w-5 h-5 text-[#1DA1F2] group-hover:scale-110 transition-transform" />
               <span className="font-medium text-neutral-700 group-hover:text-primary">Twitter</span>

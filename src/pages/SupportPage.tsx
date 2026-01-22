@@ -60,7 +60,7 @@ export default function SupportPage() {
       <Header />
       
       <main className="flex-grow">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-16">
           {/* Page Header */}
           <div className="mb-12">
             <h1 className="text-4xl font-bold text-neutral-900 mb-4">
@@ -184,7 +184,7 @@ export default function SupportPage() {
                 >
                   <button
                     onClick={() => toggleFAQ(index)}
-                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-neutral-50 transition-colors cursor-pointer"
+                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-neutral-50 transition-colors"
                   >
                     <span className="font-semibold text-neutral-900 pr-4">
                       {faq.question}

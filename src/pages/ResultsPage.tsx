@@ -1,4 +1,4 @@
-import { useLocation, Link, useSearchParams } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { TrendingUp, DollarSign, Lock, ArrowLeft, CheckCircle, FileText, Download, GitCompare, Calendar, Info, AlertCircle, Sparkles, Save, UserPlus, LogIn, Shield, Home, Share2 } from 'lucide-react';
 import { CalculationResults, formatCurrency, formatPercent, PropertyInputs } from '../utils/calculations';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,15 +9,14 @@ import { PremiumCTA } from '../components/PremiumCTA';
 import { PremiumPreviewStrip } from '../components/PremiumPreviewStrip';
 import { LockedPremiumSection } from '../components/LockedPremiumSection';
 import { ShareModal } from '../components/ShareModal';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { generatePDF } from '../utils/pdfGenerator';
 import { showSuccess, handleError } from '../utils/errorHandling';
 import { trackPdfDownload, trackPremiumUnlock } from '../utils/analytics';
-import { checkPurchaseStatus, createCheckoutSession, saveAnalysis, createGuestCheckoutSession, createShareLink, claimGuestPurchase } from '../utils/apiClient';
-import { buildPendingSignature, getSyncedAnalysisId } from '../utils/pendingAnalysis';
-import { usePublicPricing } from '../utils/usePublicPricing';
+import { checkPurchaseStatus, createCheckoutSession, saveAnalysis, createGuestCheckoutSession, createShareLink } from '../utils/apiClient';
 import { toast } from 'sonner';
+import { usePublicPricing } from '../utils/usePublicPricing';
 
 // ================================================================
 // HELPER FUNCTION: Build PropertyInputs from saved analysis record
@@ -40,7 +39,7 @@ function buildPropertyInputsFromAnalysis(analysis: any): Partial<PropertyInputs>
 
   try {
     // Map ONLY the 11 confirmed core columns from analyses table
-    // No fabricated defaults, no non-null assertions
+    // PLUS the projection parameters (capitalGrowthPercent, rentGrowthPercent, etc.)
     return {
       propertyName: parseString(analysis.property_name),
       portalSource: parseString(analysis.portal_source),
@@ -54,6 +53,13 @@ function buildPropertyInputsFromAnalysis(analysis: any): Partial<PropertyInputs>
       serviceChargeAnnual: parseNumber(analysis.service_charge_annual),
       annualMaintenancePercent: parseNumber(analysis.annual_maintenance_percent),
       propertyManagementFeePercent: parseNumber(analysis.property_management_fee_percent),
+      // Projection parameters - these are also saved in the database
+      capitalGrowthPercent: parseNumber(analysis.capital_growth_percent) ?? 5, // Default to 5% if not saved
+      rentGrowthPercent: parseNumber(analysis.rent_growth_percent) ?? 3, // Default to 3% if not saved
+      vacancyRatePercent: parseNumber(analysis.vacancy_rate_percent) ?? 5, // Default to 5% if not saved
+      holdingPeriodYears: parseNumber(analysis.holding_period_years) ?? 5, // Default to 5 years if not saved
+      dldFeePercent: parseNumber(analysis.dld_fee_percent) ?? 4, // Default to 4% if not saved
+      agentFeePercent: parseNumber(analysis.agent_fee_percent) ?? 2, // Default to 2% if not saved
     };
   } catch (error) {
     console.error('Error building PropertyInputs from analysis:', error);
@@ -63,7 +69,6 @@ function buildPropertyInputsFromAnalysis(analysis: any): Partial<PropertyInputs>
 
 export default function ResultsPage() {
   const location = useLocation();
-  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { priceLabel } = usePublicPricing();
   
@@ -110,16 +115,11 @@ export default function ResultsPage() {
   const [notes, setNotes] = useState<string | null>(savedAnalysis?.notes || null);
 
   // Premium unlock state
-  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(!!savedAnalysis?.is_paid);
+  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
   const [checkingPurchaseStatus, setCheckingPurchaseStatus] = useState(false);
   const [creatingCheckout, setCreatingCheckout] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
-  const [claimingGuestPurchase, setClaimingGuestPurchase] = useState(false);
-
-  const reportRef = useRef<HTMLDivElement | null>(null);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [shareUrl, setShareUrl] = useState('');
-  const [creatingShareLink, setCreatingShareLink] = useState(false);
+  const [pdfSnapshot, setPdfSnapshot] = useState<any>(null);
   
   // Admin preview toggle (UI only, does not bypass payment)
   const [adminPreviewEnabled, setAdminPreviewEnabled] = useState(false);
@@ -133,54 +133,6 @@ export default function ResultsPage() {
       checkPaymentStatus();
     }
   }, [analysisId, user]);
-
-  useEffect(() => {
-    const attemptGuestClaim = async () => {
-      if (!user || analysisId || isPremiumUnlocked || claimingGuestPurchase) return;
-
-      const purchaseIdFromQuery = searchParams.get('purchaseId');
-      let purchaseId = purchaseIdFromQuery;
-
-      if (!purchaseId) {
-        try {
-          purchaseId = localStorage.getItem('yieldpulse-guest-purchase-id') || null;
-        } catch (err) {
-          purchaseId = null;
-        }
-      }
-
-      if (!purchaseId) return;
-
-      setClaimingGuestPurchase(true);
-      try {
-        const { data, error } = await claimGuestPurchase(purchaseId);
-        if (error) {
-          console.warn('Guest claim failed:', error.error);
-          return;
-        }
-        if (data?.analysisId) {
-          setAnalysisId(data.analysisId);
-          setIsSaved(true);
-          setIsPremiumUnlocked(true);
-          }
-      } finally {
-        setClaimingGuestPurchase(false);
-      }
-    };
-
-    attemptGuestClaim();
-  }, [user, analysisId, isPremiumUnlocked, claimingGuestPurchase, searchParams]);
-
-  useEffect(() => {
-    if (!user || analysisId || !displayInputs || !displayResults) return;
-    const signature = buildPendingSignature(displayInputs, displayResults);
-    if (!signature) return;
-    const syncedId = getSyncedAnalysisId(signature);
-    if (syncedId) {
-      setAnalysisId(syncedId);
-      setIsSaved(true);
-    }
-  }, [user, analysisId, displayInputs, displayResults]);
 
   // Fetch notes if we have an analysisId but no notes yet
   useEffect(() => {
@@ -238,6 +190,7 @@ export default function ResultsPage() {
         }
         setIsPremiumUnlocked(true);
         // Fetch the snapshot for PDF generation
+        fetchPdfSnapshot();
       }
     } catch (error: any) {
       console.error('Error checking purchase status:', error);
@@ -248,125 +201,27 @@ export default function ResultsPage() {
   };
   
   const handleDownloadPDF = async () => {
-    if (!displayInputs || !displayResults) {
-      handleError('PDF export is not ready yet. Please try again.', 'Download PDF');
+    if (!pdfSnapshot) {
+      handleError('PDF data not available. Please try again.', 'Download PDF', () => {
+        fetchPdfSnapshot();
+      });
       return;
     }
 
-    const safeName = (displayInputs?.propertyName || 'YieldPulse_Report')
-      .replace(/[^a-z0-9]/gi, '_')
-      .slice(0, 50);
-    const dateStamp = new Date().toISOString().split('T')[0];
-    const fileName = `YieldPulse_${safeName}_${dateStamp}.pdf`;
-
     setGeneratingPDF(true);
-    let timeoutId: number | undefined;
     try {
-      const timeoutPromise = new Promise<void>((_, reject) => {
-        timeoutId = window.setTimeout(() => {
-          reject(new Error('PDF export timed out. Please try again.'));
-        }, 45000);
-      });
-      const snapshot = {
-        inputs: {
-          portal_source: displayInputs.propertyName || displayInputs.portalSource || undefined,
-          listing_url: displayInputs.listingUrl || undefined,
-          purchase_price: displayInputs.purchasePrice ?? 0,
-          expected_monthly_rent: displayInputs.expectedMonthlyRent ?? 0,
-          down_payment_percent: displayInputs.downPaymentPercent ?? 0,
-          mortgage_interest_rate: displayInputs.mortgageInterestRate ?? 0,
-          loan_term_years: displayInputs.mortgageTermYears ?? 0,
-          service_charge_per_year: displayInputs.serviceChargeAnnual ?? 0,
-          maintenance_per_year: displayInputs.annualMaintenancePercent ?? 0,
-          property_management_fee: displayInputs.propertyManagementFeePercent ?? 0,
-          vacancy_rate: displayInputs.vacancyRatePercent ?? 0,
-          rent_growth_rate: displayInputs.rentGrowthPercent ?? 0,
-          capital_growth_rate: displayInputs.capitalGrowthPercent ?? 0,
-          holding_period_years: displayInputs.holdingPeriodYears ?? 0,
-          area_sqft: displayInputs.areaSqft ?? 0,
-        },
-        results: {
-          grossYield: displayResults.grossRentalYield ?? 0,
-          netYield: displayResults.netRentalYield ?? 0,
-          cashOnCashReturn: displayResults.cashOnCashReturn ?? 0,
-          capRate: displayResults.capRate ?? 0,
-          monthlyCashFlow: displayResults.monthlyCashFlow ?? 0,
-          annualCashFlow: displayResults.annualCashFlow ?? 0,
-          monthlyMortgagePayment: displayResults.monthlyMortgagePayment ?? 0,
-          totalOperatingCosts: displayResults.totalAnnualOperatingExpenses ?? 0,
-          monthlyIncome:
-            (displayResults.effectiveAnnualRentalIncome ?? 0) / 12 ||
-            (displayInputs.expectedMonthlyRent ?? 0),
-          annualIncome: (
-            displayResults.effectiveAnnualRentalIncome ??
-            displayResults.grossAnnualRentalIncome ??
-            (displayInputs.expectedMonthlyRent ?? 0) * 12
-          ),
-          costPerSqft: displayResults.costPerSqft ?? undefined,
-          rentPerSqft: displayResults.rentPerSqft ?? undefined,
-        },
-      };
-
-      const purchaseDate =
-        savedAnalysis?.purchased_at ||
-        savedAnalysis?.created_at ||
-        new Date().toISOString();
-
-      await Promise.race([
-        generatePDF(snapshot, purchaseDate),
-        timeoutPromise,
-      ]);
+      await generatePDF(pdfSnapshot.snapshot, pdfSnapshot.purchaseDate);
       showSuccess('PDF downloaded successfully!');
       trackPdfDownload();
     } catch (error) {
       console.error('Error generating PDF:', error);
       handleError(error, 'Generate PDF', handleDownloadPDF);
     } finally {
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
       setGeneratingPDF(false);
     }
   };
-
   
-  const handleShare = async () => {
-    if (!user) {
-      handleError('Please sign in to share reports.', 'Share Report');
-      return;
-    }
-
-    if (!analysisId && (!displayInputs || !displayResults)) {
-      handleError('Please save the report before sharing.', 'Share Report');
-      return;
-    }
-
-    setCreatingShareLink(true);
-    try {
-      const payload = analysisId
-        ? { analysisId, propertyName: displayInputs?.propertyName }
-        : { inputs: displayInputs, results: displayResults, propertyName: displayInputs?.propertyName };
-
-      const { data, error } = await createShareLink(payload);
-
-      if (error) {
-        handleError(error.error || 'Failed to create share link.', 'Share Report');
-        return;
-      }
-
-      if (data?.shareUrl) {
-        setShareUrl(data.shareUrl);
-        setShowShareModal(true);
-      }
-    } catch (error) {
-      console.error('Error creating share link:', error);
-      handleError(error, 'Share Report', handleShare);
-    } finally {
-      setCreatingShareLink(false);
-    }
-  };
-
-const handleUnlockPremium = async () => {
+  const handleUnlockPremium = async () => {
     setCreatingCheckout(true);
     
     try {
@@ -432,26 +287,50 @@ const handleUnlockPremium = async () => {
     }
   };
   
-  
+  const fetchPdfSnapshot = async () => {
+    if (!analysisId || !user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('report_purchases')
+        .select('snapshot, created_at')
+        .eq('analysis_id', analysisId)
+        .eq('status', 'paid')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.error('Error fetching PDF snapshot:', error);
+        return;
+      }
+
+      if (data?.snapshot) {
+        setPdfSnapshot({
+          snapshot: data.snapshot,
+          purchaseDate: data.created_at
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching PDF snapshot:', error);
+    }
+  };
   
   const handleSaveReport = async () => {
-    const payloadInputs = (inputs ?? displayInputs) as PropertyInputs | null;
-    const payloadResults = (results ?? displayResults) as CalculationResults | null;
-
-    if (!user || !payloadInputs || !payloadResults) return;
+    if (!user || !inputs || !results) return;
 
     setSaving(true);
     
     try {
       console.log('💾 [ResultsPage] Saving analysis with data:', {
-        hasPropertyName: !!payloadInputs.propertyName,
-        propertyName: payloadInputs.propertyName,
-        portalSource: payloadInputs.portalSource
+        hasPropertyName: !!inputs.propertyName,
+        propertyName: inputs.propertyName,
+        portalSource: inputs.portalSource
       });
       
       const { data, error, requestId } = await saveAnalysis({
-        inputs: payloadInputs,
-        results: payloadResults,
+        inputs,
+        results,
       });
 
       if (error) {
@@ -674,99 +553,58 @@ const handleUnlockPremium = async () => {
   return (
     <div className="min-h-screen bg-neutral-50">
       <Header />
-      {generatingPDF && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="flex items-center gap-4 rounded-xl bg-white px-6 py-5 shadow-xl">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Generating PDF</p>
-              <p className="text-xs text-neutral-600">This may take a few seconds. Please keep this tab open.</p>
-            </div>
-          </div>
-        </div>
-      )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
         {/* REPORT SAVED CONFIRMATION - Show when saved */}
         {user && isSaved && analysisId && (
           <div className="bg-white border border-border rounded-xl p-4 mb-8 shadow-sm">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-
-              {/* LEFT: Status + Navigation */}
-              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-
-                {/* Saved badge */}
-                <div className="flex items-center gap-2 px-4 py-2 bg-success/10 border border-success/30 rounded-lg w-fit">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 px-4 py-2 bg-success/10 border border-success/30 rounded-lg">
                   <CheckCircle className="w-4 h-4 text-success" />
-                  <span className="text-sm font-semibold text-success">
-                    Saved to Dashboard
-                  </span>
+                  <span className="text-sm font-semibold text-success">Saved to Dashboard</span>
                 </div>
-
-                {/* Divider (desktop only) */}
-                <div className="hidden lg:block h-4 w-px bg-border"></div>
-
-                {/* Back links */}
-                <div className="flex flex-wrap gap-2">
-                  <Link
-                    to="/dashboard"
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-primary transition-colors rounded-lg hover:bg-neutral-100"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back to Dashboard
-                  </Link>
-
-                  <Link
-                    to="/calculator"
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-primary transition-colors rounded-lg hover:bg-neutral-100"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back to Calculator
-                  </Link>
-                </div>
+                <div className="h-4 w-px bg-border"></div>
+                <Link
+                  to="/dashboard"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-neutral-700 hover:text-primary transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Dashboard</span>
+                </Link>
+                <div className="h-4 w-px bg-border"></div>
+                <Link
+                  to="/calculator"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-neutral-700 hover:text-primary transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Calculator</span>
+                </Link>
               </div>
-
-              {/* RIGHT: Actions */}
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-
-                {/* Export PDF */}
+              <div className="flex items-center gap-3">
                 <button
                   onClick={handleDownloadPDF}
-                  disabled={!isPremiumUnlocked || generatingPDF}
-                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all w-full sm:w-auto ${isPremiumUnlocked
+                  disabled={!isPremiumUnlocked || generatingPDF || !pdfSnapshot}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    isPremiumUnlocked && pdfSnapshot
                       ? 'bg-teal text-white hover:bg-teal/90 shadow-sm'
                       : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
-                    } cursor-pointer`}
+                  }`}
                 >
                   <Download className="w-4 h-4" />
-                  {generatingPDF ? 'Generating...' : 'Export PDF'}
+                  <span>{generatingPDF ? 'Generating...' : 'Export PDF'}</span>
                 </button>
-
-                {/* Share */}
-                <button
-                  onClick={handleShare}
-                  disabled={!displayInputs || !displayResults || creatingShareLink}
-                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all w-full sm:w-auto ${displayInputs && displayResults
-                      ? 'bg-white border border-border text-neutral-700 hover:bg-neutral-50'
-                      : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
-                    } cursor-pointer`}
-                >
-                  <Share2 className="w-4 h-4" />
-                  {creatingShareLink ? 'Creating Link...' : 'Share'}
-                </button>
-                {/* Compare */}
                 <Link
                   to="/comparison"
                   state={{ analysisId }}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 w-full sm:w-auto bg-white border border-border text-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-50 transition-all"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-border text-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-50 transition-all"
                 >
                   <GitCompare className="w-4 h-4" />
-                  Compare
+                  <span>Compare</span>
                 </Link>
               </div>
             </div>
           </div>
-
         )}
 
         {/* ADMIN PREVIEW TOGGLE - Only visible to admin users */}
@@ -810,7 +648,7 @@ const handleUnlockPremium = async () => {
                 <button
                   onClick={handleSaveReport}
                   disabled={saving}
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary-hover transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary-hover transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FileText className="w-4 h-4" />
                   <span>{saving ? 'Saving...' : 'Save to My Dashboard'}</span>
@@ -877,7 +715,7 @@ const handleUnlockPremium = async () => {
                   <button
                     onClick={handleUnlockPremium}
                     disabled={creatingCheckout}
-                    className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-teal to-teal/90 text-white rounded-xl font-semibold hover:from-teal/90 hover:to-teal/80 transition-all shadow-md hover:shadow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-teal to-teal/90 text-white rounded-xl font-semibold hover:from-teal/90 hover:to-teal/80 transition-all shadow-md hover:shadow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Lock className="w-5 h-5" />
                     <span>{creatingCheckout ? 'Processing...' : `Unlock Premium - ${priceLabel}`}</span>
@@ -903,7 +741,7 @@ const handleUnlockPremium = async () => {
         {/* Free Section: Executive Summary */}
         {!showPremiumContent && (
         <div className="bg-white rounded-2xl shadow-sm border border-border p-8 mb-8">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-2">
                 Executive Summary
@@ -914,103 +752,142 @@ const handleUnlockPremium = async () => {
               <span className="text-sm font-medium text-success">Free Preview</span>
             </div>
           </div>
+
+          {/* Locked Premium Actions */}
+          <div className="flex items-center gap-3 mb-8 pb-6 border-b border-border">
+            <div className="flex-1">
+              <p className="text-sm text-neutral-600">
+                Want to export this report or compare properties? 
+                <span className="font-semibold text-foreground"> Upgrade to Premium</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative group">
+                <button
+                  onClick={handleUnlockPremium}
+                  disabled={creatingCheckout}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-100 text-neutral-500 rounded-lg text-sm font-medium cursor-not-allowed relative"
+                >
+                  <Lock className="w-4 h-4" />
+                  <Download className="w-4 h-4" />
+                  <span>Export PDF</span>
+                </button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-neutral-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  Premium feature - {priceLabel}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-neutral-900"></div>
+                </div>
+              </div>
+              <div className="relative group">
+                <button
+                  onClick={handleUnlockPremium}
+                  disabled={creatingCheckout}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-100 text-neutral-500 rounded-lg text-sm font-medium cursor-not-allowed relative"
+                >
+                  <Lock className="w-4 h-4" />
+                  <GitCompare className="w-4 h-4" />
+                  <span>Compare</span>
+                </button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-neutral-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  Premium feature - {priceLabel}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-neutral-900"></div>
+                </div>
+              </div>
+            </div>
+          </div>
           
-          {/* KPI Cards Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            <StatCard
-              label="Gross Yield"
-              value={formatPercent(displayResults.grossRentalYield)}
-              icon={TrendingUp}
-              description="Annual rental income divided by purchase price"
-              variant="navy"
-            />
-            <StatCard
-              label="Net Yield"
-              value={formatPercent(displayResults.netRentalYield)}
-              icon={TrendingUp}
-              description="After operating expenses"
-              variant="teal"
-            />
-            <StatCard
-              label="Cash on Cash Return"
-              value={formatPercent(displayResults.cashOnCashReturn)}
-              icon={TrendingUp}
-              description="Return on invested capital"
-              variant="warning"
-            />
-            <StatCard
-              label="Cap Rate"
-              value={formatPercent(displayResults.capRate)}
-              icon={TrendingUp}
-              description="Net operating income divided by purchase price"
-              variant="success"
-            />
-            <StatCard
-              label="Monthly Cash Flow"
-              value={formatCurrency(displayResults.monthlyCashFlow)}
-              icon={DollarSign}
-              description="Net income after all expenses"
-              variant="success"
-              trend={displayResults.monthlyCashFlow >= 0 ? 'positive' : 'negative'}
-            />
-            <StatCard
-              label="Annual Cash Flow"
-              value={formatCurrency(displayResults.annualCashFlow)}
-              icon={DollarSign}
-              description="Yearly net income"
-              variant={displayResults.annualCashFlow >= 0 ? 'success' : 'warning'}
-              trend={displayResults.annualCashFlow >= 0 ? 'positive' : 'negative'}
-            />
-            <StatCard
-              label="Initial Investment"
-              value={formatCurrency(displayResults.totalInitialInvestment)}
-              icon={DollarSign}
-              description="Down payment plus closing costs"
-              variant="navy"
-            />
-            <StatCard
-              label="Cost per sq ft"
-              value={formatCurrency(displayResults.costPerSqft)}
-              icon={Home}
-              description="Purchase price per square foot (BUA)"
-              variant="teal"
-            />
-            <StatCard
-              label="Rent per sq ft (Annual)"
-              value={formatCurrency(displayResults.rentPerSqft)}
-              icon={Home}
-              description="Annual rental income per square foot"
-              variant="warning"
-            />
+          {/* KPI Cards Grid - Condensed to 6 key metrics */}
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white border border-border rounded-lg p-4">
+              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-2">
+                Gross Yield
+              </div>
+              <div className="text-lg font-bold text-teal">
+                {formatPercent(displayResults.grossRentalYield)}
+              </div>
+              <p className="text-xs text-neutral-600 mt-1">Annual rent / purchase price</p>
+            </div>
+
+            <div className="bg-white border border-border rounded-lg p-4">
+              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-2">
+                Net Yield
+              </div>
+              <div className="text-lg font-bold text-teal">
+                {formatPercent(displayResults.netRentalYield)}
+              </div>
+              <p className="text-xs text-neutral-600 mt-1">After operating expenses</p>
+            </div>
+
+            <div className="bg-white border border-border rounded-lg p-4">
+              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-2">
+                Cash on Cash Return
+              </div>
+              <div className="text-lg font-bold text-navy">
+                {formatPercent(displayResults.cashOnCashReturn)}
+              </div>
+              <p className="text-xs text-neutral-600 mt-1">Return on invested capital</p>
+            </div>
+
+            <div className="bg-white border border-border rounded-lg p-4">
+              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-2">
+                Monthly Cash Flow
+              </div>
+              <div className={`text-lg font-bold ${displayResults.monthlyCashFlow >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {displayResults.monthlyCashFlow < 0 
+                  ? `(${formatCurrency(Math.abs(displayResults.monthlyCashFlow))})`
+                  : formatCurrency(displayResults.monthlyCashFlow)
+                }
+              </div>
+              <p className="text-xs text-neutral-600 mt-1">After all expenses</p>
+            </div>
+
+            <div className="bg-white border border-border rounded-lg p-4">
+              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-2">
+                Annual Cash Flow
+              </div>
+              <div className={`text-lg font-bold ${displayResults.annualCashFlow >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {displayResults.annualCashFlow < 0 
+                  ? `(${formatCurrency(Math.abs(displayResults.annualCashFlow))})`
+                  : formatCurrency(displayResults.annualCashFlow)
+                }
+              </div>
+              <p className="text-xs text-neutral-600 mt-1">Yearly net income</p>
+            </div>
+
+            <div className="bg-white border border-border rounded-lg p-4">
+              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-2">
+                Initial Investment
+              </div>
+              <div className="text-lg font-bold text-navy">
+                {formatCurrency(displayResults.totalInitialInvestment)}
+              </div>
+              <p className="text-xs text-neutral-600 mt-1">Down payment + closing costs</p>
+            </div>
           </div>
 
-          {/* What This Means Section */}
-          <div className={`${investmentGrade.bg} border ${investmentGrade.border} rounded-xl p-6`}>
-            <div className="flex items-start space-x-3 mb-4">
+          {/* What This Means Section - Condensed */}
+          <div className={`${investmentGrade.bg} border ${investmentGrade.border} rounded-xl p-5`}>
+            <div className="flex items-start space-x-3">
               <Info className={`w-5 h-5 ${investmentGrade.color} flex-shrink-0 mt-0.5`} />
               <div className="flex-1">
-                <h3 className="font-semibold text-foreground mb-2">What This Means</h3>
-                <div className="space-y-3 text-sm text-neutral-700 leading-relaxed">
+                <h3 className="font-semibold text-foreground mb-3">Quick Assessment</h3>
+                <div className="space-y-2.5 text-sm text-neutral-700 leading-relaxed">
                   <p>
-                    <strong className={investmentGrade.color}>Investment Grade: {investmentGrade.grade}</strong>
+                    <strong className={investmentGrade.color}>Investment Grade: {investmentGrade.grade}</strong> • 
+                    {displayResults.monthlyCashFlow >= 0 ? (
+                      <span> Generates <strong>{formatCurrency(displayResults.monthlyCashFlow)}/month</strong> positive cash flow</span>
+                    ) : (
+                      <span> Requires <strong>{formatCurrency(Math.abs(displayResults.monthlyCashFlow))}/month</strong> subsidy</span>
+                    )}
                   </p>
                   
-                  {displayResults.monthlyCashFlow >= 0 ? (
-                    <p>
-                      <strong>Positive Cash Flow:</strong> This property generates {formatCurrency(displayResults.monthlyCashFlow)} per month after all expenses including mortgage, operating costs, and vacancy allowance. This means the property pays for itself and provides additional monthly income.
-                    </p>
-                  ) : (
-                    <p>
-                      <strong>Negative Cash Flow:</strong> This property requires {formatCurrency(Math.abs(displayResults.monthlyCashFlow))} per month to cover the gap between rental income and total expenses. You will need to subsidize the property from other income, but may still benefit from capital appreciation and mortgage paydown.
-                    </p>
-                  )}
-
                   <p>
-                    <strong>Yield Analysis:</strong> Your gross yield of {formatPercent(displayResults.grossRentalYield)} represents the annual rent as a percentage of purchase price. After accounting for operating expenses, your net yield is {formatPercent(displayResults.netRentalYield)}. For context, typical UAE residential yields range from 4% to 8% gross.
+                    Your <strong>{formatPercent(displayResults.netRentalYield)} net yield</strong> represents rental returns after operating expenses. Cash on cash return of <strong>{formatPercent(displayResults.cashOnCashReturn)}</strong> shows how your {formatCurrency(displayResults.totalInitialInvestment)} down payment performs annually.
                   </p>
+                </div>
 
-                  <p>
-                    <strong>Return on Investment:</strong> Your cash on cash return of {formatPercent(displayResults.cashOnCashReturn)} measures the annual cash flow relative to your initial investment of {formatCurrency(displayResults.totalInitialInvestment)}. This shows how efficiently your down payment is working for you.
+                <div className="mt-4 pt-4 border-t border-neutral-200">
+                  <p className="text-xs text-neutral-600 leading-relaxed">
+                    <strong className="text-foreground">Premium Report includes:</strong> Full 5-year projections, sensitivity analysis, complete cost breakdowns, exit scenario modeling, and detailed assumption verification with transparent calculations.
                   </p>
                 </div>
               </div>
@@ -1093,81 +970,135 @@ const handleUnlockPremium = async () => {
         </div>
         )}
 
-        {/* Sensitivity Analysis */}
-        {!showPremiumContent && (
+        {/* Your Calculation Inputs - Verification Section */}
+        {!showPremiumContent && displayInputs && (
         <div className="bg-white rounded-2xl shadow-sm border border-border p-8 mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-2">
-                Sensitivity Analysis
+                Your Calculation Inputs
               </h2>
-              <p className="text-neutral-600">Key factors that influence your returns</p>
+              <p className="text-neutral-600">Verify the assumptions used in this analysis</p>
             </div>
-            <div className="px-4 py-2 bg-success/10 border border-success/30 rounded-lg">
-              <span className="text-sm font-medium text-success">Free Preview</span>
+            <div className="px-4 py-2 bg-primary/10 border border-primary/30 rounded-lg">
+              <span className="text-sm font-medium text-primary">Report Basis</span>
             </div>
           </div>
 
-          <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mb-6">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">Most Influential Inputs</h4>
-                <p className="text-sm text-neutral-700 leading-relaxed mb-4">
-                  These three factors have the largest impact on your investment returns. Small changes to these inputs can significantly affect your cash flow and yield.
-                </p>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Purchase & Financing */}
+            <div className="border border-border rounded-xl p-5">
+              <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-primary" />
+                Purchase & Financing
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Purchase Price</span>
+                  <span className="text-sm font-semibold text-foreground">{formatCurrency(displayInputs.purchasePrice || 0)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Down Payment</span>
+                  <span className="text-sm font-semibold text-foreground">{formatPercent(displayInputs.downPaymentPercent || 0)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Mortgage Interest Rate</span>
+                  <span className="text-sm font-semibold text-foreground">{formatPercent(displayInputs.mortgageInterestRate || 0)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Mortgage Term</span>
+                  <span className="text-sm font-semibold text-foreground">{displayInputs.mortgageTermYears || 0} years</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="space-y-4">
-            {sensitivityFactors.slice(0, 3).map((factor, index) => (
-              <div key={index} className="border border-border rounded-xl p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm">
-                      {index + 1}
-                    </div>
-                    <h4 className="font-semibold text-foreground">{factor.factor}</h4>
+            {/* Rental Income */}
+            <div className="border border-border rounded-xl p-5">
+              <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Home className="w-4 h-4 text-secondary" />
+                Rental Income
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Expected Monthly Rent</span>
+                  <span className="text-sm font-semibold text-foreground">{formatCurrency(displayInputs.expectedMonthlyRent || 0)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Annual Rent</span>
+                  <span className="text-sm font-semibold text-foreground">{formatCurrency((displayInputs.expectedMonthlyRent || 0) * 12)}</span>
+                </div>
+                {displayInputs.areaSqft && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-neutral-600">Property Size</span>
+                    <span className="text-sm font-semibold text-foreground">{displayInputs.areaSqft.toLocaleString()} sq ft</span>
                   </div>
-                  <span className="text-sm font-medium text-neutral-600">{factor.description}</span>
-                </div>
-                <div className="ml-11">
-                  <p className="text-sm text-neutral-700">
-                    Estimated annual cash flow impact: <strong className="text-primary">{formatCurrency(factor.impact)}</strong>
-                  </p>
-                  {index === 0 && (
-                    <p className="text-xs text-neutral-500 mt-1">
-                      Rental income is the most significant driver. Market research and realistic rent estimates are critical.
-                    </p>
-                  )}
-                  {index === 1 && (
-                    <p className="text-xs text-neutral-500 mt-1">
-                      Interest rate changes affect mortgage payments. Consider fixing your rate to reduce this risk.
-                    </p>
-                  )}
-                  {index === 2 && (
-                    <p className="text-xs text-neutral-500 mt-1">
-                      Purchase price determines your entry point. Negotiate hard and buy below market when possible.
-                    </p>
-                  )}
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Vacancy Rate Assumed</span>
+                  <span className="text-sm font-semibold text-foreground">{formatPercent(displayInputs.vacancyRatePercent || 0)}</span>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Operating Expenses */}
+            <div className="border border-border rounded-xl p-5">
+              <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-warning" />
+                Operating Expenses
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Service Charge (Annual)</span>
+                  <span className="text-sm font-semibold text-foreground">{formatCurrency(displayInputs.serviceChargeAnnual || 0)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Maintenance</span>
+                  <span className="text-sm font-semibold text-foreground">{formatPercent(displayInputs.annualMaintenancePercent || 0)} of property value</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Property Management</span>
+                  <span className="text-sm font-semibold text-foreground">{formatPercent(displayInputs.propertyManagementFeePercent || 0)} of rent</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Projection Assumptions */}
+            <div className="border border-border rounded-xl p-5">
+              <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-success" />
+                Projection Assumptions
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Capital Growth Rate</span>
+                  <span className="text-sm font-semibold text-foreground">{formatPercent(displayInputs.capitalGrowthPercent || 0)} per year</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Rent Growth Rate</span>
+                  <span className="text-sm font-semibold text-foreground">{formatPercent(displayInputs.rentGrowthPercent || 0)} per year</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-neutral-600">Holding Period</span>
+                  <span className="text-sm font-semibold text-foreground">{displayInputs.holdingPeriodYears || 0} years</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-6 bg-muted/50 rounded-lg p-4 border border-border">
-            <p className="text-sm text-neutral-700 leading-relaxed">
-              <strong>Risk Management:</strong> Given these sensitivities, ensure your rent estimate is based on recent comparable properties, secure a competitive interest rate, and negotiate the best possible purchase price. Consider stress testing with 10% lower rent or 1% higher interest rates.
-            </p>
+          <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-900 leading-relaxed">
+                <strong>Important:</strong> All metrics above are based on these inputs. The Premium Report includes detailed verification of these assumptions, sensitivity analysis showing how changes affect returns, and complete 5-year projections with all calculations transparently displayed.
+              </p>
+            </div>
           </div>
         </div>
         )}
         
         {/* Premium Section */}
         {showPremiumContent && displayResults && displayInputs ? (
-          <div ref={reportRef} className="pdf-export-scope">
-            <PremiumReport
+          <PremiumReport
             displayResults={displayResults}
             displayInputs={displayInputs}
             vacancyAmount={vacancyAmount}
@@ -1177,7 +1108,6 @@ const handleUnlockPremium = async () => {
             analysisId={analysisId}
             notes={notes}
           />
-          </div>
         ) : (
           <>
             {/* CONVERSION LAYER: Locked Premium Section with CTA */}
@@ -1237,16 +1167,7 @@ const handleUnlockPremium = async () => {
             <span>Calculate Another Property</span>
           </Link>
         </div>
-      
-      {/* Share Modal */}
-      {showShareModal && shareUrl && (
-        <ShareModal
-          shareUrl={shareUrl}
-          propertyName={displayInputs?.propertyName || 'Investment Property'}
-          onClose={() => setShowShareModal(false)}
-        />
-      )}
-</div>
+      </div>
     </div>
   );
 }

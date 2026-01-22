@@ -8,14 +8,14 @@ interface DiscountCode {
   code: string;
   type: 'percentage' | 'fixed';
   value: number;
-  maxUses?: number | null;
-  currentUses?: number;
-  expiresAt?: string | null;
-  active?: boolean;
-  createdAt?: string;
+  maxUses?: number;
+  currentUses: number;
+  expiresAt?: string;
+  active: boolean;
+  createdAt: string;
   description?: string;
-  totalRevenue?: number;
-  totalSavings?: number;
+  totalRevenue: number;
+  totalSavings: number;
 }
 
 interface DiscountUsage {
@@ -39,9 +39,6 @@ export default function AdminDiscounts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'expired'>('all');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [busyCode, setBusyCode] = useState<string | null>(null);
 
   // Form state for creating/editing codes
   const [formData, setFormData] = useState({
@@ -62,20 +59,7 @@ export default function AdminDiscounts() {
     try {
       setLoading(true);
       const data = await adminApi.discounts.list();
-      const normalizedCodes: DiscountCode[] = (data.codes || []).map((c: any) => ({
-        code: c.code,
-        type: c.type === 'percentage' ? 'percentage' : 'fixed',
-        value: Number(c.value) || 0,
-        maxUses: c.maxUses ?? c.max_uses ?? c.max_redemptions ?? null,
-        currentUses: c.currentUses ?? c.times_redeemed ?? 0,
-        expiresAt: c.expiresAt || c.redeem_by || null,
-        active: c.active !== false,
-        createdAt: c.createdAt || c.created_at || '',
-        description: c.description || '',
-        totalRevenue: c.totalRevenue || 0,
-        totalSavings: c.totalSavings || 0,
-      }));
-      setCodes(normalizedCodes);
+      setCodes(data.codes || []);
       setUsageHistory(data.recentUsage || []);
     } catch (err: any) {
       console.error('Failed to fetch discount codes:', err);
@@ -102,8 +86,7 @@ export default function AdminDiscounts() {
     }
 
     try {
-      setIsCreating(true);
-      const created = await adminApi.discounts.create({
+      await adminApi.discounts.create({
         code: formData.code.toUpperCase().trim(),
         type: formData.type,
         value: formData.value,
@@ -113,32 +96,13 @@ export default function AdminDiscounts() {
         active: formData.active,
       });
 
-      // Optimistically insert created code so UI shows without waiting for Stripe propagation
-      const newCode: DiscountCode = {
-        code: created.code,
-        type: created.type === 'percentage' ? 'percentage' : 'fixed',
-        value: Number(created.value) || formData.value,
-        maxUses: created.maxUses ?? created.max_uses ?? created.max_redemptions ?? null,
-        currentUses: created.currentUses ?? created.times_redeemed ?? 0,
-        expiresAt: created.expiresAt || created.redeem_by || null,
-        active: created.active !== false,
-        description: created.description || formData.description,
-        createdAt: created.createdAt || new Date().toISOString(),
-        totalRevenue: created.totalRevenue || 0,
-        totalSavings: created.totalSavings || 0,
-      };
-      setCodes(prev => [newCode, ...prev]);
-
       toast.success('Discount code created successfully');
       setShowCreateModal(false);
       resetForm();
-      // Also refresh from API to ensure parity with Stripe
       fetchDiscountCodes();
     } catch (err: any) {
       console.error('Failed to create discount code:', err);
       toast.error(err.message || 'Failed to create discount code');
-    } finally {
-      setIsCreating(false);
     }
   };
 
@@ -146,7 +110,6 @@ export default function AdminDiscounts() {
     if (!selectedCode) return;
 
     try {
-      setIsUpdating(true);
       await adminApi.discounts.update(selectedCode.code, {
         type: formData.type,
         value: formData.value,
@@ -164,8 +127,6 @@ export default function AdminDiscounts() {
     } catch (err: any) {
       console.error('Failed to update discount code:', err);
       toast.error(err.message || 'Failed to update discount code');
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -175,29 +136,23 @@ export default function AdminDiscounts() {
     }
 
     try {
-      setBusyCode(code);
       await adminApi.discounts.delete(code);
       toast.success('Discount code deleted successfully');
       fetchDiscountCodes();
     } catch (err: any) {
       console.error('Failed to delete discount code:', err);
       toast.error(err.message || 'Failed to delete discount code');
-    } finally {
-      setBusyCode(null);
     }
   };
 
   const handleToggleActive = async (code: string, currentStatus: boolean) => {
     try {
-      setBusyCode(code);
       await adminApi.discounts.update(code, { active: !currentStatus });
       toast.success(`Code ${!currentStatus ? 'activated' : 'deactivated'}`);
       fetchDiscountCodes();
     } catch (err: any) {
       console.error('Failed to toggle code status:', err);
       toast.error('Failed to update code status');
-    } finally {
-      setBusyCode(null);
     }
   };
 
@@ -257,13 +212,13 @@ export default function AdminDiscounts() {
   });
 
   const totalStats = codes.reduce((acc, code) => ({
-    totalUses: acc.totalUses + (code.currentUses || 0),
-    totalRevenue: acc.totalRevenue + (code.totalRevenue || 0),
-    totalSavings: acc.totalSavings + (code.totalSavings || 0),
+    totalUses: acc.totalUses + code.currentUses,
+    totalRevenue: acc.totalRevenue + code.totalRevenue,
+    totalSavings: acc.totalSavings + code.totalSavings,
   }), { totalUses: 0, totalRevenue: 0, totalSavings: 0 });
 
   return (
-    <div className="space-y-6 p-5">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -274,8 +229,7 @@ export default function AdminDiscounts() {
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          disabled={loading}
-          className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors cursor-pointer"
+          className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors"
         >
           <Plus className="w-4 h-4" />
           <span>Create Code</span>
@@ -409,7 +363,7 @@ export default function AdminDiscounts() {
                           </code>
                           <button
                             onClick={() => copyToClipboard(code.code)}
-                            className="text-neutral-400 hover:text-primary transition-colors cursor-pointer"
+                            className="text-neutral-400 hover:text-primary transition-colors"
                           >
                             {copiedCode === code.code ? (
                               <Check className="w-4 h-4 text-success" />
@@ -485,38 +439,27 @@ export default function AdminDiscounts() {
                       <td className="py-3 px-4">
                         <button
                           onClick={() => handleToggleActive(code.code, code.active)}
-                          disabled={busyCode === code.code}
                           className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                             isEffectivelyActive
                               ? 'bg-success/10 text-success hover:bg-success/20'
                               : 'bg-neutral-200 text-neutral-600 hover:bg-neutral-300'
-                          } cursor-pointer`}
+                          }`}
                         >
-                          {busyCode === code.code
-                            ? 'Working...'
-                            : isEffectivelyActive
-                              ? 'Active'
-                              : isExpired
-                                ? 'Expired'
-                                : isMaxedOut
-                                  ? 'Maxed'
-                                  : 'Inactive'}
+                          {isEffectivelyActive ? 'Active' : isExpired ? 'Expired' : isMaxedOut ? 'Maxed' : 'Inactive'}
                         </button>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center justify-end space-x-2">
                           <button
                             onClick={() => openEditModal(code)}
-                            disabled={busyCode === code.code}
-                            className="p-2 text-neutral-600 hover:text-primary hover:bg-neutral-100 rounded transition-colors cursor-pointer"
+                            className="p-2 text-neutral-600 hover:text-primary hover:bg-neutral-100 rounded transition-colors"
                             title="Edit code"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteCode(code.code)}
-                            disabled={busyCode === code.code}
-                            className="p-2 text-neutral-600 hover:text-destructive hover:bg-red-50 rounded transition-colors cursor-pointer"
+                            className="p-2 text-neutral-600 hover:text-destructive hover:bg-red-50 rounded transition-colors"
                             title="Delete code"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -619,7 +562,7 @@ export default function AdminDiscounts() {
                       formData.type === 'percentage'
                         ? 'border-primary bg-primary/5 text-primary font-medium'
                         : 'border-border text-neutral-700 hover:border-neutral-300'
-                    } cursor-pointer`}
+                    }`}
                   >
                     <Percent className="w-4 h-4 inline mr-1" />
                     Percentage
@@ -630,7 +573,7 @@ export default function AdminDiscounts() {
                       formData.type === 'fixed'
                         ? 'border-primary bg-primary/5 text-primary font-medium'
                         : 'border-border text-neutral-700 hover:border-neutral-300'
-                    } cursor-pointer`}
+                    }`}
                   >
                     <DollarSign className="w-4 h-4 inline mr-1" />
                     Fixed Amount
@@ -723,7 +666,7 @@ export default function AdminDiscounts() {
                   onClick={() => setFormData({ ...formData, active: !formData.active })}
                   className={`relative w-12 h-6 rounded-full transition-colors ${
                     formData.active ? 'bg-success' : 'bg-neutral-300'
-                  } cursor-pointer`}
+                  }`}
                 >
                   <div
                     className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
@@ -742,16 +685,15 @@ export default function AdminDiscounts() {
                   resetForm();
                   setSelectedCode(null);
                 }}
-                className="px-4 py-2 text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
+                className="px-4 py-2 text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={showCreateModal ? handleCreateCode : handleUpdateCode}
-                disabled={showCreateModal ? isCreating : isUpdating}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors font-medium cursor-pointer"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors font-medium"
               >
-                {showCreateModal ? (isCreating ? 'Creating...' : 'Create Code') : (isUpdating ? 'Saving...' : 'Save Changes')}
+                {showCreateModal ? 'Create Code' : 'Save Changes'}
               </button>
             </div>
           </div>

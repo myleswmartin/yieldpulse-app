@@ -15,7 +15,7 @@ export default function AboutPage() {
       <Header />
       
       <main className="flex-grow">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-16">
           {/* Page Header */}
           <div className="mb-16">
             <h1 className="text-4xl font-bold text-neutral-900 mb-2">

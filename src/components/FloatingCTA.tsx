@@ -67,7 +67,7 @@ export function FloatingCTA({ variant = 'sample', delay = 3000 }: FloatingCTAPro
       <div className="bg-gradient-to-br from-primary to-primary-hover text-white rounded-2xl shadow-2xl p-4 pr-6 max-w-sm border border-primary-foreground/10">
         <button
           onClick={handleDismiss}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-white text-neutral-600 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors shadow-md cursor-pointer"
+          className="absolute -top-2 -right-2 w-6 h-6 bg-white text-neutral-600 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors shadow-md"
           aria-label="Dismiss"
         >
           <X className="w-4 h-4" />

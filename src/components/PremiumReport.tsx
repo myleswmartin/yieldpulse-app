@@ -1,4 +1,3 @@
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import { CalculationResults, formatCurrency, formatPercent, PropertyInputs } from '../utils/calculations';
 import {
   BarChart,
@@ -16,7 +15,6 @@ import {
   Area,
   AreaChart,
 } from 'recharts';
-import { useState } from 'react';
 import { ExecutiveSummary } from './ExecutiveSummary';
 import { ReportCoverPage } from './ReportCoverPage';
 
@@ -41,11 +39,6 @@ export function PremiumReport({
   analysisId,
   notes,
 }: PremiumReportProps) {
-  const [showMethodology, setShowMethodology] = useState(false);
-  const [showAssumptions, setShowAssumptions] = useState(false);
-  const [showVacancyRisk, setShowVacancyRisk] = useState(false);
-  const [showInterestRateRisk, setShowInterestRateRisk] = useState(false);
-
   // Determine if this is sample mode
   const isSampleMode = displayInputs.propertyName?.includes('Sample Property');
 
@@ -278,10 +271,10 @@ export function PremiumReport({
         </section>
       )}
 
-      {/* SECTION 3: Investment Risks (Previously Section 7 - Sensitivity Analysis) */}
+      {/* SECTION 3: Sensitivity Analysis */}
       {displayResults.sensitivityAnalysis && (
         <section className="page-break-before pdf-section page-break-avoid">
-          <h2 className="text-2xl font-bold text-foreground mb-4 pdf-h2">3. Investment Risks</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-4 pdf-h2">3. Sensitivity Analysis</h2>
           
           {/* Rent Sensitivity - Default Expanded */}
           <div className="mb-8 pdf-subsection page-break-avoid">
@@ -332,23 +325,11 @@ export function PremiumReport({
             </div>
           </div>
 
-          {/* Vacancy Rate Sensitivity - Collapsed by default on screen */}
+          {/* Vacancy Rate Sensitivity - Always visible */}
           <div className="mb-8 pdf-subsection page-break-avoid">
-            <div 
-              className="flex items-center justify-between mb-4 cursor-pointer no-print"
-              onClick={() => setShowVacancyRisk(!showVacancyRisk)}
-            >
-              <h3 className={`text-lg font-semibold text-foreground pdf-h3 ${showVacancyRisk ? 'hidden' : ''}`}>Vacancy Rate Sensitivity</h3>
-              {showVacancyRisk ? (
-                <span className="text-sm text-primary font-medium">Hide vacancy risk scenarios</span>
-              ) : (
-                <span className="text-sm text-primary font-medium">Show vacancy risk scenarios</span>
-              )}
-            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-4 pdf-h3">Vacancy Rate Sensitivity</h3>
             
-            <h3 className={`text-lg font-semibold text-foreground mb-4 pdf-h3 ${showVacancyRisk ? '' : 'hidden'} print-force-show`}>Vacancy Rate Sensitivity</h3>
-            
-            <div className={`${showVacancyRisk ? '' : 'hidden'} screen-only-collapsible print-force-show`}>
+            <div>
               <div className="bg-white rounded-xl border border-border overflow-hidden mb-4">
                 <table className="w-full">
                   <thead>
@@ -396,23 +377,11 @@ export function PremiumReport({
             </div>
           </div>
 
-          {/* Interest Rate Sensitivity - Collapsed by default on screen */}
+          {/* Interest Rate Sensitivity - Always visible */}
           <div className="mb-8 pdf-subsection page-break-avoid">
-            <div 
-              className="flex items-center justify-between mb-4 cursor-pointer no-print"
-              onClick={() => setShowInterestRateRisk(!showInterestRateRisk)}
-            >
-              <h3 className={`text-lg font-semibold text-foreground pdf-h3 ${showInterestRateRisk ? 'hidden' : ''}`}>Interest Rate Sensitivity</h3>
-              {showInterestRateRisk ? (
-                <span className="text-sm text-primary font-medium">Hide interest rate risk scenarios</span>
-              ) : (
-                <span className="text-sm text-primary font-medium">Show interest rate risk scenarios</span>
-              )}
-            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-4 pdf-h3">Interest Rate Sensitivity</h3>
             
-            <h3 className={`text-lg font-semibold text-foreground mb-4 pdf-h3 ${showInterestRateRisk ? '' : 'hidden'} print-force-show`}>Interest Rate Sensitivity</h3>
-            
-            <div className={`${showInterestRateRisk ? '' : 'hidden'} screen-only-collapsible print-force-show`}>
+            <div>
               <div className="bg-white rounded-xl border border-border overflow-hidden mb-4">
                 <table className="w-full">
                   <thead>
@@ -696,23 +665,11 @@ export function PremiumReport({
         </div>
       </section>
 
-      {/* SECTION 7: Input and Assumption Verification (Previously Section 8 - Assumptions Audit Trail) - COLLAPSED BY DEFAULT */}
+      {/* SECTION 7: Input and Assumption Verification - Always visible */}
       <section className="page-break-before pdf-section page-break-avoid">
-        <div 
-          className="flex items-center justify-between mb-4 cursor-pointer no-print"
-          onClick={() => setShowAssumptions(!showAssumptions)}
-        >
-          <h2 className={`text-2xl font-bold text-foreground pdf-h2 ${showAssumptions ? 'hidden' : ''}`}>7. Input and Assumption Verification</h2>
-          {showAssumptions ? (
-            <span className="text-sm text-primary font-medium">Hide inputs and assumptions</span>
-          ) : (
-            <span className="text-sm text-primary font-medium">Show inputs and assumptions (Advanced)</span>
-          )}
-        </div>
+        <h2 className="text-2xl font-bold text-foreground mb-4 pdf-h2">7. Input and Assumption Verification</h2>
         
-        <h2 className={`text-2xl font-bold text-foreground mb-4 pdf-h2 ${showAssumptions ? '' : 'hidden'} print-force-show`}>7. Input and Assumption Verification</h2>
-        
-        <div className={`${showAssumptions ? '' : 'hidden'} screen-only-collapsible print-force-show`}>
+        <div>
           {/* Report Details - Property Name, Report ID and Notes */}
           {(displayInputs.propertyName || analysisId || notes) && (
             <div className="mb-6 pdf-subsection page-break-avoid">
@@ -930,107 +887,8 @@ export function PremiumReport({
               </li>
             </ol>
             <p className="text-xs italic text-neutral-600 mt-4">
-              All calculations can be independently verified using the formulas and inputs disclosed in this section.
+              All calculations use industry-standard real estate investment formulas applied to the inputs disclosed in this section.
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 8: Calculation Formulas (Previously Section 9 - Calculation Methodology) - COLLAPSED BY DEFAULT */}
-      <section className="pdf-section page-break-avoid">
-        <div 
-          className="flex items-center justify-between mb-4 cursor-pointer no-print"
-          onClick={() => setShowMethodology(!showMethodology)}
-        >
-          <h2 className={`text-2xl font-bold text-foreground pdf-h2 ${showMethodology ? 'hidden' : ''}`}>8. Calculation Formulas</h2>
-          {showMethodology ? (
-            <span className="text-sm text-primary font-medium">Hide calculation formulas</span>
-          ) : (
-            <span className="text-sm text-primary font-medium">Show calculation formulas (For technical users)</span>
-          )}
-        </div>
-        
-        <h2 className={`text-2xl font-bold text-foreground mb-4 pdf-h2 ${showMethodology ? '' : 'hidden'} print-force-show`}>8. Calculation Formulas</h2>
-        
-        <div className={`${showMethodology ? '' : 'hidden'} screen-only-collapsible print-force-show`}>
-          <div className="space-y-6 bg-white rounded-xl border border-border p-6 pdf-component">
-            {/* Yield Calculations */}
-            <div>
-              <h3 className="font-semibold text-foreground mb-3 pdf-h3">Yield Calculations</h3>
-              <div className="space-y-4 text-sm font-mono bg-neutral-50 p-4 rounded">
-                <div>
-                  <p className="font-sans font-semibold mb-1">Gross Rental Yield</p>
-                  <p>Formula: (Annual Rental Income ÷ Purchase Price) × 100</p>
-                  <p className="text-primary">{isSampleMode ? 'Example Calculation' : 'Your Calculation'}: ({formatCurrency(displayResults.grossAnnualRentalIncome)} ÷ {formatCurrency(displayInputs.purchasePrice || 0)}) × 100 = {formatPercent(displayResults.grossRentalYield)}</p>
-                </div>
-                <div>
-                  <p className="font-sans font-semibold mb-1">Net Rental Yield</p>
-                  <p>Formula: (Net Operating Income ÷ Purchase Price) × 100</p>
-                  <p className="text-primary">{isSampleMode ? 'Example Calculation' : 'Your Calculation'}: ({formatCurrency(displayResults.netOperatingIncome)} ÷ {formatCurrency(displayInputs.purchasePrice || 0)}) × 100 = {formatPercent(displayResults.netRentalYield)}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Cash Flow Calculations */}
-            <div>
-              <h3 className="font-semibold text-foreground mb-3">Cash Flow Calculations</h3>
-              <div className="space-y-4 text-sm font-mono bg-neutral-50 p-4 rounded">
-                <div>
-                  <p className="font-sans font-semibold mb-1">Net Operating Income (NOI) - Today Snapshot</p>
-                  <p>Formula: Effective Rental Income - Total Operating Expenses</p>
-                  <p>Step 1: Gross Income = {formatCurrency(displayInputs.expectedMonthlyRent || 0)} × 12 = {formatCurrency(displayResults.grossAnnualRentalIncome)}</p>
-                  <p>Step 2: Vacancy Allowance = {formatCurrency(displayResults.grossAnnualRentalIncome)} × {formatPercent(displayInputs.vacancyRatePercent || 0)} = {formatCurrency(vacancyAmount)}</p>
-                  <p>Step 3: Effective Income = {formatCurrency(displayResults.grossAnnualRentalIncome)} - {formatCurrency(vacancyAmount)} = {formatCurrency(displayResults.effectiveAnnualRentalIncome)}</p>
-                  <p>Step 4: Operating Expenses = {formatCurrency(displayResults.annualServiceCharge)} + {formatCurrency(displayResults.annualMaintenanceCosts)} + {formatCurrency(displayResults.annualPropertyManagementFee)} = {formatCurrency(displayResults.totalAnnualOperatingExpenses)}</p>
-                  <p className="text-primary">Step 5: NOI = {formatCurrency(displayResults.effectiveAnnualRentalIncome)} - {formatCurrency(displayResults.totalAnnualOperatingExpenses)} = {formatCurrency(displayResults.netOperatingIncome)}</p>
-                </div>
-                <div>
-                  <p className="font-sans font-semibold mb-1">Annual Cash Flow - Today Snapshot</p>
-                  <p>Formula: NOI - Annual Mortgage Payment</p>
-                  <p className="text-primary">{isSampleMode ? 'Example Calculation' : 'Your Calculation'}: {formatCurrency(displayResults.netOperatingIncome)} - {formatCurrency(displayResults.annualMortgagePayment)} = {formatCurrency(displayResults.annualCashFlow)}</p>
-                </div>
-                {displayResults.projection && displayResults.projection.length >= 1 && (
-                  <div className="border-t-2 border-primary pt-4 mt-4">
-                    <p className="font-sans font-semibold mb-1">Projection Year 1 (End of Year) - Reconciliation with Year by Year Table</p>
-                    <p>Monthly Rent: {formatCurrency(displayInputs.expectedMonthlyRent || 0)} × (1 + {formatPercent(displayInputs.rentGrowthPercent || 0)}) = {formatCurrency((displayInputs.expectedMonthlyRent || 0) * (1 + (displayInputs.rentGrowthPercent || 0) / 100))}</p>
-                    <p>Annual Rent: {formatCurrency(displayResults.projection[0].annualRent)}</p>
-                    <p>Vacancy ({formatPercent(displayInputs.vacancyRatePercent || 0)}): {formatCurrency(displayResults.projection[0].annualRent * (displayInputs.vacancyRatePercent || 0) / 100)}</p>
-                    <p>Effective Income: {formatCurrency(displayResults.projection[0].effectiveRentalIncome)}</p>
-                    <p>Operating Expenses: {formatCurrency(displayResults.projection[0].operatingExpenses)}</p>
-                    <p className="text-neutral-600 text-xs">(Service: {formatCurrency(displayInputs.serviceChargeAnnual || 0)}, Maintenance: {formatCurrency(displayResults.projection[0].propertyValue * (displayInputs.annualMaintenancePercent || 0) / 100)}, Mgmt: {formatCurrency(displayResults.projection[0].annualRent * (displayInputs.propertyManagementFeePercent || 0) / 100)})</p>
-                    <p>NOI: {formatCurrency(displayResults.projection[0].noi)}</p>
-                    <p className="text-primary">Annual Cash Flow (Year 1 Table): {formatCurrency(displayResults.projection[0].noi)} - {formatCurrency(displayResults.annualMortgagePayment)} = {formatCurrency(displayResults.projection[0].cashFlow)}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Return Metrics */}
-            <div>
-              <h3 className="font-semibold text-foreground mb-3">Return Metrics</h3>
-              <div className="space-y-4 text-sm font-mono bg-neutral-50 p-4 rounded">
-                <div>
-                  <p className="font-sans font-semibold mb-1">Cash-on-Cash Return</p>
-                  <p>Formula: (Annual Cash Flow ÷ Total Initial Investment) × 100</p>
-                  <p className="text-primary">{isSampleMode ? 'Example Calculation' : 'Your Calculation'}: ({formatCurrency(displayResults.annualCashFlow)} ÷ {formatCurrency(displayResults.totalInitialInvestment)}) × 100 = {formatPercent(displayResults.cashOnCashReturn)}</p>
-                </div>
-                {displayResults.projection && displayResults.projection.length >= 5 && (
-                  <div>
-                    <p className="font-sans font-semibold mb-1">5-Year Total Return</p>
-                    <p>Formula: (Sale Proceeds + Cumulative Cash Flow - Initial Investment) ÷ Initial Investment × 100</p>
-                    <p className="text-primary">{isSampleMode ? 'Example Calculation' : 'Your Calculation'}: ({formatCurrency(displayResults.projection[4].saleProceeds)} + {formatCurrency(displayResults.projection[4].cumulativeCashFlow)} - {formatCurrency(displayResults.totalInitialInvestment)}) ÷ {formatCurrency(displayResults.totalInitialInvestment)} × 100 = {formatPercent(displayResults.projection[4].roiPercent)}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="text-sm text-neutral-700 leading-relaxed p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="font-semibold mb-2">Verification</p>
-              <p>
-                All metrics in this report are calculated using standard real estate investment formulas. This section shows the exact calculations applied to {isSampleMode ? 'the example' : 'your'} inputs, 
-                enabling independent verification. If you identify any discrepancy between stated formulas and displayed results, please contact support.
-              </p>
-            </div>
           </div>
         </div>
       </section>

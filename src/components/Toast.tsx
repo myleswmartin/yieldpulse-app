@@ -45,33 +45,32 @@ export function Toast({
 
   const config = {
     success: {
-      bg: 'bg-success/10',
-      border: 'border-success/30',
+      bg: 'bg-white',
+      border: 'border-success',
       text: 'text-success',
       icon: CheckCircle,
     },
     error: {
-      bg: 'bg-destructive/10',
-      border: 'border-destructive/30',
+      bg: 'bg-white',
+      border: 'border-destructive',
       text: 'text-destructive',
       icon: XCircle,
     },
     info: {
-      bg: 'bg-primary/5',
-      border: 'border-primary/20',
+      bg: 'bg-white',
+      border: 'border-primary',
       text: 'text-primary',
       icon: Info,
     },
     'network-error': {
-      bg: 'bg-warning/10',
-      border: 'border-warning/30',
+      bg: 'bg-white',
+      border: 'border-warning',
       text: 'text-warning',
       icon: WifiOff,
     },
   };
 
-  const safeType = type in config ? type : 'info';
-  const { bg, border, text, icon: Icon } = config[safeType];
+  const { bg, border, text, icon: Icon } = config[type];
 
   return (
     <div
@@ -90,7 +89,7 @@ export function Toast({
             {action && (
               <button
                 onClick={action.onClick}
-                className={`mt-3 text-sm font-medium ${text} hover:underline cursor-pointer`}
+                className={`mt-3 text-sm font-medium ${text} hover:underline`}
               >
                 {action.label}
               </button>
@@ -99,7 +98,7 @@ export function Toast({
         </div>
         <button
           onClick={handleDismiss}
-          className={`${text} hover:opacity-70 transition-opacity flex-shrink-0 ml-2 cursor-pointer`}
+          className={`${text} hover:opacity-70 transition-opacity flex-shrink-0 ml-2`}
           aria-label="Dismiss"
         >
           <X className="w-5 h-5" />
@@ -148,16 +147,6 @@ export function ToastContainer() {
 }
 
 // Helper function to show toasts
-export function showToast(
-  toastOrMessage: Omit<ToastMessage, 'id'> | string,
-  type: ToastType = 'info',
-  description?: string,
-  action?: { label: string; onClick: () => void }
-) {
-  const detail =
-    typeof toastOrMessage === 'string'
-      ? { type, message: toastOrMessage, description, action }
-      : toastOrMessage;
-
-  window.dispatchEvent(new CustomEvent('show-toast', { detail }));
+export function showToast(toast: Omit<ToastMessage, 'id'>) {
+  window.dispatchEvent(new CustomEvent('show-toast', { detail: toast }));
 }

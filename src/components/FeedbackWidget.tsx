@@ -74,7 +74,7 @@ export function FeedbackWidget({ pageId, title = "Was this helpful?" }: Feedback
           <button
             type="button"
             onClick={() => handleFeedback('positive')}
-            className="group flex items-center space-x-2 px-6 py-3 bg-white border-2 border-border rounded-lg hover:border-green-500 hover:bg-green-50 transition-all cursor-pointer"
+            className="group flex items-center space-x-2 px-6 py-3 bg-white border-2 border-border rounded-lg hover:border-green-500 hover:bg-green-50 transition-all"
           >
             <ThumbsUp className="w-5 h-5 text-neutral-600 group-hover:text-green-600 transition-colors" />
             <span className="font-medium text-neutral-700 group-hover:text-green-700">Yes, helpful</span>
@@ -83,7 +83,7 @@ export function FeedbackWidget({ pageId, title = "Was this helpful?" }: Feedback
           <button
             type="button"
             onClick={() => handleFeedback('negative')}
-            className="group flex items-center space-x-2 px-6 py-3 bg-white border-2 border-border rounded-lg hover:border-red-500 hover:bg-red-50 transition-all cursor-pointer"
+            className="group flex items-center space-x-2 px-6 py-3 bg-white border-2 border-border rounded-lg hover:border-red-500 hover:bg-red-50 transition-all"
           >
             <ThumbsDown className="w-5 h-5 text-neutral-600 group-hover:text-red-600 transition-colors" />
             <span className="font-medium text-neutral-700 group-hover:text-red-700">Not helpful</span>
@@ -118,7 +118,7 @@ export function FeedbackWidget({ pageId, title = "Was this helpful?" }: Feedback
                 setShowCommentBox(false);
                 setSubmitted(true);
               }}
-              className="px-4 py-2 text-neutral-600 hover:text-neutral-800 font-medium transition-colors cursor-pointer"
+              className="px-4 py-2 text-neutral-600 hover:text-neutral-800 font-medium transition-colors"
             >
               Skip
             </button>
@@ -126,7 +126,7 @@ export function FeedbackWidget({ pageId, title = "Was this helpful?" }: Feedback
               type="button"
               onClick={handleSubmitComment}
               disabled={comment.trim().length === 0}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Submit Feedback
             </button>

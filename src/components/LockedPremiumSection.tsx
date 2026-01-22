@@ -1,5 +1,4 @@
 import { Lock, BarChart3, TrendingUp, Table2, Target, FileCheck } from 'lucide-react';
-import { usePublicPricing } from '../utils/usePublicPricing';
 
 interface LockedPremiumSectionProps {
   onUnlock: () => void;
@@ -7,7 +6,6 @@ interface LockedPremiumSectionProps {
 }
 
 export function LockedPremiumSection({ onUnlock, isLoading = false }: LockedPremiumSectionProps) {
-  const { priceLabel } = usePublicPricing();
   return (
     <div className="relative bg-white rounded-2xl shadow-sm border-2 border-primary/30 overflow-hidden">
       {/* Blur overlay */}
@@ -25,10 +23,10 @@ export function LockedPremiumSection({ onUnlock, isLoading = false }: LockedPrem
           <button
             onClick={onUnlock}
             disabled={isLoading}
-            className="inline-flex items-center space-x-2 px-8 py-3.5 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary-hover transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="inline-flex items-center space-x-2 px-8 py-3.5 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary-hover transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Lock className="w-5 h-5" />
-            <span>{isLoading ? 'Processing...' : `Unlock for ${priceLabel}`}</span>
+            <span>{isLoading ? 'Processing...' : 'Unlock for AED 49'}</span>
           </button>
         </div>
       </div>
@@ -45,7 +43,7 @@ export function LockedPremiumSection({ onUnlock, isLoading = false }: LockedPrem
               <p className="text-neutral-600">Complete investment summary with grade analysis</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="border border-border rounded-lg p-4 bg-neutral-50">
               <div className="h-4 bg-neutral-200 rounded w-24 mb-2"></div>
               <div className="h-8 bg-neutral-300 rounded w-32"></div>
@@ -212,7 +210,7 @@ export function LockedPremiumSection({ onUnlock, isLoading = false }: LockedPrem
           <div className="space-y-4">
             <div className="border border-border rounded-lg p-4">
               <div className="h-5 bg-neutral-200 rounded w-48 mb-3"></div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <div className="h-4 bg-neutral-200 rounded"></div>
                 <div className="h-4 bg-neutral-200 rounded"></div>
                 <div className="h-4 bg-neutral-200 rounded"></div>
@@ -221,7 +219,7 @@ export function LockedPremiumSection({ onUnlock, isLoading = false }: LockedPrem
             </div>
             <div className="border border-border rounded-lg p-4">
               <div className="h-5 bg-neutral-200 rounded w-48 mb-3"></div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <div className="h-4 bg-neutral-200 rounded"></div>
                 <div className="h-4 bg-neutral-200 rounded"></div>
                 <div className="h-4 bg-neutral-200 rounded"></div>

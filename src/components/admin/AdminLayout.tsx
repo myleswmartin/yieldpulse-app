@@ -30,7 +30,7 @@ export default function AdminLayout() {
     { path: '/admin/discounts', label: 'Discounts', icon: Tag },
     { path: '/admin/documents', label: 'Documents', icon: FolderOpen },
     { path: '/admin/support', label: 'Support', icon: MessageCircle },
-    // { path: '/admin/contact-submissions', label: 'Contact', icon: Mail },
+    { path: '/admin/contact-submissions', label: 'Contact', icon: Mail },
     { path: '/admin/webhooks', label: 'Webhooks', icon: Webhook },
     { path: '/admin/audit-log', label: 'Audit Log', icon: FileText },
     { path: '/admin/settings', label: 'Settings', icon: Settings },
@@ -92,7 +92,7 @@ export default function AdminLayout() {
             </Link>
             <button
               onClick={signOut}
-              className="flex items-center space-x-1 text-neutral-600 hover:text-foreground text-sm transition-colors cursor-pointer"
+              className="flex items-center space-x-1 text-neutral-600 hover:text-foreground text-sm transition-colors"
             >
               <LogOut className="w-4 h-4" />
               <span>Sign Out</span>

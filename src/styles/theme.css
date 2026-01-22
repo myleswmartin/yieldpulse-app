@@ -86,23 +86,6 @@
   --teal-light: #5eead4;
 }
 
-/* Global responsive type scale */
-:root {
-  font-size: var(--font-size);
-}
-
-@media (max-width: 640px) {
-  :root {
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 480px) {
-  :root {
-    font-size: 13px;
-  }
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -379,9 +362,4 @@
   .hover-teal {
     @apply hover:bg-secondary-hover;
   }
-}
-
-
-.pdf-export-scope {
-  background-color: #ffffff;
 }

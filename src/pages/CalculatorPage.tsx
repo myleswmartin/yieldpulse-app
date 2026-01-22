@@ -299,7 +299,7 @@ export default function CalculatorPage() {
     <div className="min-h-screen bg-neutral-50">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
         {/* Page Header */}
         <div className="mb-12">
           <div className="flex items-center space-x-4 mb-4">
@@ -307,9 +307,7 @@ export default function CalculatorPage() {
               <Calculator className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
-                UAE Property ROI Calculator
-              </h1>
+              <h1 className="text-3xl font-bold text-foreground tracking-tight">UAE Property ROI Calculator</h1>
               <p className="text-neutral-600 mt-1">Enter your property details to calculate investment returns</p>
             </div>
           </div>
@@ -358,9 +356,7 @@ export default function CalculatorPage() {
             {/* Property Information Section */}
             <div className="p-8 lg:p-10">
               <div className="mb-6">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mb-2">
-                  Property Information
-                </h2>
+                <h2 className="font-semibold text-foreground mb-2">Property Information</h2>
                 <p className="text-sm text-neutral-600">Basic details about the property you are analyzing</p>
               </div>
               
@@ -449,9 +445,7 @@ export default function CalculatorPage() {
             {/* Rent Section */}
             <div className="p-8 lg:p-10">
               <div className="mb-6">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mb-2">
-                  Rent Information
-                </h2>
+                <h2 className="font-semibold text-foreground mb-2">Rent Information</h2>
                 <p className="text-sm text-neutral-600">Expected rental income from the property</p>
               </div>
               
@@ -479,9 +473,7 @@ export default function CalculatorPage() {
             {/* Financing Section */}
             <div className="p-8 lg:p-10">
               <div className="mb-6">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mb-2">
-                  Financing
-                </h2>
+                <h2 className="font-semibold text-foreground mb-2">Financing</h2>
                 <p className="text-sm text-neutral-600">Mortgage and down payment details</p>
               </div>
               
@@ -547,9 +539,7 @@ export default function CalculatorPage() {
             {/* Operating Costs Section */}
             <div className="p-8 lg:p-10">
               <div className="mb-6">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mb-2">
-                  Operating Costs
-                </h2>
+                <h2 className="font-semibold text-foreground mb-2">Operating Costs</h2>
                 <p className="text-sm text-neutral-600">Annual expenses and maintenance for the property</p>
               </div>
               
@@ -646,9 +636,7 @@ export default function CalculatorPage() {
             {/* Assumptions Section */}
             <div className="p-8 lg:p-10">
               <div className="mb-6">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground mb-2">
-                  Risk Assumptions
-                </h2>
+                <h2 className="font-semibold text-foreground mb-2">Risk Assumptions</h2>
                 <p className="text-sm text-neutral-600">Expected vacancy and market conditions</p>
               </div>
               
@@ -725,7 +713,7 @@ export default function CalculatorPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="group inline-flex items-center space-x-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer"
+                  className="group inline-flex items-center space-x-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   <span>{saving ? 'Calculating...' : 'Calculate ROI'}</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -769,7 +757,7 @@ export default function CalculatorPage() {
               <div className="mt-8 text-center">
                 <button
                   onClick={() => navigate('/results', { state: { inputs: formData, results } })}
-                  className="inline-flex items-center space-x-2 text-primary font-medium hover:text-primary-hover transition-colors cursor-pointer"
+                  className="inline-flex items-center space-x-2 text-primary font-medium hover:text-primary-hover transition-colors"
                 >
                   <span>View Detailed Analysis</span>
                   <ArrowRight className="w-5 h-5" />

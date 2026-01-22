@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { FileText, Download, Eye, Search, Calendar, DollarSign, TrendingUp, User } from 'lucide-react';
+import { FileText, Download, Eye, Search, Filter, Calendar, DollarSign, TrendingUp, User } from 'lucide-react';
 import { toast } from 'sonner';
-import { adminApi } from '../../utils/adminApi';
 
 interface Report {
   id: string;
@@ -25,34 +24,91 @@ export default function AdminReports() {
   const [filter, setFilter] = useState<'all' | 'paid' | 'free'>('all');
   const [sortBy, setSortBy] = useState<'date' | 'yield' | 'price'>('date');
 
+  // Mock data - in production, fetch from API
   useEffect(() => {
     fetchReports();
-  }, [filter, sortBy, search]);
+  }, [filter, sortBy]);
 
   const fetchReports = async () => {
-    try {
-      setLoading(true);
-      const { reports: data } = await adminApi.reports.list({
-        status: filter,
-        sort: sortBy,
-        search: search.trim() || undefined,
-      });
-      setReports(data || []);
-    } catch (error: any) {
-      console.error('Failed to fetch reports:', error);
-      toast.error(error.message || 'Failed to load reports');
-    } finally {
-      setLoading(false);
+    setLoading(true);
+    
+    // Mock data
+    const mockReports: Report[] = [
+      {
+        id: '1',
+        user_id: 'user1',
+        user_email: 'investor@example.com',
+        property_name: 'Marina View Apartment',
+        portal_source: 'Property Finder',
+        listing_url: 'https://propertyfinder.ae/...',
+        purchase_price: 1500000,
+        gross_yield: 7.2,
+        net_yield: 5.8,
+        cash_on_cash_return: 12.5,
+        is_paid: true,
+        created_at: '2025-01-09T10:30:00Z',
+      },
+      {
+        id: '2',
+        user_id: 'user2',
+        user_email: 'buyer@example.com',
+        property_name: 'Downtown Studio',
+        portal_source: 'Bayut',
+        listing_url: 'https://bayut.com/...',
+        purchase_price: 850000,
+        gross_yield: 6.5,
+        net_yield: 4.9,
+        cash_on_cash_return: 10.2,
+        is_paid: false,
+        created_at: '2025-01-08T14:20:00Z',
+      },
+      {
+        id: '3',
+        user_id: 'user3',
+        user_email: 'realestate@example.com',
+        property_name: 'Business Bay Office',
+        portal_source: 'Dubizzle',
+        listing_url: 'https://dubizzle.com/...',
+        purchase_price: 2100000,
+        gross_yield: 8.1,
+        net_yield: 6.7,
+        cash_on_cash_return: 15.3,
+        is_paid: true,
+        created_at: '2025-01-07T09:15:00Z',
+      },
+    ];
+
+    // Apply filters
+    let filtered = mockReports;
+    if (filter === 'paid') {
+      filtered = filtered.filter(r => r.is_paid);
+    } else if (filter === 'free') {
+      filtered = filtered.filter(r => !r.is_paid);
     }
+
+    // Apply sorting
+    if (sortBy === 'yield') {
+      filtered.sort((a, b) => b.net_yield - a.net_yield);
+    } else if (sortBy === 'price') {
+      filtered.sort((a, b) => b.purchase_price - a.purchase_price);
+    } else {
+      filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+
+    setReports(filtered);
+    setLoading(false);
   };
 
-  const filteredReports = reports;
+  const filteredReports = reports.filter(report =>
+    report.property_name.toLowerCase().includes(search.toLowerCase()) ||
+    report.user_email.toLowerCase().includes(search.toLowerCase())
+  );
 
   const stats = {
     total: reports.length,
     paid: reports.filter(r => r.is_paid).length,
     free: reports.filter(r => !r.is_paid).length,
-    avgYield: reports.length > 0 ? (reports.reduce((sum, r) => sum + r.net_yield, 0) / reports.length).toFixed(2) : '0.00',
+    avgYield: (reports.reduce((sum, r) => sum + r.net_yield, 0) / reports.length).toFixed(2),
   };
 
   return (
@@ -228,14 +284,14 @@ export default function AdminReports() {
                       <div className="flex items-center justify-center space-x-2">
                         <button
                           onClick={() => toast.info('View report functionality')}
-                          className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                           title="View Report"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => toast.info('Download report functionality')}
-                          className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                           title="Download Report"
                         >
                           <Download className="w-4 h-4" />
@@ -257,10 +313,10 @@ export default function AdminReports() {
                 Showing <span className="font-semibold">{filteredReports.length}</span> reports
               </div>
               <div className="flex items-center space-x-2">
-                <button className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-white transition-colors cursor-pointer">
+                <button className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-white transition-colors">
                   Previous
                 </button>
-                <button className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer">
+                <button className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors">
                   Next
                 </button>
               </div>

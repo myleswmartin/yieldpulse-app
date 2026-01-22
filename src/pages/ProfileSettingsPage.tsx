@@ -241,7 +241,7 @@ export default function ProfileSettingsPage() {
       <Header />
       
       <main className="flex-grow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
           {/* Page Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-primary">Profile & Settings</h1>
@@ -262,7 +262,7 @@ export default function ProfileSettingsPage() {
                       activeSection === item.id
                         ? 'bg-primary text-white'
                         : 'text-slate-700 hover:bg-slate-50'
-                    } cursor-pointer`}
+                    }`}
                   >
                     <item.icon className="w-5 h-5" />
                     <span className="font-medium text-sm">{item.label}</span>
@@ -393,7 +393,7 @@ export default function ProfileSettingsPage() {
                         <button
                           onClick={handleSaveProfile}
                           disabled={isSaving}
-                          className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isSaving ? 'Saving...' : 'Save Changes'}
                         </button>
@@ -448,7 +448,7 @@ export default function ProfileSettingsPage() {
                           <button
                             onClick={handleChangePassword}
                             disabled={isSaving || !passwordForm.newPassword || !passwordForm.confirmPassword}
-                            className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isSaving ? 'Updating...' : 'Update Password'}
                           </button>
@@ -501,7 +501,7 @@ export default function ProfileSettingsPage() {
                     </div>
 
                     {purchases.length === 0 ? (
-                      <div className="text-center py-10 sm:py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                      <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
                         <CreditCard className="w-16 h-16 text-slate-300 mx-auto mb-4" />
                         <p className="text-slate-600 text-lg font-medium mb-2">No purchases yet</p>
                         <p className="text-sm text-slate-500 mb-6">
@@ -584,7 +584,7 @@ export default function ProfileSettingsPage() {
                           onClick={() => setNotifications({ ...notifications, reportPurchaseConfirmation: !notifications.reportPurchaseConfirmation })}
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                             notifications.reportPurchaseConfirmation ? 'bg-primary' : 'bg-slate-300'
-                          } cursor-pointer`}
+                          }`}
                         >
                           <span
                             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -603,7 +603,7 @@ export default function ProfileSettingsPage() {
                           onClick={() => setNotifications({ ...notifications, platformUpdates: !notifications.platformUpdates })}
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                             notifications.platformUpdates ? 'bg-primary' : 'bg-slate-300'
-                          } cursor-pointer`}
+                          }`}
                         >
                           <span
                             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -622,7 +622,7 @@ export default function ProfileSettingsPage() {
                           onClick={() => setNotifications({ ...notifications, marketInsights: !notifications.marketInsights })}
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                             notifications.marketInsights ? 'bg-primary' : 'bg-slate-300'
-                          } cursor-pointer`}
+                          }`}
                         >
                           <span
                             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -646,7 +646,7 @@ export default function ProfileSettingsPage() {
                         <button
                           onClick={handleSaveNotifications}
                           disabled={isSaving}
-                          className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isSaving ? 'Saving...' : 'Save Preferences'}
                         </button>
@@ -676,7 +676,7 @@ export default function ProfileSettingsPage() {
                           </div>
                           <button
                             onClick={handleDownloadData}
-                            className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors flex items-center space-x-2 cursor-pointer"
+                            className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors flex items-center space-x-2"
                           >
                             <Download className="w-4 h-4" />
                             <span>Export Data</span>
@@ -694,7 +694,7 @@ export default function ProfileSettingsPage() {
                           </div>
                           <button
                             onClick={handleRequestDeletion}
-                            className="px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center space-x-2 cursor-pointer"
+                            className="px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center space-x-2"
                           >
                             <Trash2 className="w-4 h-4" />
                             <span>Delete Account</span>

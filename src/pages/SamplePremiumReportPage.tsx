@@ -3,8 +3,10 @@ import { PropertyInputs, calculateROI, formatCurrency, formatPercent } from '../
 import { Header } from '../components/Header';
 import { FloatingCTA } from '../components/FloatingCTA';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Calculator } from 'lucide-react';
-import { usePublicPricing } from '../utils/usePublicPricing';
+import { ArrowRight, Calculator, Printer } from 'lucide-react';
+import { generatePDF, ReportSnapshot } from '../utils/pdfGenerator';
+import { showSuccess, handleError } from '../utils/errorHandling';
+import { useState } from 'react';
 
 // ================================================================
 // 🔒 LOCKED SAMPLE PREMIUM REPORT - DO NOT MODIFY
@@ -19,8 +21,6 @@ import { usePublicPricing } from '../utils/usePublicPricing';
 // ================================================================
 
 export default function SamplePremiumReportPage() {
-  const { priceLabel } = usePublicPricing();
-
   // Sample UAE property data - realistic 1BR apartment in Dubai Marina
   // 🔒 LOCKED - All values verified in CALCULATION_VERIFICATION.md
   const sampleInputs: PropertyInputs = {
@@ -98,6 +98,112 @@ export default function SamplePremiumReportPage() {
   // Calculate annualized return
   const annualizedReturn = ((Math.pow(1 + diagnosticValues.roi / 100, 1 / 5) - 1) * 100);
 
+  // State for PDF generation
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+
+  // Function to map sample data to ReportSnapshot format
+  const createSampleSnapshot = (): ReportSnapshot => {
+    // Calculate derived values
+    const vacancyAllowance = sampleResults.grossAnnualRentalIncome * (sampleInputs.vacancyRatePercent / 100);
+    const sellingFee = sampleResults.projection[4].propertyValue * 0.02;
+    
+    return {
+      inputs: {
+        portal_source: 'Sample_Premium_Report',
+        listing_url: undefined,
+        purchase_price: sampleInputs.purchasePrice,
+        expected_monthly_rent: sampleInputs.expectedMonthlyRent,
+        down_payment_percent: sampleInputs.downPaymentPercent,
+        mortgage_interest_rate: sampleInputs.mortgageInterestRate,
+        loan_term_years: sampleInputs.mortgageTermYears,
+        service_charge_per_year: sampleInputs.serviceChargeAnnual,
+        maintenance_per_year: sampleResults.annualMaintenanceCosts,
+        property_management_fee: sampleResults.annualPropertyManagementFee,
+        vacancy_rate: sampleInputs.vacancyRatePercent,
+        rent_growth_rate: sampleInputs.rentGrowthPercent,
+        capital_growth_rate: sampleInputs.capitalGrowthPercent,
+        holding_period_years: sampleInputs.holdingPeriodYears,
+        area_sqft: sampleInputs.areaSqft,
+      },
+      results: {
+        // Core metrics
+        grossYield: sampleResults.grossRentalYield,
+        netYield: sampleResults.netRentalYield,
+        cashOnCashReturn: sampleResults.cashOnCashReturn,
+        capRate: sampleResults.capRate,
+        monthlyCashFlow: sampleResults.monthlyCashFlow,
+        annualCashFlow: sampleResults.annualCashFlow,
+        monthlyMortgagePayment: sampleResults.monthlyMortgagePayment,
+        totalOperatingCosts: sampleResults.totalAnnualOperatingExpenses,
+        monthlyIncome: sampleInputs.expectedMonthlyRent,
+        annualIncome: sampleResults.grossAnnualRentalIncome,
+        costPerSqft: sampleResults.costPerSqft,
+        rentPerSqft: sampleResults.rentPerSqft,
+        
+        // Initial investment components
+        downPaymentAmount: sampleResults.downPaymentAmount,
+        dldFee: sampleResults.dldFee,
+        agentFee: sampleResults.agentFee,
+        otherClosingCosts: sampleResults.otherClosingCosts,
+        totalInitialInvestment: sampleResults.totalInitialInvestment,
+        
+        // Loan details
+        loanAmount: sampleResults.loanAmount,
+        annualMortgagePayment: sampleResults.annualMortgagePayment,
+        
+        // Operating expense breakdown
+        annualServiceCharge: sampleResults.annualServiceCharge,
+        annualMaintenanceCosts: sampleResults.annualMaintenanceCosts,
+        annualPropertyManagementFee: sampleResults.annualPropertyManagementFee,
+        totalAnnualOperatingExpenses: sampleResults.totalAnnualOperatingExpenses,
+        grossAnnualRentalIncome: sampleResults.grossAnnualRentalIncome,
+        effectiveAnnualRentalIncome: sampleResults.effectiveAnnualRentalIncome,
+        netOperatingIncome: sampleResults.netOperatingIncome,
+        vacancyAmount: vacancyAllowance,
+        
+        // Amortization
+        firstYearAmortization: {
+          principal: firstYearAmortization.principal,
+          interest: firstYearAmortization.interest,
+        },
+        totalInterestOverTerm: totalInterestOverTerm,
+        
+        // Exit scenario
+        sellingFee: sellingFee,
+        
+        // 5-year projection
+        projection: sampleResults.projection,
+        
+        // Sensitivity analysis
+        sensitivityAnalysis: sampleResults.sensitivityAnalysis,
+      },
+    };
+  };
+
+  // Handler for PDF download
+  const handleDownloadSamplePDF = async () => {
+    setGeneratingPDF(true);
+    
+    try {
+      const snapshot = createSampleSnapshot();
+      const sampleDate = `Sample Report - ${new Date().toISOString().split('T')[0]}`;
+      const sampleFileName = `YieldPulse_Sample_Premium_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      await generatePDF(snapshot, sampleDate, sampleFileName);
+      
+      showSuccess('Sample PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating sample PDF:', error);
+      handleError(
+        'Failed to generate PDF. Please try again.',
+        'Download Sample PDF',
+        handleDownloadSamplePDF
+      );
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <Header />
@@ -129,6 +235,13 @@ export default function SamplePremiumReportPage() {
       <main className="pb-12 pdf-page-container">
         {/* Primary Download CTA - Above the fold */}
         <div className="max-w-5xl mx-auto px-4 pt-8 pb-6 no-print">
+          <button
+            onClick={handleDownloadSamplePDF}
+            disabled={generatingPDF}
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            {generatingPDF ? 'Generating PDF...' : 'Download Sample as PDF'}
+          </button>
         </div>
 
         {/* Print-only header banner */}
@@ -153,7 +266,7 @@ export default function SamplePremiumReportPage() {
                 Ready to Analyze Your Own Property?
               </h2>
               <p className="text-white/90 mb-6 max-w-2xl mx-auto">
-                Real analyses use your property's data. Get instant free metrics, then unlock your own comprehensive Premium Report for just {priceLabel}.
+                Real analyses use your property's data. Get instant free metrics, then unlock your own comprehensive Premium Report for just AED 49.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link 
@@ -180,12 +293,10 @@ export default function SamplePremiumReportPage() {
           <div className="mt-4 text-center">
             <button
               onClick={() => window.print()}
-              className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium text-sm underline cursor-pointer"
+              className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium text-sm underline"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-              </svg>
-              Download this sample as PDF
+              <Printer className="w-4 h-4" />
+              Print this sample
             </button>
           </div>
         </div>

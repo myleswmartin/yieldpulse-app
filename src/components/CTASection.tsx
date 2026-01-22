@@ -18,7 +18,7 @@ export function CTASection({
 
   return (
     <section className={`py-20 ${bgClass} text-white`}>
-      <div className="max-w-4xl mx-auto px-4 sm:px-4 sm:px-6 lg:px-8 text-center">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <h2 className="text-3xl sm:text-4xl font-bold mb-6">
           {title}
         </h2>
