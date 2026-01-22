@@ -7,6 +7,7 @@ import { ArrowRight, Calculator, Printer } from 'lucide-react';
 import { generatePDF, ReportSnapshot } from '../utils/pdfGenerator';
 import { showSuccess, handleError } from '../utils/errorHandling';
 import { useState } from 'react';
+import { usePublicPricing } from '../utils/usePublicPricing';
 
 // ================================================================
 // 🔒 LOCKED SAMPLE PREMIUM REPORT - DO NOT MODIFY
@@ -21,6 +22,7 @@ import { useState } from 'react';
 // ================================================================
 
 export default function SamplePremiumReportPage() {
+  const { priceLabel } = usePublicPricing();
   // Sample UAE property data - realistic 1BR apartment in Dubai Marina
   // 🔒 LOCKED - All values verified in CALCULATION_VERIFICATION.md
   const sampleInputs: PropertyInputs = {
@@ -266,7 +268,7 @@ export default function SamplePremiumReportPage() {
                 Ready to Analyze Your Own Property?
               </h2>
               <p className="text-white/90 mb-6 max-w-2xl mx-auto">
-                Real analyses use your property's data. Get instant free metrics, then unlock your own comprehensive Premium Report for just AED 49.
+                Real analyses use your property's data. Get instant free metrics, then unlock your own comprehensive Premium Report for just {priceLabel}.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link 

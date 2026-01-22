@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePublicPricing } from '../utils/usePublicPricing';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   TrendingUp,
@@ -259,6 +260,7 @@ function CodeSnippet({ code, language = 'css' }: { code: string; language?: stri
 
 export default function InteractiveBrandGuidelines() {
   const [activeTab, setActiveTab] = useState('overview');
+  const { priceLabel } = usePublicPricing();
 
   return (
     <div className="min-h-screen">
@@ -479,7 +481,7 @@ export default function InteractiveBrandGuidelines() {
                 <h3 className="text-2xl font-bold text-foreground mb-6">At a Glance</h3>
                 <div className="grid sm:grid-cols-4 gap-6">
                   {[
-                    { label: 'Premium Price', value: 'AED 49', color: 'primary' },
+                    { label: 'Premium Price', value: priceLabel, color: 'primary' },
                     { label: 'Weekly Users', value: '500+', color: 'secondary' },
                     { label: 'Analysis Time', value: '2 min', color: 'success' },
                     { label: 'Market Focus', value: 'UAE', color: 'warning' }

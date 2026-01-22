@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { CTASection } from '../components/CTASection';
+import { usePublicPricing } from '../utils/usePublicPricing';
 import { 
   Building, 
   Calculator, 
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function HowItWorksPage() {
+  const { priceLabel } = usePublicPricing();
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 via-white to-neutral-50">
       <Header />
@@ -149,7 +151,7 @@ export default function HowItWorksPage() {
               </h3>
               <p className="text-neutral-600">
                 Unlock comprehensive PDF reports with 5 year projections, sensitivity analysis, 
-                and exit strategies for just AED 49.
+                and exit strategies for just {priceLabel}.
               </p>
             </div>
 
@@ -422,7 +424,7 @@ export default function HowItWorksPage() {
                   </h3>
                 </div>
                 <p className="text-neutral-600 mb-4 leading-relaxed">
-                  Want more detail? Pay AED 49 to unlock your comprehensive PDF report with 5 year projections, 
+                  Want more detail? Pay {priceLabel} to unlock your comprehensive PDF report with 5 year projections, 
                   sensitivity analysis, and detailed breakdowns of all calculations and assumptions.
                 </p>
                 <div className="bg-neutral-50 p-4 rounded-lg border border-neutral-200 space-y-2">

@@ -67,6 +67,16 @@ function buildPropertyInputsFromAnalysis(analysis: any): Partial<PropertyInputs>
   }
 }
 
+const LAST_RESULTS_STORAGE_KEY = 'yieldpulse-last-results';
+const LAST_RESULTS_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
+
+type StoredResultsState = {
+  inputs: Partial<PropertyInputs>;
+  results: CalculationResults;
+  analysisId?: string | null;
+  savedAt: number;
+};
+
 export default function ResultsPage() {
   const location = useLocation();
   const { user } = useAuth();
@@ -79,20 +89,24 @@ export default function ResultsPage() {
   const passedAnalysisId = location.state?.analysisId;
   const isSavedFromCalculator = location.state?.isSaved || false;
 
+  const [restoredState, setRestoredState] = useState<StoredResultsState | null>(null);
+
   // ================================================================
   // DETERMINE DISPLAY INPUTS & RESULTS WITH ROBUST PRECEDENCE
   // ================================================================
   let displayInputs: Partial<PropertyInputs> | null = null;
   let displayResults: CalculationResults | null = null;
 
-  // Inputs precedence: direct inputs > build from analysis > null
+  // Inputs precedence: direct inputs > build from analysis > restored > null
   if (inputs) {
     displayInputs = inputs;
   } else if (savedAnalysis) {
     displayInputs = buildPropertyInputsFromAnalysis(savedAnalysis);
+  } else if (restoredState?.inputs) {
+    displayInputs = restoredState.inputs;
   }
 
-  // Results precedence: direct results > analysis.calculation_results > null
+  // Results precedence: direct results > analysis.calculation_results > restored > null
   if (results) {
     displayResults = results;
   } else if (savedAnalysis?.calculation_results) {
@@ -101,6 +115,8 @@ export default function ResultsPage() {
     } catch (error) {
       console.error('Error parsing calculation_results:', error);
     }
+  } else if (restoredState?.results) {
+    displayResults = restoredState.results as CalculationResults;
   }
 
   // ================================================================
@@ -126,6 +142,50 @@ export default function ResultsPage() {
   
   // Determine if premium should be shown
   const showPremiumContent = isPremiumUnlocked || (user?.isAdmin && adminPreviewEnabled);
+
+  // Restore results from storage if we landed here without route state (e.g., Stripe cancel redirect)
+  useEffect(() => {
+    if (results || savedAnalysis?.calculation_results || restoredState) return;
+    try {
+      const raw = sessionStorage.getItem(LAST_RESULTS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as StoredResultsState;
+      if (!parsed?.inputs || !parsed?.results) return;
+      if (parsed.savedAt && Date.now() - parsed.savedAt > LAST_RESULTS_TTL_MS) return;
+      setRestoredState(parsed);
+    } catch (error) {
+      console.warn('Failed to restore results from storage:', error);
+    }
+  }, [results, savedAnalysis, restoredState]);
+
+  // Persist latest results to storage for Stripe redirects
+  useEffect(() => {
+    if (!displayInputs || !displayResults) return;
+    try {
+      const stored: StoredResultsState = {
+        inputs: displayInputs,
+        results: displayResults,
+        analysisId: analysisId || passedAnalysisId || savedAnalysis?.id || null,
+        savedAt: Date.now(),
+      };
+      sessionStorage.setItem(LAST_RESULTS_STORAGE_KEY, JSON.stringify(stored));
+    } catch (error) {
+      console.warn('Failed to save results to storage:', error);
+    }
+  }, [displayInputs, displayResults, analysisId, passedAnalysisId, savedAnalysis?.id]);
+
+  // Restore analysisId if it was cached
+  useEffect(() => {
+    if (!analysisId && restoredState?.analysisId) {
+      setAnalysisId(restoredState.analysisId);
+    }
+  }, [analysisId, restoredState?.analysisId]);
+
+  useEffect(() => {
+    if (analysisId && !isSaved) {
+      setIsSaved(true);
+    }
+  }, [analysisId, isSaved]);
 
   // Check purchase status on mount if we have an analysis ID
   useEffect(() => {
@@ -252,13 +312,13 @@ export default function ResultsPage() {
         }
       } else {
         // Guest checkout for non-authenticated users OR users who haven't saved
-        if (!inputs || !displayResults) {
+        if (!displayInputs || !displayResults) {
           handleError('Analysis data not available. Please try again.', 'Create Checkout');
           return;
         }
 
         const { data, error, requestId } = await createGuestCheckoutSession({
-          inputs,
+          inputs: displayInputs,
           results: displayResults,
           origin: currentOrigin,
         });
@@ -317,20 +377,20 @@ export default function ResultsPage() {
   };
   
   const handleSaveReport = async () => {
-    if (!user || !inputs || !results) return;
+    if (!user || !displayInputs || !displayResults) return;
 
     setSaving(true);
     
     try {
       console.log('💾 [ResultsPage] Saving analysis with data:', {
-        hasPropertyName: !!inputs.propertyName,
-        propertyName: inputs.propertyName,
-        portalSource: inputs.portalSource
+        hasPropertyName: !!displayInputs.propertyName,
+        propertyName: displayInputs.propertyName,
+        portalSource: displayInputs.portalSource
       });
       
       const { data, error, requestId } = await saveAnalysis({
-        inputs,
-        results,
+        inputs: displayInputs as PropertyInputs,
+        results: displayResults,
       });
 
       if (error) {
@@ -632,7 +692,7 @@ export default function ResultsPage() {
         )}
 
         {/* SAVE ENFORCEMENT BANNER - Show if authenticated but not saved */}
-        {user && !isSaved && !analysisId && inputs && results && (
+        {user && !isSaved && !analysisId && displayInputs && displayResults && (
           <div className="bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/10 border-2 border-primary/30 rounded-xl p-6 mb-8 shadow-sm">
             <div className="flex items-start space-x-4">
               <div className="p-2.5 bg-primary rounded-lg flex-shrink-0">
@@ -659,7 +719,7 @@ export default function ResultsPage() {
         )}
 
         {/* SAVE REPORT SECTION - For non-authenticated users */}
-        {!user && inputs && results && (
+        {!user && displayInputs && displayResults && (
           <div className="bg-gradient-to-br from-primary/5 via-white to-secondary/5 border-2 border-primary/20 rounded-2xl p-8 mb-8 shadow-lg">
             <div className="flex items-start gap-6">
               <div className="p-4 bg-gradient-to-br from-primary to-primary-hover rounded-2xl flex-shrink-0 shadow-md">
@@ -706,7 +766,7 @@ export default function ResultsPage() {
                 <div className="flex flex-wrap items-center gap-3">
                   <Link
                     to="/auth/signup"
-                    state={{ from: location.pathname, inputs, results }}
+                    state={{ from: location.pathname, inputs: displayInputs, results: displayResults }}
                     className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-xl font-semibold hover:bg-primary-hover transition-all shadow-md hover:shadow-lg hover:scale-[1.02]"
                   >
                     <UserPlus className="w-5 h-5" />
@@ -722,7 +782,7 @@ export default function ResultsPage() {
                   </button>
                   <Link
                     to="/auth/signin"
-                    state={{ from: location.pathname, inputs, results }}
+                    state={{ from: location.pathname, inputs: displayInputs, results: displayResults }}
                     className="inline-flex items-center gap-2 px-6 py-4 bg-white text-primary border-2 border-primary/30 rounded-xl font-medium hover:bg-primary/5 hover:border-primary transition-all"
                   >
                     <LogIn className="w-4 h-4" />

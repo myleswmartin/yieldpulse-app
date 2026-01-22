@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { FileText, Download, Eye, Search, Filter, Calendar, DollarSign, TrendingUp, User } from 'lucide-react';
+import { FileText, Download, Eye, Search, DollarSign, TrendingUp, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { adminApi } from '../../utils/adminApi';
 
 interface Report {
   id: string;
@@ -20,83 +21,40 @@ interface Report {
 export default function AdminReports() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'paid' | 'free'>('all');
   const [sortBy, setSortBy] = useState<'date' | 'yield' | 'price'>('date');
+  const [total, setTotal] = useState(0);
 
-  // Mock data - in production, fetch from API
   useEffect(() => {
     fetchReports();
-  }, [filter, sortBy]);
+  }, [filter, sortBy, search]);
 
   const fetchReports = async () => {
     setLoading(true);
-    
-    // Mock data
-    const mockReports: Report[] = [
-      {
-        id: '1',
-        user_id: 'user1',
-        user_email: 'investor@example.com',
-        property_name: 'Marina View Apartment',
-        portal_source: 'Property Finder',
-        listing_url: 'https://propertyfinder.ae/...',
-        purchase_price: 1500000,
-        gross_yield: 7.2,
-        net_yield: 5.8,
-        cash_on_cash_return: 12.5,
-        is_paid: true,
-        created_at: '2025-01-09T10:30:00Z',
-      },
-      {
-        id: '2',
-        user_id: 'user2',
-        user_email: 'buyer@example.com',
-        property_name: 'Downtown Studio',
-        portal_source: 'Bayut',
-        listing_url: 'https://bayut.com/...',
-        purchase_price: 850000,
-        gross_yield: 6.5,
-        net_yield: 4.9,
-        cash_on_cash_return: 10.2,
-        is_paid: false,
-        created_at: '2025-01-08T14:20:00Z',
-      },
-      {
-        id: '3',
-        user_id: 'user3',
-        user_email: 'realestate@example.com',
-        property_name: 'Business Bay Office',
-        portal_source: 'Dubizzle',
-        listing_url: 'https://dubizzle.com/...',
-        purchase_price: 2100000,
-        gross_yield: 8.1,
-        net_yield: 6.7,
-        cash_on_cash_return: 15.3,
-        is_paid: true,
-        created_at: '2025-01-07T09:15:00Z',
-      },
-    ];
+    setError(null);
 
-    // Apply filters
-    let filtered = mockReports;
-    if (filter === 'paid') {
-      filtered = filtered.filter(r => r.is_paid);
-    } else if (filter === 'free') {
-      filtered = filtered.filter(r => !r.is_paid);
+    try {
+      const data = await adminApi.reports.list({
+        status: filter,
+        sort: sortBy,
+        search: search || undefined,
+        page: 1,
+        limit: 50,
+      });
+
+      setReports(data.reports || []);
+      setTotal(data.total || 0);
+    } catch (err: any) {
+      console.error('Failed to fetch reports:', err);
+      setError(err.message || 'Failed to load reports');
+      toast.error(err.message || 'Failed to load reports');
+      setReports([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
     }
-
-    // Apply sorting
-    if (sortBy === 'yield') {
-      filtered.sort((a, b) => b.net_yield - a.net_yield);
-    } else if (sortBy === 'price') {
-      filtered.sort((a, b) => b.purchase_price - a.purchase_price);
-    } else {
-      filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }
-
-    setReports(filtered);
-    setLoading(false);
   };
 
   const filteredReports = reports.filter(report =>
@@ -105,10 +63,10 @@ export default function AdminReports() {
   );
 
   const stats = {
-    total: reports.length,
+    total: total || reports.length,
     paid: reports.filter(r => r.is_paid).length,
     free: reports.filter(r => !r.is_paid).length,
-    avgYield: (reports.reduce((sum, r) => sum + r.net_yield, 0) / reports.length).toFixed(2),
+    avgYield: reports.length ? (reports.reduce((sum, r) => sum + r.net_yield, 0) / reports.length).toFixed(2) : '0.00',
   };
 
   return (
@@ -118,6 +76,12 @@ export default function AdminReports() {
         <h1 className="text-3xl font-bold text-primary">Reports Management</h1>
         <p className="text-slate-600 mt-1">View and manage all generated property analysis reports</p>
       </div>
+
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

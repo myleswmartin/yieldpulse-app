@@ -15,23 +15,23 @@
 ```typescript
 const handleUnlockPremium = async () => {
   if (!user) {
-    alert('Please sign in to unlock the premium report');
+    alert("Please sign in to unlock the premium report");
     return;
   }
 
   if (!analysisId) {
-    alert('Analysis not saved. Please save your analysis first.');
+    alert("Analysis not saved. Please save your analysis first.");
     return;
   }
 
   setCreatingCheckout(true);
-  
+
   try {
     // Get user access token
     const { data: { session } } = await supabase.auth.getSession();
-    
+
     if (!session?.access_token) {
-      alert('Please sign in again to continue');
+      alert("Please sign in again to continue");
       return;
     }
 
@@ -39,28 +39,28 @@ const handleUnlockPremium = async () => {
     const response = await fetch(
       `https://${projectId}.supabase.co/functions/v1/make-server-ef294769/stripe/checkout-session`,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`, // USER JWT, NOT ANON KEY
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`, // USER JWT, NOT ANON KEY
         },
         body: JSON.stringify({
           analysisId,
           origin: currentOrigin,
         }),
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to create checkout session');
+      throw new Error(error.error || "Failed to create checkout session");
     }
 
     const { url } = await response.json();
     window.location.href = url;
   } catch (error) {
-    console.error('Error creating checkout session:', error);
-    alert('Failed to initiate payment. Please try again.');
+    console.error("Error creating checkout session:", error);
+    alert("Failed to initiate payment. Please try again.");
   } finally {
     setCreatingCheckout(false);
   }
@@ -87,7 +87,7 @@ app.post("/make-server-ef294769/stripe/checkout-session", async (c) => {
         global: {
           headers: { Authorization: `Bearer ${accessToken}` }, // USER JWT
         },
-      }
+      },
     );
 
     const {
@@ -108,23 +108,25 @@ app.post("/make-server-ef294769/stripe/checkout-session", async (c) => {
       "http://localhost:5173",
       "http://localhost:3000",
       "https://yieldpulse.vercel.app",
-      "https://yieldpulse-production.vercel.app"
+      "https://yieldpulse-production.vercel.app",
     ];
 
-    const clientOrigin = origin || c.req.header("origin") || c.req.header("referer")?.split("/").slice(0, 3).join("/");
-    
+    const clientOrigin = origin || c.req.header("origin") ||
+      c.req.header("referer")?.split("/").slice(0, 3).join("/");
+
     if (!clientOrigin || !allowedOrigins.includes(clientOrigin)) {
       console.error("Invalid origin:", clientOrigin);
       return c.json({ error: "Invalid origin" }, 403);
     }
 
-    const successUrl = `${clientOrigin}/dashboard?payment=success&analysisId=${analysisId}`;
-    const cancelUrl = `${clientOrigin}/dashboard?payment=cancelled`;
+    const successUrl =
+      `${clientOrigin}/dashboard?payment=success&analysisId=${analysisId}`;
+    const cancelUrl = `${clientOrigin}/dashboard`;
 
     // STEP 2: Use service role client for database operations
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")! // SERVICE ROLE for DB writes
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, // SERVICE ROLE for DB writes
     );
 
     // Fetch analysis owned by user
@@ -148,14 +150,15 @@ app.post("/make-server-ef294769/stripe/checkout-session", async (c) => {
       .eq("status", "paid");
 
     if (existingPaidPurchases && existingPaidPurchases.length > 0) {
-      return c.json({ 
+      return c.json({
         error: "Premium report already unlocked for this analysis",
-        alreadyPurchased: true 
+        alreadyPurchased: true,
       }, 400);
     }
 
     // Idempotency: check for recent pending purchase
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
+      .toISOString();
     const { data: recentPendingPurchases } = await supabase
       .from("report_purchases")
       .select("*")
@@ -176,7 +179,7 @@ app.post("/make-server-ef294769/stripe/checkout-session", async (c) => {
     } else {
       // Create minimized snapshot
       const snapshot = {
-        inputs: { /* minimized inputs */ },
+        inputs: {/* minimized inputs */},
         results: analysis.calculation_results,
         metadata: { analysisId: analysis.id, createdAt: analysis.created_at },
         report_version: "v1",
@@ -208,10 +211,10 @@ app.post("/make-server-ef294769/stripe/checkout-session", async (c) => {
     // Create Stripe session...
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
-      line_items: [{ /* ... */ }],
+      line_items: [{/* ... */}],
       mode: "payment",
       success_url: successUrl, // Server constructed
-      cancel_url: cancelUrl,   // Server constructed
+      cancel_url: cancelUrl, // Server constructed
       metadata: {
         purchase_id: purchase.id,
         user_id: user.id,
@@ -233,7 +236,7 @@ app.post("/make-server-ef294769/stripe/checkout-session", async (c) => {
 app.post("/make-server-ef294769/stripe/webhook", async (c) => {
   try {
     const signature = c.req.header("stripe-signature");
-    
+
     if (!signature) {
       return c.json({ error: "Missing signature" }, 400);
     }
@@ -246,7 +249,11 @@ app.post("/make-server-ef294769/stripe/webhook", async (c) => {
     // Verify webhook signature using raw bytes
     let event;
     try {
-      event = stripe.webhooks.constructEvent(bodyBuffer, signature, webhookSecret);
+      event = stripe.webhooks.constructEvent(
+        bodyBuffer,
+        signature,
+        webhookSecret,
+      );
     } catch (err) {
       console.error("Stripe webhook signature verification failed:", err);
       return c.json({ error: "Invalid signature" }, 400);
@@ -258,7 +265,7 @@ app.post("/make-server-ef294769/stripe/webhook", async (c) => {
 
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       );
 
       // Idempotency check
@@ -269,7 +276,10 @@ app.post("/make-server-ef294769/stripe/webhook", async (c) => {
         .single();
 
       if (existingPurchase?.status === "paid") {
-        console.log("Purchase already marked as paid (idempotent):", purchaseId);
+        console.log(
+          "Purchase already marked as paid (idempotent):",
+          purchaseId,
+        );
         return c.json({ received: true, alreadyProcessed: true });
       }
 
@@ -318,7 +328,7 @@ app.get("/make-server-ef294769/purchases/status", async (c) => {
         global: {
           headers: { Authorization: `Bearer ${accessToken}` },
         },
-      }
+      },
     );
 
     const {
@@ -335,7 +345,7 @@ app.get("/make-server-ef294769/purchases/status", async (c) => {
     // Use service role client for database query
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const { data: purchases, error } = await supabase
@@ -396,41 +406,42 @@ CREATE POLICY "Service role can delete purchases"
 ## Key Security Improvements
 
 ### 1. Authentication Flow
-✅ Frontend sends user JWT access token (not anon key)
-✅ Backend validates user with anon client + JWT
-✅ Service role used only for database operations after auth
+
+✅ Frontend sends user JWT access token (not anon key) ✅ Backend validates user
+with anon client + JWT ✅ Service role used only for database operations after
+auth
 
 ### 2. Server Controlled Security
-✅ Pricing hardcoded server side (AED 49)
-✅ Redirect URLs constructed from allowlist
-✅ Origin validation before checkout
+
+✅ Pricing hardcoded server side (AED 49) ✅ Redirect URLs constructed from
+allowlist ✅ Origin validation before checkout
 
 ### 3. Idempotency
-✅ Reuse recent pending purchases (30 min window)
-✅ Webhook updates are idempotent (no duplicate paid status)
-✅ Check for existing paid purchases before creating new
+
+✅ Reuse recent pending purchases (30 min window) ✅ Webhook updates are
+idempotent (no duplicate paid status) ✅ Check for existing paid purchases
+before creating new
 
 ### 4. Minimized Snapshots
-✅ Store only: inputs, results, metadata
-✅ No full analysis row duplication
-✅ Includes version tracking
+
+✅ Store only: inputs, results, metadata ✅ No full analysis row duplication ✅
+Includes version tracking
 
 ### 5. Webhook Security
-✅ Raw body bytes used for signature verification
-✅ Uint8Array passed to Stripe SDK
-✅ Idempotent webhook processing
+
+✅ Raw body bytes used for signature verification ✅ Uint8Array passed to Stripe
+SDK ✅ Idempotent webhook processing
 
 ### 6. RLS Hardening
-✅ No authenticated INSERT on report_purchases
-✅ No authenticated DELETE on report_purchases
-✅ Service role only for writes
-✅ Users can only SELECT their own purchases
+
+✅ No authenticated INSERT on report_purchases ✅ No authenticated DELETE on
+report_purchases ✅ Service role only for writes ✅ Users can only SELECT their
+own purchases
 
 ### 7. Sign Out Reliability
-✅ User state cleared immediately
-✅ Navigation deterministic
-✅ No blocking catch/finally logic
-✅ Consistent UI state across refresh
+
+✅ User state cleared immediately ✅ Navigation deterministic ✅ No blocking
+catch/finally logic ✅ Consistent UI state across refresh
 
 ## Testing Checklist
 
@@ -450,11 +461,8 @@ CREATE POLICY "Service role can delete purchases"
 
 ## Production Readiness
 
-✅ No anon key in Authorization headers to protected endpoints
-✅ User identity verified via JWT before all operations
-✅ Service role isolated to database writes only
-✅ Webhook verified entitlement system
-✅ Immutable purchase snapshots with version tracking
-✅ Server controlled pricing and redirect URLs
-✅ Comprehensive error logging
-✅ Audit trail via purchase records
+✅ No anon key in Authorization headers to protected endpoints ✅ User identity
+verified via JWT before all operations ✅ Service role isolated to database
+writes only ✅ Webhook verified entitlement system ✅ Immutable purchase
+snapshots with version tracking ✅ Server controlled pricing and redirect URLs
+✅ Comprehensive error logging ✅ Audit trail via purchase records

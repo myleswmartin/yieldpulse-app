@@ -3,11 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { TrendingUp, Mail, Lock, User, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { handleError, showSuccess } from '../utils/errorHandling';
+import { usePublicPricing } from '../utils/usePublicPricing';
 
 export default function SignUpPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { signUp, user, loading: authLoading } = useAuth();
+  const { priceLabel } = usePublicPricing();
   
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -261,7 +263,7 @@ export default function SignUpPage() {
               </li>
               <li className="flex items-start space-x-3">
                 <CheckCircle className="w-5 h-5 text-[#14b8a6] flex-shrink-0 mt-0.5" />
-                <span className="text-sm text-neutral-600">Unlock premium reports for AED 49</span>
+                <span className="text-sm text-neutral-600">Unlock premium reports for {priceLabel}</span>
               </li>
             </ul>
           </div>

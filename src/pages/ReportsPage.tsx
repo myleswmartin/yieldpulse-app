@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { CTASection } from '../components/CTASection';
+import { usePublicPricing } from '../utils/usePublicPricing';
 import {
   Calculator,
   FileText,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 
 export default function ReportsPage() {
+  const { priceLabel } = usePublicPricing();
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 via-white to-neutral-50">
       <Header />
@@ -88,7 +90,7 @@ export default function ReportsPage() {
                   <tr className="bg-gradient-to-r from-neutral-50 to-white font-semibold">
                     <td className="p-4 text-neutral-900">Price</td>
                     <td className="p-4 text-center text-[#14b8a6] text-xl">AED 0</td>
-                    <td className="p-4 text-center text-[#1e2875] text-xl">AED 49</td>
+                    <td className="p-4 text-center text-[#1e2875] text-xl">{priceLabel}</td>
                   </tr>
                 </tbody>
               </table>
@@ -206,7 +208,7 @@ export default function ReportsPage() {
                   <h2 className="text-2xl font-bold">Premium Report</h2>
                 </div>
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-4xl font-bold">AED 49</span>
+                  <span className="text-4xl font-bold">{priceLabel}</span>
                   <span className="text-white/80">per report</span>
                 </div>
               </div>

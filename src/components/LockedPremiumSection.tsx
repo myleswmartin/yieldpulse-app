@@ -1,4 +1,5 @@
 import { Lock, BarChart3, TrendingUp, Table2, Target, FileCheck } from 'lucide-react';
+import { usePublicPricing } from '../utils/usePublicPricing';
 
 interface LockedPremiumSectionProps {
   onUnlock: () => void;
@@ -6,6 +7,7 @@ interface LockedPremiumSectionProps {
 }
 
 export function LockedPremiumSection({ onUnlock, isLoading = false }: LockedPremiumSectionProps) {
+  const { priceLabel } = usePublicPricing();
   return (
     <div className="relative bg-white rounded-2xl shadow-sm border-2 border-primary/30 overflow-hidden">
       {/* Blur overlay */}
@@ -26,7 +28,7 @@ export function LockedPremiumSection({ onUnlock, isLoading = false }: LockedPrem
             className="inline-flex items-center space-x-2 px-8 py-3.5 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary-hover transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Lock className="w-5 h-5" />
-            <span>{isLoading ? 'Processing...' : 'Unlock for AED 49'}</span>
+            <span>{isLoading ? 'Processing...' : `Unlock for ${priceLabel}`}</span>
           </button>
         </div>
       </div>

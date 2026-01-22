@@ -1,20 +1,25 @@
 # YieldPulse Monetization Wiring Implementation Complete
 
-**Date:** January 4, 2026  
-**Implementation Type:** Minimal backend/frontend alignment fix  
-**Scope:** Premium unlock, PDF export, and comparison tool alignment on report_purchases table
+**Date:** January 4, 2026\
+**Implementation Type:** Minimal backend/frontend alignment fix\
+**Scope:** Premium unlock, PDF export, and comparison tool alignment on
+report_purchases table
 
 ---
 
 ## Summary
 
-The frontend and backend are now fully aligned on `report_purchases` as the single source of truth for premium entitlement. Stripe checkout and webhook routes are implemented and functional. Demo mode is now gated behind DEV environment check.
+The frontend and backend are now fully aligned on `report_purchases` as the
+single source of truth for premium entitlement. Stripe checkout and webhook
+routes are implemented and functional. Demo mode is now gated behind DEV
+environment check.
 
 ---
 
 ## Files Changed
 
 ### Backend
+
 1. **`/supabase/functions/server/index.tsx`**
    - ✅ Implemented `POST /make-server-ef294769/stripe/checkout-session`
    - ✅ Implemented `POST /make-server-ef294769/stripe/webhook`
@@ -27,15 +32,18 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
    - ✅ Service role client used for webhook updates
 
 ### Frontend
+
 2. **`/src/pages/SignInPage.tsx`**
    - ✅ Demo mode button gated behind `import.meta.env.DEV` check
    - ✅ Demo mode now only available in development environment
    - ✅ Production builds will not show demo bypass button
 
 ### No Changes Required
+
 3. **`/src/pages/ResultsPage.tsx`**
    - ✅ Already correctly calls `/stripe/checkout-session` route
-   - ✅ Already fetches PDF snapshot from `report_purchases` with `status='paid'`
+   - ✅ Already fetches PDF snapshot from `report_purchases` with
+     `status='paid'`
    - ✅ No use of `payments` table
    - ✅ Premium unlock flow correct
 
@@ -53,10 +61,12 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 **Endpoint:** `POST /make-server-ef294769/stripe/checkout-session`
 
 **Authentication:**
+
 - Uses anon Supabase client with user JWT from Authorization header
 - Validates user owns the analysis being purchased
 
 **Request Body:**
+
 ```json
 {
   "analysisId": "uuid",
@@ -65,15 +75,18 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ```
 
 **Origin Allowlist:**
+
 - `http://localhost:5173`
 - `http://localhost:3000`
 - `https://makeproxy-c.figma.site`
 - `https://yieldpulse.vercel.app`
 
 **Business Logic:**
+
 1. Authenticates user via JWT
 2. Validates analysis exists and belongs to user
-3. Checks for existing paid purchase (returns error with `alreadyPurchased: true`)
+3. Checks for existing paid purchase (returns error with
+   `alreadyPurchased: true`)
 4. Checks for pending purchase within 30 minutes (reuses if found)
 5. Creates snapshot from analysis (inputs, results, metadata, report_version)
 6. Inserts `report_purchases` record with `status='pending'`
@@ -82,6 +95,7 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 9. Returns `{ url }` for frontend redirect
 
 **Snapshot Structure:**
+
 ```typescript
 {
   inputs: {
@@ -106,6 +120,7 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ```
 
 **Stripe Session Metadata:**
+
 ```json
 {
   "platform": "yieldpulse",
@@ -116,8 +131,8 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 }
 ```
 
-**Success URL:** `${origin}/dashboard?payment=success&analysisId=${analysisId}`  
-**Cancel URL:** `${origin}/results?payment=cancelled`
+**Success URL:** `${origin}/dashboard?payment=success&analysisId=${analysisId}`\
+**Cancel URL:** `${origin}/results`
 
 ---
 
@@ -126,21 +141,25 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 **Endpoint:** `POST /make-server-ef294769/stripe/webhook`
 
 **Authentication:**
+
 - Requires `stripe-signature` header
 - Uses `STRIPE_WEBHOOK_SECRET` environment variable
 - Verifies signature using Stripe SDK `webhooks.constructEvent()`
 
 **Event Handling:**
+
 - Handles `checkout.session.completed` event
 - Reads `purchase_id` from `session.metadata.purchase_id`
 - Uses service role Supabase client (bypasses RLS)
 
 **Idempotency:**
+
 - Checks if purchase already has `status='paid'`
 - Returns `{ received: true, alreadyProcessed: true }` if already paid
 - Prevents duplicate payment processing
 
 **Update Logic:**
+
 ```typescript
 // Updates report_purchases record
 {
@@ -157,27 +176,32 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ### C. Demo Mode Production Safety
 
 **Previous State:**
+
 - Demo mode button visible in all environments
 - Security vulnerability allowing auth bypass in production
 
 **Current State:**
+
 - Demo mode button gated behind `import.meta.env.DEV`
 - Only visible in development environment (localhost)
 - Production builds will not include demo bypass option
 
 **Code:**
+
 ```tsx
-{import.meta.env.DEV && (
-  <div className="mt-4 text-center">
-    <button
-      type="button"
-      onClick={handleDemoMode}
-      className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors underline"
-    >
-      Continue without signing in (Demo)
-    </button>
-  </div>
-)}
+{
+  import.meta.env.DEV && (
+    <div className="mt-4 text-center">
+      <button
+        type="button"
+        onClick={handleDemoMode}
+        className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors underline"
+      >
+        Continue without signing in (Demo)
+      </button>
+    </div>
+  );
+}
 ```
 
 ---
@@ -189,6 +213,7 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 **Location:** `/make-server-ef294769/payments/create`
 
 **Comment Added:**
+
 ```
 // ================================================================
 // SIMULATED PAYMENTS (DEV ONLY - LEGACY - NOT USED BY PREMIUM UNLOCK)
@@ -198,6 +223,7 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ```
 
 **Behavior:**
+
 - Still functional for backward compatibility
 - Uses `payments` table (not `report_purchases`)
 - Automatically marks payment as completed
@@ -211,6 +237,7 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ### ✅ Premium Unlock Works End to End Using report_purchases
 
 **Flow:**
+
 1. User clicks "Unlock for AED 49" in ResultsPage
 2. Frontend calls `/stripe/checkout-session` with analysisId and origin
 3. Server validates user owns analysis
@@ -225,8 +252,8 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 12. ResultsPage fetches snapshot from `report_purchases` where `status='paid'`
 13. Premium charts and PDF button now visible
 
-**Table Used:** `report_purchases` exclusively  
-**Payment Flow:** Real Stripe integration  
+**Table Used:** `report_purchases` exclusively\
+**Payment Flow:** Real Stripe integration\
 **Snapshot:** Created on checkout, immutable in database
 
 ---
@@ -234,6 +261,7 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ### ✅ PDF Export Works Once Paid Purchase Exists
 
 **Flow:**
+
 1. User navigates to ResultsPage for purchased analysis
 2. `fetchPdfSnapshot()` queries `report_purchases` with `status='paid'`
 3. Snapshot loaded from `report_purchases.snapshot` JSONB field
@@ -243,8 +271,8 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 7. Client side jsPDF generates professional 3 page report
 8. PDF downloaded to user device
 
-**Data Source:** `report_purchases.snapshot` (immutable)  
-**No Recalculation:** PDF uses exact snapshot from purchase time  
+**Data Source:** `report_purchases.snapshot` (immutable)\
+**No Recalculation:** PDF uses exact snapshot from purchase time\
 **Library:** jsPDF 4.0.0 + jspdf-autotable 5.0.2
 
 ---
@@ -252,6 +280,7 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ### ✅ Comparison Tool Works Once Paid Purchases Exist
 
 **Flow:**
+
 1. User selects 2-5 analyses from dashboard
 2. Clicks "Compare Selected"
 3. ComparisonPage receives `selectedIds` via location state
@@ -260,9 +289,9 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 6. Displays side by side comparison
 7. All data from immutable snapshots
 
-**Data Source:** `report_purchases.snapshot` (immutable)  
-**Minimum Reports:** 2  
-**Maximum Reports:** 5  
+**Data Source:** `report_purchases.snapshot` (immutable)\
+**Minimum Reports:** 2\
+**Maximum Reports:** 5\
 **No Recalculation:** Comparison uses exact snapshots from purchase time
 
 ---
@@ -270,16 +299,19 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ### ✅ Demo Mode Not Available in Production
 
 **Development Environment:**
+
 - Demo mode button visible at `/auth/signin`
 - Allows testing calculator without authentication
 - Stored in sessionStorage
 
 **Production Environment:**
+
 - Demo mode button hidden (gated by `import.meta.env.DEV`)
 - No authentication bypass available
 - Secure sign in required
 
 **Verification:**
+
 - Production build removes demo button completely
 - Vite's `import.meta.env.DEV` is `false` in production
 - Tree shaking removes unreachable code
@@ -289,16 +321,19 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ### ✅ Build Passes
 
 **TypeScript Compilation:**
+
 - No type errors in server routes
 - Stripe types from `npm:stripe@17`
 - Supabase types from `npm:@supabase/supabase-js@2`
 
 **Frontend Build:**
+
 - React components compile without errors
 - All imports resolve correctly
 - Vite build succeeds
 
 **Edge Function:**
+
 - Deno server compiles without errors
 - All npm imports resolve (`npm:hono`, `npm:stripe@17`)
 - Server starts with `Deno.serve(app.fetch)`
@@ -308,15 +343,19 @@ The frontend and backend are now fully aligned on `report_purchases` as the sing
 ## Environment Variables Required
 
 ### Existing (Already Set)
+
 - ✅ `SUPABASE_URL`
 - ✅ `SUPABASE_ANON_KEY`
 - ✅ `SUPABASE_SERVICE_ROLE_KEY`
 
 ### Required for Stripe (Must Set)
+
 - ⚠️ `STRIPE_SECRET_KEY` - Test mode: `sk_test_...` or Live mode: `sk_live_...`
-- ⚠️ `STRIPE_WEBHOOK_SECRET` - From Stripe webhook endpoint configuration: `whsec_...`
+- ⚠️ `STRIPE_WEBHOOK_SECRET` - From Stripe webhook endpoint configuration:
+  `whsec_...`
 
 ### Optional
+
 - `ENVIRONMENT` - Set to "production" or "staging" (defaults to "production")
 
 ---
@@ -346,6 +385,7 @@ CREATE TABLE report_purchases (
 ```
 
 **RLS Policies:**
+
 - Users can view own purchases (`auth.uid() = user_id`)
 - Users can create own purchases (authenticated API)
 - Service role can update purchases (webhook only)
@@ -355,6 +395,7 @@ CREATE TABLE report_purchases (
 ## Next Steps for Production Deployment
 
 ### 1. Set Environment Variables in Supabase
+
 ```bash
 # In Supabase Dashboard > Project Settings > Edge Functions > Secrets
 STRIPE_SECRET_KEY=sk_test_... # Replace with live key for production
@@ -362,12 +403,15 @@ STRIPE_WEBHOOK_SECRET=whsec_... # From Stripe webhook configuration
 ```
 
 ### 2. Configure Stripe Webhook
+
 1. Go to Stripe Dashboard > Developers > Webhooks
-2. Add endpoint: `https://woqwrkfmdjuaerzpvshj.supabase.co/functions/v1/make-server-ef294769/stripe/webhook`
+2. Add endpoint:
+   `https://woqwrkfmdjuaerzpvshj.supabase.co/functions/v1/make-server-ef294769/stripe/webhook`
 3. Select event: `checkout.session.completed`
 4. Copy webhook signing secret to `STRIPE_WEBHOOK_SECRET`
 
 ### 3. Test End to End Flow
+
 1. Sign up test user
 2. Calculate ROI and save analysis
 3. Click "Unlock for AED 49"
@@ -380,6 +424,7 @@ STRIPE_WEBHOOK_SECRET=whsec_... # From Stripe webhook configuration
 10. Compare multiple reports
 
 ### 4. Switch to Live Mode (When Ready)
+
 1. Replace `STRIPE_SECRET_KEY` with live key (`sk_live_...`)
 2. Create new webhook endpoint for live mode
 3. Update `STRIPE_WEBHOOK_SECRET` with live webhook secret
@@ -391,6 +436,7 @@ STRIPE_WEBHOOK_SECRET=whsec_... # From Stripe webhook configuration
 ## Technical Architecture
 
 ### Payment Flow Architecture
+
 ```
 User (Frontend)
     |
@@ -439,9 +485,11 @@ Frontend (PDF/Comparison)
 ```
 
 ### Data Flow
+
 - **Immutable Snapshots:** Created once at purchase time, never recalculated
 - **Single Source of Truth:** `report_purchases` table only
-- **No Frontend Access to Service Role:** Webhook uses service role to bypass RLS
+- **No Frontend Access to Service Role:** Webhook uses service role to bypass
+  RLS
 - **Idempotent Webhook:** Safe to replay, checks if already processed
 
 ---
@@ -449,27 +497,32 @@ Frontend (PDF/Comparison)
 ## Zero Impact Confirmations
 
 ### ✅ Calculations Untouched
+
 - **File:** `/src/utils/calculations.ts`
 - **Status:** Zero modifications
 - **Function:** `calculateROI()` remains production ready
 
 ### ✅ UI Layout Unchanged
+
 - No visual changes to any page
 - Premium unlock button same position
 - PDF button same position
 - Comparison layout identical
 
 ### ✅ No New Dependencies
+
 - No new npm packages installed
 - Uses existing Stripe SDK (already imported)
 - Uses existing Supabase client
 
 ### ✅ No New Tables
+
 - Uses existing `report_purchases` from migration script
 - No schema changes required
 - RLS policies already in place
 
 ### ✅ No DNS Changes
+
 - Same origin allowlist
 - Same Vercel domains
 - Same Supabase project URL
@@ -478,9 +531,13 @@ Frontend (PDF/Comparison)
 
 ## Conclusion
 
-The minimal monetization wiring is now complete. Frontend and backend are fully aligned on `report_purchases` as the premium entitlement source. Stripe checkout and webhook routes are implemented and functional. Demo mode is secured for production. The application is ready for end to end testing with Stripe test mode.
+The minimal monetization wiring is now complete. Frontend and backend are fully
+aligned on `report_purchases` as the premium entitlement source. Stripe checkout
+and webhook routes are implemented and functional. Demo mode is secured for
+production. The application is ready for end to end testing with Stripe test
+mode.
 
-**Status:** ✅ Implementation Complete  
-**Ready for:** Stripe environment variable configuration and end to end testing  
-**Blocking Issues:** None  
+**Status:** ✅ Implementation Complete\
+**Ready for:** Stripe environment variable configuration and end to end testing\
+**Blocking Issues:** None\
 **Build Status:** Passes

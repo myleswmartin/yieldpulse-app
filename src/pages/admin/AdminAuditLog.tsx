@@ -1,10 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   FileText, 
   Search, 
-  Filter,
   User,
-  Settings,
   CreditCard,
   FileCheck,
   Trash2,
@@ -15,6 +13,8 @@ import {
   Database,
   AlertCircle
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { adminApi } from '../../utils/adminApi';
 
 interface AuditLogEntry {
   id: string;
@@ -32,165 +32,82 @@ interface AuditLogEntry {
   severity: 'info' | 'warning' | 'critical';
 }
 
-const mockAuditLogs: AuditLogEntry[] = [
-  {
-    id: '1',
-    timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    actor: 'Admin User',
-    actorEmail: 'admin@yieldpulse.com',
-    actorRole: 'admin',
-    action: 'Updated platform settings',
-    actionType: 'update',
-    resource: 'Platform Settings',
-    resourceType: 'setting',
-    details: 'Changed premium report price from AED 45 to AED 49',
-    ipAddress: '192.168.1.100',
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-    severity: 'warning'
-  },
-  {
-    id: '2',
-    timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-    actor: 'Ahmed Hassan',
-    actorEmail: 'ahmed.hassan@email.com',
-    actorRole: 'user',
-    action: 'Purchased premium report',
-    actionType: 'payment',
-    resource: 'Report #RPT-2401-XYZ',
-    resourceType: 'purchase',
-    details: 'Payment successful: AED 49.00 via Stripe',
-    ipAddress: '85.123.45.67',
-    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)',
-    severity: 'info'
-  },
-  {
-    id: '3',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    actor: 'System',
-    actorEmail: 'system@yieldpulse.com',
-    actorRole: 'system',
-    action: 'Deleted expired session',
-    actionType: 'delete',
-    resource: 'Session #sess_abc123',
-    resourceType: 'session',
-    details: 'Automatically removed session older than 30 days',
-    ipAddress: 'internal',
-    userAgent: 'System Cron Job',
-    severity: 'info'
-  },
-  {
-    id: '4',
-    timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-    actor: 'Admin User',
-    actorEmail: 'admin@yieldpulse.com',
-    actorRole: 'admin',
-    action: 'Exported user data',
-    actionType: 'export',
-    resource: 'All Users Report',
-    resourceType: 'user',
-    details: 'Exported 1,234 user records to CSV',
-    ipAddress: '192.168.1.100',
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-    severity: 'warning'
-  },
-  {
-    id: '5',
-    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    actor: 'Sarah Al-Mansoori',
-    actorEmail: 'sarah.m@email.com',
-    actorRole: 'user',
-    action: 'Generated free analysis',
-    actionType: 'create',
-    resource: 'Analysis #ANL-5678',
-    resourceType: 'report',
-    details: 'Created analysis for Dubai Marina property',
-    ipAddress: '91.234.56.78',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-    severity: 'info'
-  },
-  {
-    id: '6',
-    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    actor: 'Admin User',
-    actorEmail: 'admin@yieldpulse.com',
-    actorRole: 'admin',
-    action: 'Uploaded document',
-    actionType: 'create',
-    resource: 'UAE Property Investment Guide.pdf',
-    resourceType: 'document',
-    details: 'Added new document to Documents Library (2.4 MB)',
-    ipAddress: '192.168.1.100',
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-    severity: 'info'
-  },
-  {
-    id: '7',
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-    actor: 'Mohammed Abdullah',
-    actorEmail: 'mohammed.a@email.com',
-    actorRole: 'user',
-    action: 'Failed login attempt',
-    actionType: 'login',
-    resource: 'Login Page',
-    resourceType: 'session',
-    details: 'Invalid password (3rd attempt)',
-    ipAddress: '45.67.89.123',
-    userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
-    severity: 'critical'
-  },
-  {
-    id: '8',
-    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-    actor: 'Admin User',
-    actorEmail: 'admin@yieldpulse.com',
-    actorRole: 'admin',
-    action: 'Deleted user account',
-    actionType: 'delete',
-    resource: 'User #usr_999',
-    resourceType: 'user',
-    details: 'User requested account deletion via support ticket',
-    ipAddress: '192.168.1.100',
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-    severity: 'critical'
-  },
-  {
-    id: '9',
-    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-    actor: 'Fatima Al-Zaabi',
-    actorEmail: 'fatima.z@email.com',
-    actorRole: 'user',
-    action: 'Downloaded premium report',
-    actionType: 'view',
-    resource: 'Report #RPT-2401-ABC',
-    resourceType: 'report',
-    details: 'Downloaded PDF report for JBR property analysis',
-    ipAddress: '88.77.66.55',
-    userAgent: 'Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X)',
-    severity: 'info'
-  },
-  {
-    id: '10',
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    actor: 'System',
-    actorEmail: 'system@yieldpulse.com',
-    actorRole: 'system',
-    action: 'Database backup completed',
-    actionType: 'create',
-    resource: 'Database Backup',
-    resourceType: 'setting',
-    details: 'Automated daily backup (1.2 GB) stored successfully',
-    ipAddress: 'internal',
-    userAgent: 'System Cron Job',
-    severity: 'info'
-  }
-];
-
 export default function AdminAuditLog() {
-  const [logs, setLogs] = useState<AuditLogEntry[]>(mockAuditLogs);
+  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionTypeFilter, setActionTypeFilter] = useState<string>('all');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [actorRoleFilter, setActorRoleFilter] = useState<string>('all');
+
+  useEffect(() => {
+    fetchAuditLog();
+  }, []);
+
+  const deriveActionType = (action: string): AuditLogEntry['actionType'] => {
+    const normalized = action.toLowerCase();
+    if (normalized.includes('delete') || normalized.includes('remove')) return 'delete';
+    if (normalized.includes('update') || normalized.includes('edit')) return 'update';
+    if (normalized.includes('create') || normalized.includes('upload')) return 'create';
+    if (normalized.includes('refund') || normalized.includes('unlock') || normalized.includes('payment')) return 'payment';
+    if (normalized.includes('export')) return 'export';
+    if (normalized.includes('login')) return 'login';
+    if (normalized.includes('logout')) return 'logout';
+    return 'view';
+  };
+
+  const deriveResourceType = (action: string): AuditLogEntry['resourceType'] => {
+    const normalized = action.toLowerCase();
+    if (normalized.includes('user')) return 'user';
+    if (normalized.includes('report')) return 'report';
+    if (normalized.includes('purchase') || normalized.includes('payment')) return 'purchase';
+    if (normalized.includes('setting')) return 'setting';
+    if (normalized.includes('document')) return 'document';
+    return 'session';
+  };
+
+  const deriveSeverity = (actionType: AuditLogEntry['actionType']): AuditLogEntry['severity'] => {
+    if (actionType === 'delete' || actionType === 'payment') return 'warning';
+    return 'info';
+  };
+
+  const mapEntry = (entry: any): AuditLogEntry => {
+    const action = entry.action || 'unknown_action';
+    const actionType = deriveActionType(action);
+    return {
+      id: entry.id || `${action}-${entry.timestamp || entry.created_at || Date.now()}`,
+      timestamp: entry.timestamp || entry.created_at || new Date().toISOString(),
+      actor: entry.admin_id || 'Admin',
+      actorEmail: entry.admin_email || '',
+      actorRole: 'admin',
+      action: action.replace(/_/g, ' '),
+      actionType,
+      resource: entry.data?.resource || entry.data?.code || entry.data?.documentId || entry.data?.purchase_id || '—',
+      resourceType: deriveResourceType(action),
+      details: entry.reason || (entry.data ? JSON.stringify(entry.data) : ''),
+      ipAddress: entry.ip_address || '—',
+      userAgent: entry.user_agent || '—',
+      severity: deriveSeverity(actionType),
+    };
+  };
+
+  const fetchAuditLog = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await adminApi.auditLog.list({ page: 1, limit: 100 });
+      const mapped = (data.actions || []).map(mapEntry);
+      setLogs(mapped);
+    } catch (err: any) {
+      console.error('Failed to fetch audit log:', err);
+      setError(err.message || 'Failed to load audit log');
+      toast.error(err.message || 'Failed to load audit log');
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getActionIcon = (actionType: string) => {
     const icons = {
@@ -292,6 +209,12 @@ export default function AdminAuditLog() {
         <p className="text-neutral-600 mt-1">Track all system activities and user actions</p>
       </div>
 
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
@@ -391,7 +314,9 @@ export default function AdminAuditLog() {
 
       {/* Audit Log Table */}
       <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-        {filteredLogs.length === 0 ? (
+        {loading ? (
+          <div className="p-12 text-center text-neutral-600">Loading audit logs...</div>
+        ) : filteredLogs.length === 0 ? (
           <div className="p-12 text-center">
             <FileText className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">No audit logs found</h3>

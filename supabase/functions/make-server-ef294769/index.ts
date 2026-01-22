@@ -948,7 +948,7 @@ app.post("/make-server-ef294769/stripe/checkout-session", async (c) => {
       allow_promotion_codes: true,
       mode: "payment",
       success_url: `${origin}/dashboard?payment=success&analysisId=${analysisId}`,
-      cancel_url: `${origin}/results?payment=cancelled`,
+      cancel_url: `${origin}/results`,
       metadata: {
         platform: "yieldpulse",
         user_id: user.id,
@@ -1096,7 +1096,7 @@ app.post("/make-server-ef294769/stripe/guest-checkout-session", async (c) => {
       mode: "payment",
       customer_email: undefined, // Will be collected at checkout
       success_url: `${origin}/payment-success?purchaseId=${guestPurchaseId}&guest=true`,
-      cancel_url: `${origin}/results?payment=cancelled`,
+      cancel_url: `${origin}/results`,
       metadata: {
         platform: "yieldpulse",
         purchase_id: guestPurchaseId,
@@ -2029,6 +2029,8 @@ const mapDbStatusToUi = (status: string | null | undefined) => {
 const mapUiStatusToDb = (status: string | null | undefined) => {
   switch (status) {
     case "in-progress":
+    case "in_progress":
+    case "waiting_on_customer":
       return "in_progress";
     case "resolved":
       return "resolved";
@@ -2196,19 +2198,35 @@ app.put("/make-server-ef294769/admin/support/tickets/:ticketId", async (c) => {
     const dbStatus = status ? mapUiStatusToDb(status) : undefined;
     const updatePayload: Record<string, any> = {
       updated_at: new Date().toISOString(),
-      updated_by: user.id,
     };
     if (dbStatus) updatePayload.status = dbStatus;
     if (assigned_to !== undefined) updatePayload.assigned_to = assigned_to;
 
-    const { data: updatedTicket, error: updateError } = await auth.supabase
-      .from("support_tickets")
-      .update(updatePayload)
-      .eq("id", ticketId)
-      .select("*")
-      .maybeSingle();
+    const updateTicket = async (payload: Record<string, any>) => {
+      return auth.supabase
+        .from("support_tickets")
+        .update(payload)
+        .eq("id", ticketId)
+        .select("*")
+        .maybeSingle();
+    };
 
-    if (updateError || !updatedTicket) {
+    let { data: updatedTicket, error: updateError } = await updateTicket(updatePayload);
+
+    if (updateError && updatePayload.assigned_to !== undefined) {
+      const message = updateError?.message || "";
+      if (message.toLowerCase().includes("assigned_to")) {
+        const { assigned_to, ...fallbackPayload } = updatePayload;
+        ({ data: updatedTicket, error: updateError } = await updateTicket(fallbackPayload));
+      }
+    }
+
+    if (updateError) {
+      console.error("Admin update ticket error:", updateError);
+      return c.json({ error: "Failed to update ticket" }, 500);
+    }
+
+    if (!updatedTicket) {
       return c.json({ error: "Ticket not found" }, 404);
     }
 
@@ -2256,15 +2274,66 @@ app.post("/make-server-ef294769/admin/support/tickets/:ticketId/reply", async (c
     await kv.set(`support_message:${ticketId}:${messageId}`, newMessage);
 
     // Update ticket's updated_at for visibility in admin UI
-    await auth.supabase
+    const { error: updateError } = await auth.supabase
       .from("support_tickets")
       .update({ updated_at: new Date().toISOString(), updated_by: user.id })
       .eq("id", ticketId);
+    if (updateError && updateError.message?.toLowerCase?.().includes("updated_by")) {
+      await auth.supabase
+        .from("support_tickets")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", ticketId);
+    }
 
     return c.json(newMessage);
   } catch (error) {
     console.error("Admin ticket reply error:", error);
     return c.json({ error: "Failed to send reply" }, 500);
+  }
+});
+
+// Delete ticket
+app.delete("/make-server-ef294769/admin/support/tickets/:ticketId", async (c) => {
+  try {
+    const auth = await verifyAdminAccess(c);
+    if (auth instanceof Response) return auth;
+
+    const ticketId = c.req.param("ticketId");
+
+    const { data: deletedTicket, error: deleteError } = await auth.supabase
+      .from("support_tickets")
+      .delete()
+      .eq("id", ticketId)
+      .select("id")
+      .maybeSingle();
+
+    if (deleteError) {
+      console.error("Admin delete ticket error:", deleteError);
+      return c.json({ error: "Failed to delete ticket" }, 500);
+    }
+
+    if (!deletedTicket) {
+      return c.json({ error: "Ticket not found" }, 404);
+    }
+
+    // Remove any stored messages in KV
+    const messages = await kv.getByPrefix(`support_message:${ticketId}:`);
+    if (messages?.length) {
+      await Promise.all(
+        messages.map((msg: any) => {
+          if (!msg?.id) return Promise.resolve();
+          return kv.del(`support_message:${ticketId}:${msg.id}`);
+        })
+      );
+    }
+
+    // Clean up legacy KV ticket entry if present
+    await kv.del(`support_ticket:${ticketId}`);
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.error("Admin delete ticket error:", error);
+    return c.json({ error: "Failed to delete ticket" }, 500);
   }
 });
 

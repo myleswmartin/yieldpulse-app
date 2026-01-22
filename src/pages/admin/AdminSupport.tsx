@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { 
   MessageCircle, 
   Search, 
-  Filter,
   CheckCircle,
   Clock,
   AlertCircle,
@@ -12,9 +11,11 @@ import {
   Calendar,
   MessageSquare,
   Eye,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { adminApi } from '../../utils/adminApi';
 
 interface SupportTicket {
   id: string;
@@ -33,94 +34,64 @@ interface SupportTicket {
   responses: number;
 }
 
-const mockTickets: SupportTicket[] = [
-  {
-    id: '1',
-    ticketNumber: 'SUP-1234',
-    userId: 'usr_001',
-    userName: 'Ahmed Hassan',
-    userEmail: 'ahmed.hassan@email.com',
-    subject: 'Unable to download premium report PDF',
-    message: 'I purchased a premium report yesterday but the download button is not working. I get an error message when I click it.',
-    status: 'open',
-    priority: 'high',
-    category: 'technical',
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    responses: 0
-  },
-  {
-    id: '2',
-    ticketNumber: 'SUP-1233',
-    userId: 'usr_002',
-    userName: 'Sarah Al-Mansoori',
-    userEmail: 'sarah.m@email.com',
-    subject: 'Refund request for duplicate purchase',
-    message: 'I accidentally purchased the same report twice. Can I get a refund for the duplicate?',
-    status: 'in-progress',
-    priority: 'medium',
-    category: 'billing',
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-    assignedTo: 'Admin',
-    responses: 2
-  },
-  {
-    id: '3',
-    ticketNumber: 'SUP-1232',
-    userId: 'usr_003',
-    userName: 'Mohammed Abdullah',
-    userEmail: 'mohammed.a@email.com',
-    subject: 'Feature request: Export to Excel',
-    message: 'Would be great to have the option to export analysis data to Excel format in addition to PDF.',
-    status: 'resolved',
-    priority: 'low',
-    category: 'feature-request',
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-    assignedTo: 'Admin',
-    responses: 3
-  },
-  {
-    id: '4',
-    ticketNumber: 'SUP-1231',
-    userId: 'usr_004',
-    userName: 'Fatima Al-Zaabi',
-    userEmail: 'fatima.z@email.com',
-    subject: 'How to interpret sensitivity analysis?',
-    message: 'I purchased a premium report but I\'m not sure how to read the sensitivity analysis section. Can you provide guidance?',
-    status: 'resolved',
-    priority: 'medium',
-    category: 'general',
-    createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    assignedTo: 'Admin',
-    responses: 1
-  },
-  {
-    id: '5',
-    ticketNumber: 'SUP-1230',
-    userId: 'usr_005',
-    userName: 'Khalid Rahman',
-    userEmail: 'khalid.r@email.com',
-    subject: 'Payment failed but amount debited',
-    message: 'My payment failed during checkout but the amount was debited from my card. Please help!',
-    status: 'in-progress',
-    priority: 'urgent',
-    category: 'billing',
-    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    assignedTo: 'Admin',
-    responses: 1
-  }
-];
-
 export default function AdminSupport() {
-  const [tickets, setTickets] = useState<SupportTicket[]>(mockTickets);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
+  const [deletingTicketId, setDeletingTicketId] = useState<string | null>(null);
+
+  const normalizeStatus = (status?: string) => {
+    if (!status) return 'open';
+    if (status === 'in_progress' || status === 'waiting_on_customer') return 'in-progress';
+    return status.replace('_', '-') as SupportTicket['status'];
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, [statusFilter]);
+
+  const mapTicket = (ticket: any): SupportTicket => ({
+    id: ticket.id,
+    ticketNumber: ticket.ticket_number || `SUP-${ticket.id?.slice?.(0, 6)?.toUpperCase?.()}`,
+    userId: ticket.user_id || '',
+    userName: ticket.user_name || 'Unknown',
+    userEmail: ticket.user_email || '—',
+    subject: ticket.subject || 'No subject',
+    message: ticket.message || '',
+    status: normalizeStatus(ticket.status),
+    priority: ticket.priority || 'medium',
+    category: ticket.category || 'general',
+    createdAt: ticket.created_at,
+    updatedAt: ticket.updated_at,
+    assignedTo: ticket.assigned_to,
+    responses: ticket.responses || 0,
+  });
+
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await adminApi.support.tickets.list({
+        status: statusFilter,
+        page: 1,
+        limit: 50,
+      });
+      const mapped = (data.tickets || []).map(mapTicket);
+      setTickets(mapped);
+    } catch (err: any) {
+      console.error('Failed to fetch tickets:', err);
+      setError(err.message || 'Failed to load tickets');
+      toast.error(err.message || 'Failed to load tickets');
+      setTickets([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -191,13 +162,60 @@ export default function AdminSupport() {
     resolved: tickets.filter(t => t.status === 'resolved').length
   };
 
-  const handleStatusChange = (ticketId: string, newStatus: SupportTicket['status']) => {
-    setTickets(prev => prev.map(t => 
-      t.id === ticketId 
-        ? { ...t, status: newStatus, updatedAt: new Date().toISOString() }
-        : t
-    ));
-    toast.success('Ticket status updated');
+  const handleStatusChange = async (ticketId: string, newStatus: SupportTicket['status']) => {
+    try {
+      setUpdatingTicketId(ticketId);
+      await adminApi.support.tickets.update(ticketId, { status: newStatus });
+      setTickets(prev => prev.map(t =>
+        t.id === ticketId
+          ? { ...t, status: newStatus, updatedAt: new Date().toISOString() }
+          : t
+      ));
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket({ ...selectedTicket, status: newStatus, updatedAt: new Date().toISOString() });
+      }
+      toast.success('Ticket status updated');
+    } catch (err: any) {
+      console.error('Failed to update ticket:', err);
+      toast.error(err.message || 'Failed to update ticket');
+    } finally {
+      setUpdatingTicketId(null);
+    }
+  };
+
+  const handleViewTicket = async (ticket: SupportTicket) => {
+    try {
+      const data = await adminApi.support.tickets.get(ticket.id);
+      const firstMessage = data?.messages?.[0]?.message || ticket.message;
+      setSelectedTicket({
+        ...ticket,
+        message: firstMessage || '',
+      });
+    } catch (err: any) {
+      console.error('Failed to load ticket details:', err);
+      toast.error(err.message || 'Failed to load ticket details');
+      setSelectedTicket(ticket);
+    }
+  };
+
+  const handleDeleteTicket = async (ticket: SupportTicket) => {
+    const confirmed = window.confirm(`Delete ${ticket.ticketNumber}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      setDeletingTicketId(ticket.id);
+      await adminApi.support.tickets.delete(ticket.id);
+      setTickets(prev => prev.filter(t => t.id !== ticket.id));
+      if (selectedTicket?.id === ticket.id) {
+        setSelectedTicket(null);
+      }
+      toast.success('Ticket deleted');
+    } catch (err: any) {
+      console.error('Failed to delete ticket:', err);
+      toast.error(err.message || 'Failed to delete ticket');
+    } finally {
+      setDeletingTicketId(null);
+    }
   };
 
   return (
@@ -207,6 +225,12 @@ export default function AdminSupport() {
         <h1 className="text-3xl font-bold text-foreground">Support Tickets</h1>
         <p className="text-neutral-600 mt-1">Manage customer support requests and inquiries</p>
       </div>
+
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -290,7 +314,9 @@ export default function AdminSupport() {
 
       {/* Tickets List */}
       <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-        {filteredTickets.length === 0 ? (
+        {loading ? (
+          <div className="p-12 text-center text-neutral-600">Loading tickets...</div>
+        ) : filteredTickets.length === 0 ? (
           <div className="p-12 text-center">
             <MessageCircle className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">No tickets found</h3>
@@ -374,7 +400,8 @@ export default function AdminSupport() {
                         <select
                           value={ticket.status}
                           onChange={(e) => handleStatusChange(ticket.id, e.target.value as SupportTicket['status'])}
-                          className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border ${statusConfig.bg} ${statusConfig.border} ${statusConfig.color} focus:ring-2 focus:ring-primary focus:border-transparent`}
+                          disabled={updatingTicketId === ticket.id}
+                          className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border ${statusConfig.bg} ${statusConfig.border} ${statusConfig.color} focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed`}
                         >
                           <option value="open">Open</option>
                           <option value="in-progress">In Progress</option>
@@ -386,13 +413,23 @@ export default function AdminSupport() {
                         {formatTimestamp(ticket.createdAt)}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => setSelectedTicket(ticket)}
-                          className="inline-flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span>View</span>
-                        </button>
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            onClick={() => handleViewTicket(ticket)}
+                            className="inline-flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>View</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTicket(ticket)}
+                            disabled={deletingTicketId === ticket.id}
+                            className="inline-flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>{deletingTicketId === ticket.id ? 'Deleting...' : 'Delete'}</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -500,6 +537,7 @@ export default function AdminSupport() {
                       handleStatusChange(selectedTicket.id, e.target.value as SupportTicket['status']);
                       setSelectedTicket({ ...selectedTicket, status: e.target.value as SupportTicket['status'] });
                     }}
+                    disabled={updatingTicketId === selectedTicket.id}
                     className="px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     <option value="open">Open</option>
@@ -508,14 +546,23 @@ export default function AdminSupport() {
                     <option value="closed">Closed</option>
                   </select>
                 </div>
-                <button
-                  onClick={() => {
-                    toast.info('Email reply functionality coming soon');
-                  }}
-                  className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors"
-                >
-                  Reply to User
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      toast.info('Email reply functionality coming soon');
+                    }}
+                    className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors"
+                  >
+                    Reply to User
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTicket(selectedTicket)}
+                    disabled={deletingTicketId === selectedTicket.id}
+                    className="px-6 py-2.5 bg-destructive/10 text-destructive rounded-lg font-medium hover:bg-destructive/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {deletingTicketId === selectedTicket.id ? 'Deleting...' : 'Delete Ticket'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

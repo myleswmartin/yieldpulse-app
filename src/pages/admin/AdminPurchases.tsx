@@ -1,21 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   CreditCard, 
   Search, 
-  Filter,
   CheckCircle,
   XCircle,
   Clock,
   DollarSign,
-  User,
-  FileText,
   Calendar,
   AlertCircle,
-  TrendingUp,
   Download,
   RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { adminApi } from '../../utils/adminApi';
 
 interface Purchase {
   id: string;
@@ -35,106 +32,57 @@ interface Purchase {
   refundReason?: string;
 }
 
-const mockPurchases: Purchase[] = [
-  {
-    id: '1',
-    purchaseId: 'PUR-2024-001',
-    userId: 'usr_001',
-    userName: 'Ahmed Hassan',
-    userEmail: 'ahmed.hassan@email.com',
-    reportId: 'RPT-2401-XYZ',
-    propertyName: '1BR Apartment - Dubai Marina',
-    amount: 49,
-    currency: 'AED',
-    status: 'paid',
-    paymentMethod: 'card',
-    stripePaymentId: 'pi_3AbCd123456789',
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '2',
-    purchaseId: 'PUR-2024-002',
-    userId: 'usr_002',
-    userName: 'Sarah Al-Mansoori',
-    userEmail: 'sarah.m@email.com',
-    reportId: 'RPT-2401-ABC',
-    propertyName: '2BR Villa - Arabian Ranches',
-    amount: 49,
-    currency: 'AED',
-    status: 'paid',
-    paymentMethod: 'card',
-    stripePaymentId: 'pi_3XyZ987654321',
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '3',
-    purchaseId: 'PUR-2024-003',
-    userId: 'usr_003',
-    userName: 'Mohammed Abdullah',
-    userEmail: 'mohammed.a@email.com',
-    reportId: 'RPT-2401-DEF',
-    propertyName: 'Studio - Business Bay',
-    amount: 49,
-    currency: 'AED',
-    status: 'failed',
-    paymentMethod: 'card',
-    stripePaymentId: 'pi_3Failed12345',
-    createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '4',
-    purchaseId: 'PUR-2024-004',
-    userId: 'usr_004',
-    userName: 'Fatima Al-Zaabi',
-    userEmail: 'fatima.z@email.com',
-    reportId: 'RPT-2401-GHI',
-    propertyName: '3BR Penthouse - JBR',
-    amount: 49,
-    currency: 'AED',
-    status: 'refunded',
-    paymentMethod: 'card',
-    stripePaymentId: 'pi_3Refund67890',
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    refundedAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-    refundReason: 'Duplicate purchase - user error'
-  },
-  {
-    id: '5',
-    purchaseId: 'PUR-2024-005',
-    userId: 'usr_005',
-    userName: 'Khalid Rahman',
-    userEmail: 'khalid.r@email.com',
-    reportId: 'RPT-2401-JKL',
-    propertyName: '2BR Apartment - Downtown Dubai',
-    amount: 49,
-    currency: 'AED',
-    status: 'pending',
-    paymentMethod: 'card',
-    stripePaymentId: 'pi_3Pending111',
-    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString()
-  },
-  {
-    id: '6',
-    purchaseId: 'PUR-2024-006',
-    userId: 'usr_001',
-    userName: 'Ahmed Hassan',
-    userEmail: 'ahmed.hassan@email.com',
-    reportId: 'RPT-2401-MNO',
-    propertyName: '1BR Apartment - Palm Jumeirah',
-    amount: 49,
-    currency: 'AED',
-    status: 'paid',
-    paymentMethod: 'card',
-    stripePaymentId: 'pi_3Success222',
-    createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
-  }
-];
-
 export default function AdminPurchases() {
-  const [purchases, setPurchases] = useState<Purchase[]>(mockPurchases);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<string>('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchPurchases();
+  }, [statusFilter, searchQuery]);
+
+  const mapPurchase = (purchase: any): Purchase => ({
+    id: purchase.id,
+    purchaseId: purchase.id,
+    userId: purchase.user_id,
+    userName: purchase.user_full_name || purchase.user_email || 'Unknown',
+    userEmail: purchase.user_email || '—',
+    reportId: purchase.analysis_id || '—',
+    propertyName: purchase.property_name || purchase.portal_source || 'Untitled',
+    amount: Number(purchase.amount_aed || purchase.amount || 0),
+    currency: String(purchase.currency || 'AED').toUpperCase(),
+    status: (purchase.status || 'pending') as Purchase['status'],
+    paymentMethod: 'card',
+    stripePaymentId: purchase.stripe_payment_intent_id || purchase.stripe_checkout_session_id || '—',
+    createdAt: purchase.created_at,
+    refundedAt: purchase.refunded_at,
+    refundReason: purchase.refund_reason,
+  });
+
+  const fetchPurchases = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await adminApi.purchases.list({
+        status: statusFilter,
+        search: searchQuery || undefined,
+        page: 1,
+        limit: 50,
+      });
+      const mapped = (data.purchases || []).map(mapPurchase);
+      setPurchases(mapped);
+    } catch (err: any) {
+      console.error('Failed to fetch purchases:', err);
+      setError(err.message || 'Failed to load purchases');
+      toast.error(err.message || 'Failed to load purchases');
+      setPurchases([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -205,7 +153,7 @@ export default function AdminPurchases() {
     refundedPurchases: purchases.filter(p => p.status === 'refunded').length
   };
 
-  const handleRefund = (purchaseId: string) => {
+  const handleRefund = async (purchaseId: string) => {
     if (!confirm('Are you sure you want to issue a refund for this purchase? This action cannot be undone.')) {
       return;
     }
@@ -213,17 +161,14 @@ export default function AdminPurchases() {
     const reason = prompt('Enter refund reason:');
     if (!reason) return;
 
-    setPurchases(prev => prev.map(p => 
-      p.id === purchaseId
-        ? { 
-            ...p, 
-            status: 'refunded' as const,
-            refundedAt: new Date().toISOString(),
-            refundReason: reason
-          }
-        : p
-    ));
-    toast.success('Refund processed successfully');
+    try {
+      await adminApi.purchases.refund(purchaseId, reason, true);
+      toast.success('Refund processed successfully');
+      fetchPurchases();
+    } catch (err: any) {
+      console.error('Refund failed:', err);
+      toast.error(err.message || 'Failed to process refund');
+    }
   };
 
   const exportToCSV = () => {
@@ -246,6 +191,12 @@ export default function AdminPurchases() {
           <span>Export CSV</span>
         </button>
       </div>
+
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -329,7 +280,9 @@ export default function AdminPurchases() {
 
       {/* Purchases Table */}
       <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-        {filteredPurchases.length === 0 ? (
+        {loading ? (
+          <div className="p-12 text-center text-neutral-600">Loading purchases...</div>
+        ) : filteredPurchases.length === 0 ? (
           <div className="p-12 text-center">
             <CreditCard className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">No purchases found</h3>

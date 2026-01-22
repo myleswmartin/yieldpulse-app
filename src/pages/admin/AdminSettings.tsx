@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { 
-  Settings, 
   DollarSign, 
   Lock, 
   Bell, 
@@ -12,6 +11,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { adminApi } from '../../utils/adminApi';
 
 interface PlatformSettings {
   // Pricing
@@ -55,6 +55,30 @@ export default function AdminSettings() {
   
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await adminApi.settings.get();
+        if (data?.settings) {
+          setSettings(data.settings);
+          setHasChanges(false);
+        }
+      } catch (err: any) {
+        console.error('Error loading settings:', err);
+        setError(err.message || 'Failed to load settings');
+        toast.error(err.message || 'Failed to load settings');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, []);
 
   const handleChange = (key: keyof PlatformSettings, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -64,8 +88,10 @@ export default function AdminSettings() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // In production, save to backend API
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const data = await adminApi.settings.update(settings);
+      if (data?.settings) {
+        setSettings(data.settings);
+      }
       toast.success('Settings saved successfully');
       setHasChanges(false);
     } catch (error) {
@@ -83,6 +109,19 @@ export default function AdminSettings() {
         <h1 className="text-3xl font-bold text-foreground">Platform Settings</h1>
         <p className="text-neutral-600 mt-1">Configure YieldPulse platform settings and features</p>
       </div>
+
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="bg-white rounded-xl border border-border p-6 shadow-sm text-neutral-600">
+          Loading settings...
+        </div>
+      ) : (
+        <>
 
       {/* Unsaved Changes Banner */}
       {hasChanges && (
@@ -409,6 +448,8 @@ export default function AdminSettings() {
           </button>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

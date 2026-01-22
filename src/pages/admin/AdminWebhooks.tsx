@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Webhook, 
   Search,
@@ -13,6 +13,7 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { adminApi } from '../../utils/adminApi';
 
 interface WebhookEvent {
   id: string;
@@ -27,136 +28,59 @@ interface WebhookEvent {
   nextRetry?: string;
   createdAt: string;
   processedAt?: string;
+  sessionId?: string;
 }
 
-const mockWebhookEvents: WebhookEvent[] = [
-  {
-    id: '1',
-    eventId: 'evt_1AbCd123456789',
-    eventType: 'payment_intent.succeeded',
-    status: 'success',
-    source: 'stripe',
-    payload: {
-      id: 'pi_3AbCd123456789',
-      amount: 4900,
-      currency: 'aed',
-      customer: 'cus_Ahmed123',
-      metadata: {
-        reportId: 'RPT-2401-XYZ',
-        userId: 'usr_001'
-      }
-    },
-    response: {
-      status: 200,
-      message: 'Payment processed successfully'
-    },
-    attempts: 1,
-    createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-    processedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '2',
-    eventId: 'evt_2XyZ987654321',
-    eventType: 'payment_intent.payment_failed',
-    status: 'success',
-    source: 'stripe',
-    payload: {
-      id: 'pi_3Failed12345',
-      amount: 4900,
-      currency: 'aed',
-      last_payment_error: {
-        message: 'Your card was declined'
-      }
-    },
-    response: {
-      status: 200,
-      message: 'Payment failure logged'
-    },
-    attempts: 1,
-    createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-    processedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '3',
-    eventId: 'evt_3Failed678',
-    eventType: 'charge.refunded',
-    status: 'failed',
-    source: 'stripe',
-    payload: {
-      id: 'ch_refund123',
-      amount: 4900,
-      currency: 'aed',
-      refunded: true
-    },
-    errorMessage: 'Database connection timeout',
-    attempts: 3,
-    nextRetry: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '4',
-    eventId: 'evt_4Pending999',
-    eventType: 'payment_intent.created',
-    status: 'retrying',
-    source: 'stripe',
-    payload: {
-      id: 'pi_3Pending111',
-      amount: 4900,
-      currency: 'aed',
-      status: 'requires_payment_method'
-    },
-    errorMessage: 'Temporary service unavailable',
-    attempts: 2,
-    nextRetry: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString()
-  },
-  {
-    id: '5',
-    eventId: 'evt_5Success555',
-    eventType: 'customer.created',
-    status: 'success',
-    source: 'stripe',
-    payload: {
-      id: 'cus_NewUser456',
-      email: 'newuser@email.com',
-      created: Date.now() / 1000
-    },
-    response: {
-      status: 200,
-      message: 'Customer record created'
-    },
-    attempts: 1,
-    createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-    processedAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '6',
-    eventId: 'evt_6System111',
-    eventType: 'report.generated',
-    status: 'success',
-    source: 'system',
-    payload: {
-      reportId: 'RPT-2401-ABC',
-      userId: 'usr_002',
-      propertyName: '2BR Villa - Arabian Ranches',
-      type: 'premium'
-    },
-    response: {
-      status: 200,
-      message: 'PDF generated and stored'
-    },
-    attempts: 1,
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    processedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  }
-];
-
 export default function AdminWebhooks() {
-  const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>(mockWebhookEvents);
+  const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [selectedEvent, setSelectedEvent] = useState<WebhookEvent | null>(null);
+
+  useEffect(() => {
+    fetchWebhooks();
+  }, []);
+
+  const mapLogToEvent = (log: any): WebhookEvent => {
+    const createdAt = log.timestamp || log.created_at || log.createdAt || log.processed_at || new Date().toISOString();
+    const statusBase = log.status || 'pending';
+    const status = log.next_retry ? 'retrying' : statusBase;
+    return {
+      id: log.id || log.event_id || log.eventId || `${createdAt}-${log.event_type}`,
+      eventId: log.event_id || log.eventId || log.id || 'unknown',
+      eventType: log.event_type || log.eventType || 'unknown',
+      status,
+      source: log.source || 'stripe',
+      payload: log.payload || log.data || {},
+      response: log.response,
+      errorMessage: log.error_message || log.errorMessage,
+      attempts: log.attempts || 1,
+      nextRetry: log.next_retry || log.nextRetry,
+      createdAt,
+      processedAt: log.processed_at || log.processedAt,
+      sessionId: log.session_id || log.sessionId,
+    } as WebhookEvent;
+  };
+
+  const fetchWebhooks = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await adminApi.webhooks.list();
+      const logs = data.logs || [];
+      setWebhookEvents(logs.map(mapLogToEvent));
+    } catch (err: any) {
+      console.error('Failed to fetch webhooks:', err);
+      setError(err.message || 'Failed to load webhooks');
+      toast.error(err.message || 'Failed to load webhooks');
+      setWebhookEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -211,13 +135,22 @@ export default function AdminWebhooks() {
     retrying: webhookEvents.filter(e => e.status === 'retrying').length
   };
 
-  const handleRetry = (eventId: string) => {
-    setWebhookEvents(prev => prev.map(e => 
-      e.id === eventId
-        ? { ...e, status: 'retrying' as const, attempts: e.attempts + 1 }
-        : e
-    ));
-    toast.info('Webhook event queued for retry');
+  const handleRetry = async (eventId: string) => {
+    const event = webhookEvents.find((e) => e.id === eventId);
+    const sessionId = event?.sessionId;
+    if (!sessionId) {
+      toast.error('Missing session ID for retry');
+      return;
+    }
+
+    try {
+      await adminApi.webhooks.retry(sessionId);
+      toast.info('Webhook event queued for retry');
+      fetchWebhooks();
+    } catch (err: any) {
+      console.error('Failed to retry webhook:', err);
+      toast.error(err.message || 'Failed to retry webhook');
+    }
   };
 
   return (
@@ -227,6 +160,12 @@ export default function AdminWebhooks() {
         <h1 className="text-3xl font-bold text-foreground">Webhook Monitoring</h1>
         <p className="text-neutral-600 mt-1">Monitor and debug Stripe webhooks and system events</p>
       </div>
+
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -308,7 +247,9 @@ export default function AdminWebhooks() {
 
       {/* Webhook Events Table */}
       <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-        {filteredEvents.length === 0 ? (
+        {loading ? (
+          <div className="p-12 text-center text-neutral-600">Loading webhook events...</div>
+        ) : filteredEvents.length === 0 ? (
           <div className="p-12 text-center">
             <Webhook className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">No webhook events found</h3>

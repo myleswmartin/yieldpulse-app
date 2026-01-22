@@ -622,7 +622,7 @@ app.post("/stripe/checkout-session", async (c) => {
       ],
       mode: "payment",
       success_url: `${origin}/dashboard?payment=success&analysisId=${analysisId}`,
-      cancel_url: `${origin}/results?payment=cancelled`,
+      cancel_url: `${origin}/results`,
       metadata: checkoutMetadata,
       payment_intent_data: { metadata: checkoutMetadata },
     });

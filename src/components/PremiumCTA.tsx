@@ -1,4 +1,5 @@
 import { Lock, Sparkles } from 'lucide-react';
+import { usePublicPricing } from '../utils/usePublicPricing';
 
 interface PremiumCTAProps {
   onUnlock: () => void;
@@ -15,6 +16,7 @@ export function PremiumCTA({
   personalizedMessage,
   variant = 'default'
 }: PremiumCTAProps) {
+  const { priceLabel } = usePublicPricing();
   const bullets = [
     'Know your exact year 5 position and exit returns',
     'Validate every assumption with transparent calculations',
@@ -31,7 +33,7 @@ export function PremiumCTA({
               <h3 className="text-lg font-bold text-foreground">Unlock the Premium Report</h3>
             </div>
             <p className="text-sm text-neutral-600 mb-1">
-              Complete analysis • AED 49 one time
+              Complete analysis • {priceLabel} one time
             </p>
             <p className="text-xs text-secondary font-semibold">
               ⚡ Join 500+ UAE investors who upgraded
@@ -80,7 +82,7 @@ export function PremiumCTA({
               Unlock the Premium Report
             </h3>
             <span className="px-4 py-1.5 bg-primary text-white rounded-full text-sm font-bold">
-              AED 49
+              {priceLabel}
             </span>
             <span className="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-bold animate-pulse">
               LIMITED TIME
@@ -121,7 +123,7 @@ export function PremiumCTA({
               className="inline-flex items-center space-x-2 px-8 py-3.5 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary-hover transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-base"
             >
               <Lock className="w-5 h-5" />
-              <span>{isLoading ? 'Processing...' : 'Unlock now for AED 49'}</span>
+              <span>{isLoading ? 'Processing...' : `Unlock now for ${priceLabel}`}</span>
             </button>
             {onSeeIncluded && (
               <button

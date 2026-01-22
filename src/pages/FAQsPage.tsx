@@ -5,10 +5,12 @@ import { Footer } from '../components/Footer';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { FeedbackWidget } from '../components/FeedbackWidget';
 import { useState, useEffect } from 'react';
+import { usePublicPricing } from '../utils/usePublicPricing';
 
 export default function FAQsPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const { priceLabel } = usePublicPricing();
 
   // Track page view for analytics
   useEffect(() => {
@@ -28,7 +30,7 @@ export default function FAQsPage() {
       faqs: [
         {
           question: 'What is YieldPulse and how does it work?',
-          answer: 'YieldPulse is a professional UAE property investment calculator that helps you analyze potential real estate investments. Enter your property details (price, rent, down payment), and we instantly generate a comprehensive financial analysis. Our free report shows basic metrics, while our Premium Report (AED 49) includes detailed ROI projections, cash flow analysis, comparison insights, and professional formatting you can share with financial advisors or partners.'
+          answer: `YieldPulse is a professional UAE property investment calculator that helps you analyze potential real estate investments. Enter your property details (price, rent, down payment), and we instantly generate a comprehensive financial analysis. Our free report shows basic metrics, while our Premium Report (${priceLabel}) includes detailed ROI projections, cash flow analysis, comparison insights, and professional formatting you can share with financial advisors or partners.`
         },
         {
           question: 'Do I need to create an account to use the calculator?',
@@ -50,7 +52,7 @@ export default function FAQsPage() {
       faqs: [
         {
           question: 'What\'s the difference between Free and Premium Reports?',
-          answer: 'Free Reports show core metrics: ROI, rental yield, basic cash flow, and break-even point. Premium Reports (AED 49) include: 5/10/20-year ROI projections, detailed year-by-year cash flow, comprehensive cost breakdowns, market comparison insights, visual charts, professional PDF formatting, and lifetime access. Think of free as "quick check" and premium as "investment-ready analysis."'
+          answer: `Free Reports show core metrics: ROI, rental yield, basic cash flow, and break-even point. Premium Reports (${priceLabel}) include: 5/10/20-year ROI projections, detailed year-by-year cash flow, comprehensive cost breakdowns, market comparison insights, visual charts, professional PDF formatting, and lifetime access. Think of free as "quick check" and premium as "investment-ready analysis."`
         },
         {
           question: 'How accurate are the calculations?',
@@ -75,8 +77,8 @@ export default function FAQsPage() {
       icon: '⭐',
       faqs: [
         {
-          question: 'Why does a Premium Report cost AED 49?',
-          answer: 'AED 49 is intentionally affordable - less than a single coffee meeting with an agent. You get: institutional-grade financial analysis, multi-decade projections, professional PDF report, unlimited access, and support. Compare this to hiring a financial analyst (AED 500-2,000 per property) or making a poor AED 500,000+ investment decision. It\'s the cheapest insurance policy for your investment.'
+          question: `Why does a Premium Report cost ${priceLabel}?`,
+          answer: `${priceLabel} is intentionally affordable - less than a single coffee meeting with an agent. You get: institutional-grade financial analysis, multi-decade projections, professional PDF report, unlimited access, and support. Compare this to hiring a financial analyst (AED 500-2,000 per property) or making a poor AED 500,000+ investment decision. It\'s the cheapest insurance policy for your investment.`
         },
         {
           question: 'How do I purchase a Premium Report?',
@@ -184,7 +186,7 @@ export default function FAQsPage() {
         },
         {
           question: 'Do you offer phone support?',
-          answer: 'Currently, we provide support exclusively via email and our Contact form. This allows us to keep costs low and maintain our affordable AED 49 pricing. Email support lets us provide detailed, documented responses and share screenshots/examples. Most inquiries are resolved in 1-2 email exchanges.'
+          answer: `Currently, we provide support exclusively via email and our Contact form. This allows us to keep costs low and maintain our affordable ${priceLabel} pricing. Email support lets us provide detailed, documented responses and share screenshots/examples. Most inquiries are resolved in 1-2 email exchanges.`
         },
         {
           question: 'Can you provide property investment advice?',

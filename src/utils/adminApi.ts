@@ -1,4 +1,4 @@
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { projectId } from '../../utils/supabase/info';
 import { supabase } from './supabaseClient';
 
 const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-ef294769`;
@@ -145,6 +145,9 @@ export const adminApi = {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+      delete: (ticketId: string) => apiRequest(`/admin/support/tickets/${ticketId}`, {
+        method: 'DELETE',
+      }),
       reply: (ticketId: string, message: string, internal: boolean = false) => apiRequest(`/admin/support/tickets/${ticketId}/reply`, {
         method: 'POST',
         body: JSON.stringify({ message, internal }),
@@ -163,6 +166,22 @@ export const adminApi = {
   // Statistics
   stats: {
     get: () => apiRequest('/admin/stats'),
+  },
+
+  // Analytics
+  analytics: {
+    get: (range?: number | string) => {
+      const query = range ? `?range=${encodeURIComponent(String(range))}` : '';
+      return apiRequest(`/admin/analytics${query}`);
+    },
+  },
+
+  // Reports
+  reports: {
+    list: (params?: { page?: number; limit?: number; status?: string; search?: string; sort?: string }) => {
+      const query = new URLSearchParams(params as any).toString();
+      return apiRequest(`/admin/reports${query ? `?${query}` : ''}`);
+    },
   },
 
   // Documents
@@ -244,6 +263,15 @@ export const adminApi = {
         method: 'POST',
         body: JSON.stringify({ code }),
       }),
+  },
+
+  // Platform settings
+  settings: {
+    get: () => apiRequest('/admin/settings'),
+    update: (data: any) => apiRequest('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   },
 };
 

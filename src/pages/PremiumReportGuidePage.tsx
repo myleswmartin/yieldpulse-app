@@ -28,9 +28,11 @@ import { Footer } from '../components/Footer';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { FeedbackWidget } from '../components/FeedbackWidget';
 import { InteractiveROICalculator } from '../components/InteractiveROICalculator';
+import { usePublicPricing } from '../utils/usePublicPricing';
 import { useEffect } from 'react';
 
 export default function PremiumReportGuidePage() {
+  const { priceLabel } = usePublicPricing();
   // Track page view for analytics
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).gtag) {
@@ -1264,7 +1266,7 @@ export default function PremiumReportGuidePage() {
             
             <p className="text-lg text-neutral-600 mb-8 leading-relaxed">
               You've learned the fundamentals. Now put this knowledge to work with YieldPulse's powerful calculator 
-              and get your first professional-grade Premium Report for just AED 49.
+              and get your first professional-grade Premium Report for just {priceLabel}.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

@@ -260,12 +260,22 @@ export function AuthProvider({
         const emailConfirmed =
           session.user.email_confirmed_at !== null;
 
-        // Update user state with refreshed session
-        setUser({
+        // Preserve admin flag while we refresh profile in background
+        setUser((prev) => ({
           id: session.user.id,
           email: session.user.email || "",
+          fullName: prev?.fullName,
+          isAdmin: prev?.isAdmin,
           emailVerified: emailConfirmed,
-        });
+        }));
+
+        fetchUserProfile(
+          session.user.id,
+          session.user.email || "",
+          emailConfirmed,
+        ).catch((err) =>
+          console.warn("Profile fetch failed:", err?.message),
+        );
 
         setSessionExpired(false);
       }
