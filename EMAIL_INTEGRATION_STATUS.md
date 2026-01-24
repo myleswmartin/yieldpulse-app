@@ -5,6 +5,7 @@
 
 ## What was added
 - Reusable branded email templates (600px max width, navy/teal on white) split per template under `supabase/functions/make-server-ef294769/emails/`.
+- Added light/dark mode friendly styling using CSS variables and `prefers-color-scheme`; buttons/text stay on-brand in both modes.
 - Backend-driven sends for required system emails:
   - Email verification (signup) — sent from `/make-server-ef294769/auth/signup`.
   - Account confirmed (once) — POST `/make-server-ef294769/auth/account-confirmed`.

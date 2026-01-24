@@ -75,36 +75,110 @@ const renderLayout = (props: LayoutProps): string => {
     footerNote,
   } = props;
 
+  const styleBlock = `
+    :root {
+      color-scheme: light dark;
+      --primary: ${BRAND.primary};
+      --accent: ${BRAND.accent};
+      --text: ${BRAND.text};
+      --bg: #f3f4f6;
+      --card: ${BRAND.background};
+      --border: ${BRAND.border};
+      --muted: ${BRAND.muted};
+      --cta-text: #0b1220;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #e5e7eb;
+        --bg: #0b1220;
+        --card: #111827;
+        --border: #1f2937;
+        --muted: #9ca3af;
+        --cta-text: #0b1220;
+      }
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: var(--bg) !important;
+      font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      color: var(--text);
+    }
+    .email-shell {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    .email-card {
+      max-width: 600px;
+      background: var(--card) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 14px;
+      padding: 30px 28px;
+      text-align: left;
+    }
+    .email-title {
+      margin: 0 0 12px 0;
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 18px;
+    }
+    .email-text {
+      margin: 0 0 14px 0;
+      line-height: 1.6;
+      font-size: 15px;
+      color: var(--text);
+    }
+    .email-muted {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .email-cta {
+      display: inline-block;
+      padding: 12px 18px;
+      border-radius: 10px;
+      background: var(--accent);
+      color: var(--cta-text);
+      font-weight: 600;
+      font-size: 15px;
+      text-decoration: none;
+    }
+  `;
+
   const sectionHtml = sections
-    .map((paragraph) => `<p style="margin:0 0 14px 0; line-height:1.6; color:${BRAND.text}; font-size:15px;">${paragraph}</p>`)
+    .map((paragraph) => `<p class="email-text">${paragraph}</p>`)
     .join("");
 
   const ctaHtml = ctaLabel && ctaUrl
-    ? `<div style="margin:22px 0;"><a href="${ctaUrl}" style="display:inline-block; padding:12px 18px; border-radius:10px; background:${BRAND.accent}; color:${BRAND.background}; font-weight:600; font-size:15px; text-decoration:none;">${ctaLabel}</a></div>
-       <p style="margin:0 0 10px 0; color:${BRAND.muted}; font-size:13px; line-height:1.5;">If the button doesn't work, copy and paste this link: <span style="word-break:break-all; color:${BRAND.primary};">${ctaUrl}</span></p>`
+    ? `<div style="margin:22px 0;"><a class="email-cta" href="${ctaUrl}">${ctaLabel}</a></div>
+       <p class="email-muted" style="margin:0 0 10px 0;">If the button doesn't work, copy and paste this link: <span style="word-break:break-all; color:var(--primary);">${ctaUrl}</span></p>`
     : "";
 
   const secondaryHtml = secondaryLinkLabel && secondaryLinkUrl
-    ? `<p style="margin:0; color:${BRAND.muted}; font-size:13px; line-height:1.5;">${secondaryLinkLabel}: <span style="word-break:break-all; color:${BRAND.primary};">${secondaryLinkUrl}</span></p>`
+    ? `<p class="email-muted" style="margin:0;">${secondaryLinkLabel}: <span style="word-break:break-all; color:var(--primary);">${secondaryLinkUrl}</span></p>`
     : "";
 
   const footer = footerNote
-    ? `<p style="margin:18px 0 0 0; color:${BRAND.muted}; font-size:13px; line-height:1.5;">${footerNote}</p>`
+    ? `<p class="email-muted" style="margin:18px 0 0 0;">${footerNote}</p>`
     : "";
 
   return `<!DOCTYPE html>
   <html lang="en">
-  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-  <body style="margin:0; padding:24px; background:#f3f4f6; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:${BRAND.text};">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>${styleBlock}</style>
+  </head>
+  <body>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="email-shell">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px; background:${BRAND.background}; border:1px solid ${BRAND.border}; border-radius:14px; padding:30px 28px; text-align:left;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="email-card">
             <tr>
               <td style="padding:0;">
-                <p style="margin:0 0 12px 0; color:${BRAND.primary}; font-weight:700; font-size:18px;">${title}</p>
-                ${greeting ? `<p style="margin:0 0 10px 0; font-size:15px;">${greeting}</p>` : ""}
-                <p style="margin:0 0 14px 0; line-height:1.6; font-size:15px;">${intro}</p>
+                <p class="email-title">${title}</p>
+                ${greeting ? `<p class="email-text" style="margin-bottom:10px;">${greeting}</p>` : ""}
+                <p class="email-text">${intro}</p>
                 ${sectionHtml}
                 ${ctaHtml}
                 ${secondaryHtml}
@@ -112,7 +186,7 @@ const renderLayout = (props: LayoutProps): string => {
               </td>
             </tr>
           </table>
-          <p style="margin:14px 0 0 0; color:${BRAND.muted}; font-size:12px;">YieldPulse • Dubai, UAE</p>
+          <p class="email-muted" style="margin:14px 0 0 0; font-size:12px;">YieldPulse • Dubai, UAE</p>
         </td>
       </tr>
     </table>
