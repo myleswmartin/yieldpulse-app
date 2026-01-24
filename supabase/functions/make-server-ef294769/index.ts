@@ -4,6 +4,15 @@ import { logger } from "npm:hono/logger";
 import * as kv from "./kv_store.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
+import {
+  sendAccountConfirmed,
+  sendEmailVerification,
+  sendPasswordReset,
+  sendPurchaseConfirmation,
+  sendReportReady,
+  sendPaymentFailed,
+  sendSupportConfirmation,
+} from "./emails/index.ts";
 
 const app = new Hono();
 
@@ -88,6 +97,49 @@ const getPlatformSettings = async () => {
   }
 };
 
+// Build a service-role Supabase client when we need profile email or admin data
+const getServiceClient = () => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey =
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing SUPABASE_URL or service role key");
+  }
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+};
+
+// Fetch profile (email, name) for outbound emails
+const fetchProfile = async (userId: string) => {
+  try {
+    const svc = getServiceClient();
+    const { data, error } = await svc
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  } catch (err) {
+    console.warn("fetchProfile failed", err);
+    return null;
+  }
+};
+
+const baseAppUrl = (() => {
+  const envBase =
+    Deno.env.get("APP_BASE_URL") ||
+    Deno.env.get("PUBLIC_SITE_URL") ||
+    Deno.env.get("SITE_URL") ||
+    Deno.env.get("NEXT_PUBLIC_SITE_URL");
+  if (envBase) return envBase.replace(/\/$/, "");
+  const env = (Deno.env.get("ENVIRONMENT") || "production").toLowerCase();
+  return env === "development" ? "http://localhost:5173" : "https://www.yieldpulse.ae";
+})();
+
+const dashboardUrl = `${baseAppUrl}/dashboard`;
+
 const ZERO_DECIMAL_CURRENCIES = new Set([
   "BIF","CLP","DJF","GNF","JPY","KMF","KRW","MGA","PYG","RWF","UGX","VND","VUV","XAF","XOF","XPF"
 ]);
@@ -170,34 +222,198 @@ app.post("/make-server-ef294769/auth/signup", async (c) => {
       email,
       password,
       user_metadata: { full_name: fullName || "" },
-      // Automatically confirm the user's email since an email server hasn't been configured.
-      email_confirm: true,
+      email_confirm: false, // require verification
     });
 
-    if (error) {
+    if (error || !data?.user) {
       console.error("Error creating user:", error);
-      return c.json({ error: error.message }, 400);
+      return c.json({ error: error?.message || "Failed to create user" }, 400);
     }
 
-    // Get the session for the new user
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
+    // Generate verification link + send branded email
+    try {
+      const adminClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const verificationRedirect = `${baseAppUrl}/auth/verify-email`;
+      let verificationUrl = verificationRedirect;
+      const { data: linkData, error: linkError } =
+        await adminClient.auth.admin.generateLink({
+          type: "signup",
+          email,
+          options: { redirectTo: verificationRedirect },
+        });
+      if (!linkError && linkData?.properties?.action_link) {
+        verificationUrl = linkData.properties.action_link;
+      } else if (linkError) {
+        console.warn("generateLink failed, using fallback URL", linkError);
+      }
+      await sendEmailVerification({
+        to: email,
+        verification_url: verificationUrl,
+        first_name: fullName || null,
       });
-
-    if (sessionError) {
-      console.error("Error creating session:", sessionError);
-      return c.json({ error: sessionError.message }, 400);
+    } catch (err) {
+      console.warn("Verification email send failed (non-blocking):", err);
     }
 
     return c.json({
       user: data.user,
-      session: sessionData.session,
+      verificationSent: true,
     });
   } catch (error) {
     console.error("Signup error:", error);
     return c.json({ error: "Internal server error during signup" }, 500);
+  }
+});
+
+// Backend-driven password reset email (Resend + Supabase recovery link)
+app.post("/make-server-ef294769/auth/password-reset", async (c) => {
+  try {
+    const { email, firstName } = await c.req.json();
+    if (!email) {
+      return c.json({ error: "Email is required" }, 400);
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey =
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) {
+      return c.json({ error: "Server missing Supabase credentials" }, 500);
+    }
+
+    const redirectTo = `${baseAppUrl}/auth/reset-password`;
+    let resetUrl = redirectTo;
+    try {
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data, error } = await adminClient.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo },
+      });
+      if (!error && data?.properties?.action_link) {
+        resetUrl = data.properties.action_link;
+      } else if (error) {
+        console.warn("generateLink (recovery) failed", error);
+      }
+    } catch (err) {
+      console.warn("Recovery link generation failed, using fallback", err);
+    }
+
+    const result = await sendPasswordReset({
+      to: email,
+      reset_url: resetUrl,
+      first_name: firstName || null,
+    });
+
+    if (!result.success) {
+      return c.json({ error: result.error || "Failed to send reset email" }, 500);
+    }
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.error("Password reset email error:", error);
+    return c.json({ error: "Internal server error" }, 500);
+  }
+});
+
+// Resend verification email for current user
+app.post("/make-server-ef294769/auth/send-verification", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) return c.json({ error: "Unauthorized" }, 401);
+
+    const anonSupabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: `Bearer ${accessToken}` } } },
+    );
+
+    const { data: { user }, error } = await anonSupabase.auth.getUser();
+    if (error || !user) return c.json({ error: "Unauthorized" }, 401);
+
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const profile = await fetchProfile(user.id);
+    const email = profile?.email || user.email;
+    if (!email) return c.json({ error: "No email found" }, 400);
+
+    const verificationRedirect = `${baseAppUrl}/auth/verify-email`;
+    let verificationUrl = verificationRedirect;
+    const { data: linkData, error: linkError } =
+      await adminClient.auth.admin.generateLink({
+        type: "signup",
+        email,
+        options: { redirectTo: verificationRedirect },
+      });
+    if (!linkError && linkData?.properties?.action_link) {
+      verificationUrl = linkData.properties.action_link;
+    } else if (linkError) {
+      console.warn("generateLink failed, using fallback URL", linkError);
+    }
+
+    const result = await sendEmailVerification({
+      to: email,
+      verification_url: verificationUrl,
+      first_name: profile?.full_name || user.user_metadata?.full_name || null,
+    });
+
+    if (!result.success) {
+      return c.json({ error: result.error || "Failed to send verification email" }, 500);
+    }
+
+    return c.json({ success: true });
+  } catch (err) {
+    console.error("Send verification email error:", err);
+    return c.json({ error: "Internal server error" }, 500);
+  }
+});
+
+// Send account-confirmed email once (after verification)
+app.post("/make-server-ef294769/auth/account-confirmed", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) return c.json({ error: "Unauthorized" }, 401);
+
+    const anonSupabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: `Bearer ${accessToken}` } } },
+    );
+
+    const { data: { user }, error } = await anonSupabase.auth.getUser();
+    if (error || !user) return c.json({ error: "Unauthorized" }, 401);
+
+    // Prevent duplicate sends
+    const sentKey = `email_sent:account_confirmed:${user.id}`;
+    const alreadySent = await kv.get(sentKey);
+    if (alreadySent) {
+      return c.json({ success: true, alreadySent: true });
+    }
+
+    const profile = await fetchProfile(user.id);
+    const to = profile?.email || user.email;
+    if (!to) return c.json({ error: "No email found for user" }, 400);
+
+    const result = await sendAccountConfirmed({
+      to,
+      dashboard_url: dashboardUrl,
+      first_name: profile?.full_name || user.user_metadata?.full_name || null,
+    });
+
+    if (result.success) {
+      await kv.set(sentKey, { sent_at: new Date().toISOString() });
+      return c.json({ success: true });
+    }
+
+    return c.json({ error: result.error || "Failed to send email" }, 500);
+  } catch (err) {
+    console.error("Account confirmed email error:", err);
+    return c.json({ error: "Internal server error" }, 500);
   }
 });
 
@@ -3143,6 +3359,17 @@ app.post("/make-server-ef294769/contact", async (c) => {
     await kv.set(`support_message:${submissionId}:${messageId}`, initialMessage);
 
     console.log(`Contact form submission received: ${submissionId} from ${email}`);
+
+    // Send confirmation email (non-blocking)
+    try {
+      await sendSupportConfirmation({
+        to: email,
+        full_name: fullName,
+        reference: submissionId,
+      });
+    } catch (err) {
+      console.warn("Support confirmation email failed:", err);
+    }
 
     return c.json({ 
       success: true, 

@@ -8,6 +8,7 @@ import {
 } from "react";
 import { supabase } from "../utils/supabaseClient";
 import { saveAnalysis } from "../utils/apiClient";
+import { projectId } from "../../utils/supabase/info";
 
 interface User {
   id: string;
@@ -76,6 +77,49 @@ export function AuthProvider({
   const [sessionExpired, setSessionExpired] = useState(false);
 
   const pendingSyncRef = useRef(false);
+  const accountConfirmedSentRef = useRef(false);
+
+  const markAccountConfirmedSent = (userId: string) => {
+    accountConfirmedSentRef.current = true;
+    try {
+      localStorage.setItem(`account-confirmed-sent:${userId}`, "true");
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const wasAccountConfirmedSent = (userId: string | undefined | null) => {
+    if (!userId) return false;
+    if (accountConfirmedSentRef.current) return true;
+    try {
+      return localStorage.getItem(`account-confirmed-sent:${userId}`) === "true";
+    } catch {
+      return false;
+    }
+  };
+
+  const sendAccountConfirmedEmail = async (userId: string) => {
+    if (!userId || wasAccountConfirmedSent(userId)) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    if (!accessToken) return;
+
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/make-server-ef294769/auth/account-confirmed`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+
+    if (response.ok) {
+      markAccountConfirmedSent(userId);
+    }
+  };
 
   const syncPendingAnalyses = async () => {
     if (pendingSyncRef.current) return;
@@ -198,6 +242,10 @@ export function AuthProvider({
           emailVerified: emailConfirmed,
         });
 
+        if (emailConfirmed) {
+          void sendAccountConfirmedEmail(session.user.id);
+        }
+
         void syncPendingAnalyses();
 
         // Fetch profile in background (never await here)
@@ -241,6 +289,10 @@ export function AuthProvider({
           emailVerified: emailConfirmed,
         });
 
+        if (emailConfirmed) {
+          void sendAccountConfirmedEmail(session.user.id);
+        }
+
         void syncPendingAnalyses();
 
         setSessionExpired(false);
@@ -269,6 +321,10 @@ export function AuthProvider({
           emailVerified: emailConfirmed,
         }));
 
+        if (emailConfirmed) {
+          void sendAccountConfirmedEmail(session.user.id);
+        }
+
         fetchUserProfile(
           session.user.id,
           session.user.email || "",
@@ -284,6 +340,7 @@ export function AuthProvider({
         console.log("🚪 User signed out");
         setUser(null);
         setSessionExpired(true);
+        accountConfirmedSentRef.current = false;
       }
     });
 
@@ -375,28 +432,19 @@ export function AuthProvider({
     password: string,
     fullName: string,
   ) => {
-    // Get the current app URL for email redirect
-    const redirectUrl = `${window.location.origin}/auth/verify-email`;
-
-    // Sign up with Supabase Auth - email verification required
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-        emailRedirectTo: redirectUrl,
+    // Use backend to create user and send custom verification email
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/make-server-ef294769/auth/signup`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, fullName }),
       },
-    });
+    );
 
-    if (error) {
-      console.error("Sign up error:", error);
-      throw new Error(error.message || "Failed to sign up");
-    }
-
-    if (!data.user) {
-      throw new Error("Signup failed - no user returned");
+    if (!response.ok) {
+      const { error } = await response.json().catch(() => ({ error: "Failed to sign up" }));
+      throw new Error(error || "Failed to sign up");
     }
 
     // Store email in localStorage for resend functionality (before verification)
@@ -406,11 +454,7 @@ export function AuthProvider({
       console.warn("Could not store email in localStorage:", e);
     }
 
-    // Profile will be created by database trigger when user verifies email
-    // Do NOT manually insert into profiles table - RLS policy prevents it
-
-    // User is created but not confirmed - they need to verify email
-    // Do NOT set user in state - they must verify first
+    // User must verify email before login
   };
 
   const signOut = async () => {
@@ -431,61 +475,41 @@ export function AuthProvider({
   };
 
   const resendVerificationEmail = async () => {
-    // Try to get email from session first
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    let emailToUse = session?.user?.email;
-
-    // If no session (unverified user), try localStorage
-    if (!emailToUse) {
-      try {
-        emailToUse = localStorage.getItem(
-          "pendingVerificationEmail",
-        );
-      } catch (e) {
-        console.warn("Could not read from localStorage:", e);
-      }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error("No session. Please sign in first.");
     }
 
-    if (!emailToUse) {
-      throw new Error("No email found. Please sign up again.");
-    }
-
-    const redirectUrl = `${window.location.origin}/auth/verify-email`;
-
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email: emailToUse,
-      options: {
-        emailRedirectTo: redirectUrl,
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/make-server-ef294769/auth/send-verification`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
       },
-    });
+    );
 
-    if (error) {
-      console.error("Resend verification error:", error);
-      throw new Error(
-        error.message || "Failed to resend verification email",
-      );
+    if (!response.ok) {
+      const { error } = await response.json().catch(() => ({ error: "Failed to resend verification email" }));
+      throw new Error(error || "Failed to resend verification email");
     }
   };
 
   const resetPassword = async (email: string) => {
-    const redirectUrl = `${window.location.origin}/auth/reset-password`;
-
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      email,
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/make-server-ef294769/auth/password-reset`,
       {
-        redirectTo: redirectUrl,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       },
     );
 
-    if (error) {
-      console.error("Password reset error:", error);
-      throw new Error(
-        error.message || "Failed to send password reset email",
-      );
+    if (!response.ok) {
+      const { error } = await response.json().catch(() => ({ error: "Failed to send password reset email" }));
+      throw new Error(error || "Failed to send password reset email");
     }
   };
 
