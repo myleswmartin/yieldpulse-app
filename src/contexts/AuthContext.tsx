@@ -6,6 +6,7 @@ import {
   ReactNode,
   useRef,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../utils/supabaseClient";
 import { saveAnalysis } from "../utils/apiClient";
 import { projectId } from "../../utils/supabase/info";
@@ -72,6 +73,7 @@ export function AuthProvider({
 }: {
   children: ReactNode;
 }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -277,6 +279,11 @@ export function AuthProvider({
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth state changed:", event);
+
+      if (event === "PASSWORD_RECOVERY") {
+        console.log("🔐 Password recovery detected, redirecting to reset page");
+        navigate("/auth/reset-password", { replace: true });
+      }
 
       if (event === "SIGNED_IN" && session?.user) {
         const emailConfirmed =
