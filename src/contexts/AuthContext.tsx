@@ -84,17 +84,26 @@ export function AuthProvider({
   const markAccountConfirmedSent = (userId: string) => {
     accountConfirmedSentRef.current = true;
     try {
-      localStorage.setItem(`account-confirmed-sent:${userId}`, "true");
+      localStorage.setItem(
+        `account-confirmed-sent:${userId}`,
+        "true",
+      );
     } catch {
       // ignore storage errors
     }
   };
 
-  const wasAccountConfirmedSent = (userId: string | undefined | null) => {
+  const wasAccountConfirmedSent = (
+    userId: string | undefined | null,
+  ) => {
     if (!userId) return false;
     if (accountConfirmedSentRef.current) return true;
     try {
-      return localStorage.getItem(`account-confirmed-sent:${userId}`) === "true";
+      return (
+        localStorage.getItem(
+          `account-confirmed-sent:${userId}`,
+        ) === "true"
+      );
     } catch {
       return false;
     }
@@ -103,7 +112,9 @@ export function AuthProvider({
   const sendAccountConfirmedEmail = async (userId: string) => {
     if (!userId || wasAccountConfirmedSent(userId)) return;
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     const accessToken = session?.access_token;
     if (!accessToken) return;
 
@@ -281,7 +292,9 @@ export function AuthProvider({
       console.log("Auth state changed:", event);
 
       if (event === "PASSWORD_RECOVERY") {
-        console.log("🔐 Password recovery detected, redirecting to reset page");
+        console.log(
+          "🔐 Password recovery detected, redirecting to reset page",
+        );
         navigate("/auth/reset-password", { replace: true });
       }
 
@@ -315,7 +328,9 @@ export function AuthProvider({
       }
 
       if (event === "TOKEN_REFRESHED" && session?.user) {
-        console.log("✅ Token refreshed successfully, updating user state");
+        console.log(
+          "✅ Token refreshed successfully, updating user state",
+        );
         const emailConfirmed =
           session.user.email_confirmed_at !== null;
 
@@ -450,7 +465,9 @@ export function AuthProvider({
     );
 
     if (!response.ok) {
-      const { error } = await response.json().catch(() => ({ error: "Failed to sign up" }));
+      const { error } = await response
+        .json()
+        .catch(() => ({ error: "Failed to sign up" }));
       throw new Error(error || "Failed to sign up");
     }
 
@@ -482,7 +499,9 @@ export function AuthProvider({
   };
 
   const resendVerificationEmail = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session?.access_token) {
       throw new Error("No session. Please sign in first.");
     }
@@ -499,8 +518,14 @@ export function AuthProvider({
     );
 
     if (!response.ok) {
-      const { error } = await response.json().catch(() => ({ error: "Failed to resend verification email" }));
-      throw new Error(error || "Failed to resend verification email");
+      const { error } = await response
+        .json()
+        .catch(() => ({
+          error: "Failed to resend verification email",
+        }));
+      throw new Error(
+        error || "Failed to resend verification email",
+      );
     }
   };
 
@@ -515,8 +540,14 @@ export function AuthProvider({
     );
 
     if (!response.ok) {
-      const { error } = await response.json().catch(() => ({ error: "Failed to send password reset email" }));
-      throw new Error(error || "Failed to send password reset email");
+      const { error } = await response
+        .json()
+        .catch(() => ({
+          error: "Failed to send password reset email",
+        }));
+      throw new Error(
+        error || "Failed to send password reset email",
+      );
     }
   };
 
@@ -564,7 +595,7 @@ export function useAuth() {
     // before the AuthProvider is fully initialized. Log a warning but don't crash the app.
     console.warn(
       "⚠️ Auth context not available (likely HMR reload):",
-      new Error("useAuth must be used within an AuthProvider")
+      new Error("useAuth must be used within an AuthProvider"),
     );
     // Return a safe default object to prevent crashes during development HMR
     return {

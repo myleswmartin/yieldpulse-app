@@ -4,7 +4,8 @@ import { Header } from '../components/Header';
 import { FloatingCTA } from '../components/FloatingCTA';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Calculator, Printer } from 'lucide-react';
-import { generatePDF, ReportSnapshot } from '../utils/pdfGenerator';
+import { ReportSnapshot } from '../utils/pdfGenerator';
+import { downloadPremiumPdf } from '../utils/pdfServerClient';
 import { showSuccess, handleError } from '../utils/errorHandling';
 import { useState } from 'react';
 import { usePublicPricing } from '../utils/usePublicPricing';
@@ -191,7 +192,14 @@ export default function SamplePremiumReportPage() {
       const sampleDate = `Sample Report - ${new Date().toISOString().split('T')[0]}`;
       const sampleFileName = `YieldPulse_Sample_Premium_Report_${new Date().toISOString().split('T')[0]}.pdf`;
       
-      await generatePDF(snapshot, sampleDate, sampleFileName);
+      await downloadPremiumPdf(snapshot, sampleDate, sampleFileName, {
+        propertyName: sampleInputs.propertyName,
+        propertyImageUrl: sampleInputs.propertyImageUrl ?? null,
+        listingUrl: sampleInputs.listingUrl,
+        areaSqft: sampleInputs.areaSqft,
+        propertyType: sampleInputs.propertyType,
+        location: sampleInputs.location,
+      });
       
       showSuccess('Sample PDF downloaded successfully!');
     } catch (error) {

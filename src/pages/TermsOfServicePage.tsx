@@ -77,7 +77,7 @@ export default function TermsOfServicePage() {
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1.5">•</span>
                   <div>
-                    <strong>"Premium Report"</strong> refers to enhanced analytical reports available for purchase at {priceLabel} per report
+                <strong>"Premium Report"</strong> refers to enhanced analytical reports available for purchase at {priceLabel} per report
                   </div>
                 </li>
                 <li className="flex items-start gap-2">

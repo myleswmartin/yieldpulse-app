@@ -28,8 +28,8 @@ import { Footer } from '../components/Footer';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { FeedbackWidget } from '../components/FeedbackWidget';
 import { InteractiveROICalculator } from '../components/InteractiveROICalculator';
-import { usePublicPricing } from '../utils/usePublicPricing';
 import { useEffect } from 'react';
+import { usePublicPricing } from '../utils/usePublicPricing';
 
 export default function PremiumReportGuidePage() {
   const { priceLabel } = usePublicPricing();

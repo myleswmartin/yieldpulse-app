@@ -1,5 +1,5 @@
 import { useLocation, Link } from 'react-router-dom';
-import { TrendingUp, DollarSign, Lock, ArrowLeft, CheckCircle, FileText, Download, GitCompare, Calendar, Info, AlertCircle, Sparkles, Save, UserPlus, LogIn, Shield, Home, Share2 } from 'lucide-react';
+import { TrendingUp, DollarSign, Lock, ArrowLeft, CheckCircle, FileText, Download, GitCompare, Calendar, Info, AlertCircle, Sparkles, Save, UserPlus, LogIn, Shield, Home, Share2, Edit } from 'lucide-react';
 import { CalculationResults, formatCurrency, formatPercent, PropertyInputs } from '../utils/calculations';
 import { useAuth } from '../contexts/AuthContext';
 import { Header } from '../components/Header';
@@ -11,7 +11,8 @@ import { LockedPremiumSection } from '../components/LockedPremiumSection';
 import { ShareModal } from '../components/ShareModal';
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
-import { generatePDF } from '../utils/pdfGenerator';
+// PDF generation now offloaded to backend pdf-server (Puppeteer)
+import { downloadPremiumPdf } from '../utils/pdfServerClient';
 import { showSuccess, handleError } from '../utils/errorHandling';
 import { trackPdfDownload, trackPremiumUnlock } from '../utils/analytics';
 import { checkPurchaseStatus, createCheckoutSession, saveAnalysis, createGuestCheckoutSession, createShareLink } from '../utils/apiClient';
@@ -53,6 +54,10 @@ function buildPropertyInputsFromAnalysis(analysis: any): Partial<PropertyInputs>
       serviceChargeAnnual: parseNumber(analysis.service_charge_annual),
       annualMaintenancePercent: parseNumber(analysis.annual_maintenance_percent),
       propertyManagementFeePercent: parseNumber(analysis.property_management_fee_percent),
+      // Optional property context fields
+      bedrooms: parseString(analysis.bedrooms),
+      bathrooms: parseString(analysis.bathrooms),
+      additionalAreas: analysis.additional_areas || undefined,
       // Projection parameters - these are also saved in the database
       capitalGrowthPercent: parseNumber(analysis.capital_growth_percent) ?? 5, // Default to 5% if not saved
       rentGrowthPercent: parseNumber(analysis.rent_growth_percent) ?? 3, // Default to 3% if not saved
@@ -67,57 +72,50 @@ function buildPropertyInputsFromAnalysis(analysis: any): Partial<PropertyInputs>
   }
 }
 
-const LAST_RESULTS_STORAGE_KEY = 'yieldpulse-last-results';
-const LAST_RESULTS_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
-
-type StoredResultsState = {
-  inputs: Partial<PropertyInputs>;
-  results: CalculationResults;
-  analysisId?: string | null;
-  savedAt: number;
-};
-
 export default function ResultsPage() {
   const location = useLocation();
   const { user } = useAuth();
   const { priceLabel } = usePublicPricing();
   
-  const results = location.state?.results as CalculationResults | null;
-  const inputs = location.state?.inputs as PropertyInputs | null;
+  // CRITICAL: Store navigation state in component state to survive re-renders
+  const [displayResults, setDisplayResults] = useState<CalculationResults | null>(() => {
+    const results = location.state?.results as CalculationResults | null;
+    const savedAnalysis = location.state?.analysis;
+    
+    if (results) {
+      console.log('🟣 INIT: Using direct results from navigation');
+      return results;
+    } else if (savedAnalysis?.calculation_results) {
+      console.log('🟣 INIT: Using results from saved analysis');
+      return savedAnalysis.calculation_results as CalculationResults;
+    }
+    console.log('🟣 INIT: No results found');
+    return null;
+  });
+  
+  const [displayInputs, setDisplayInputs] = useState<Partial<PropertyInputs> | null>(() => {
+    const inputs = location.state?.inputs as PropertyInputs | null;
+    const savedAnalysis = location.state?.analysis;
+    
+    if (inputs) {
+      console.log('🟣 INIT: Using direct inputs from navigation');
+      return inputs;
+    } else if (savedAnalysis) {
+      console.log('🟣 INIT: Building inputs from saved analysis');
+      return buildPropertyInputsFromAnalysis(savedAnalysis);
+    }
+    console.log('🟣 INIT: No inputs found');
+    return null;
+  });
+  
   const savedAnalysis = location.state?.analysis;
   const fromDashboard = location.state?.fromDashboard;
   const passedAnalysisId = location.state?.analysisId;
   const isSavedFromCalculator = location.state?.isSaved || false;
 
-  const [restoredState, setRestoredState] = useState<StoredResultsState | null>(null);
-
-  // ================================================================
-  // DETERMINE DISPLAY INPUTS & RESULTS WITH ROBUST PRECEDENCE
-  // ================================================================
-  let displayInputs: Partial<PropertyInputs> | null = null;
-  let displayResults: CalculationResults | null = null;
-
-  // Inputs precedence: direct inputs > build from analysis > restored > null
-  if (inputs) {
-    displayInputs = inputs;
-  } else if (savedAnalysis) {
-    displayInputs = buildPropertyInputsFromAnalysis(savedAnalysis);
-  } else if (restoredState?.inputs) {
-    displayInputs = restoredState.inputs;
-  }
-
-  // Results precedence: direct results > analysis.calculation_results > restored > null
-  if (results) {
-    displayResults = results;
-  } else if (savedAnalysis?.calculation_results) {
-    try {
-      displayResults = savedAnalysis.calculation_results as CalculationResults;
-    } catch (error) {
-      console.error('Error parsing calculation_results:', error);
-    }
-  } else if (restoredState?.results) {
-    displayResults = restoredState.results as CalculationResults;
-  }
+  console.log('🟢 Results Page - location.state:', location.state);
+  console.log('🟢 Results Page - displayResults:', displayResults);
+  console.log('🟢 Results Page - displayInputs:', displayInputs);
 
   // ================================================================
   // SAVE STATE TRACKING - CRITICAL FOR GATING
@@ -142,50 +140,6 @@ export default function ResultsPage() {
   
   // Determine if premium should be shown
   const showPremiumContent = isPremiumUnlocked || (user?.isAdmin && adminPreviewEnabled);
-
-  // Restore results from storage if we landed here without route state (e.g., Stripe cancel redirect)
-  useEffect(() => {
-    if (results || savedAnalysis?.calculation_results || restoredState) return;
-    try {
-      const raw = sessionStorage.getItem(LAST_RESULTS_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as StoredResultsState;
-      if (!parsed?.inputs || !parsed?.results) return;
-      if (parsed.savedAt && Date.now() - parsed.savedAt > LAST_RESULTS_TTL_MS) return;
-      setRestoredState(parsed);
-    } catch (error) {
-      console.warn('Failed to restore results from storage:', error);
-    }
-  }, [results, savedAnalysis, restoredState]);
-
-  // Persist latest results to storage for Stripe redirects
-  useEffect(() => {
-    if (!displayInputs || !displayResults) return;
-    try {
-      const stored: StoredResultsState = {
-        inputs: displayInputs,
-        results: displayResults,
-        analysisId: analysisId || passedAnalysisId || savedAnalysis?.id || null,
-        savedAt: Date.now(),
-      };
-      sessionStorage.setItem(LAST_RESULTS_STORAGE_KEY, JSON.stringify(stored));
-    } catch (error) {
-      console.warn('Failed to save results to storage:', error);
-    }
-  }, [displayInputs, displayResults, analysisId, passedAnalysisId, savedAnalysis?.id]);
-
-  // Restore analysisId if it was cached
-  useEffect(() => {
-    if (!analysisId && restoredState?.analysisId) {
-      setAnalysisId(restoredState.analysisId);
-    }
-  }, [analysisId, restoredState?.analysisId]);
-
-  useEffect(() => {
-    if (analysisId && !isSaved) {
-      setIsSaved(true);
-    }
-  }, [analysisId, isSaved]);
 
   // Check purchase status on mount if we have an analysis ID
   useEffect(() => {
@@ -270,7 +224,17 @@ export default function ResultsPage() {
 
     setGeneratingPDF(true);
     try {
-      await generatePDF(pdfSnapshot.snapshot, pdfSnapshot.purchaseDate);
+      const overrides = displayInputs
+        ? {
+            propertyName: displayInputs.propertyName,
+            propertyImageUrl: displayInputs.propertyImageUrl ?? null,
+            listingUrl: displayInputs.listingUrl,
+            areaSqft: displayInputs.areaSqft,
+            propertyType: displayInputs.propertyType,
+            location: displayInputs.location,
+          }
+        : undefined;
+      await downloadPremiumPdf(pdfSnapshot.snapshot, pdfSnapshot.purchaseDate, undefined, overrides);
       showSuccess('PDF downloaded successfully!');
       trackPdfDownload();
     } catch (error) {
@@ -389,7 +353,7 @@ export default function ResultsPage() {
       });
       
       const { data, error, requestId } = await saveAnalysis({
-        inputs: displayInputs as PropertyInputs,
+        inputs: displayInputs,
         results: displayResults,
       });
 
@@ -662,6 +626,14 @@ export default function ResultsPage() {
                   <GitCompare className="w-4 h-4" />
                   <span>Compare</span>
                 </Link>
+                <Link
+                  to="/calculator"
+                  state={{ editMode: true, analysisId, inputs: displayInputs, results: displayResults }}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-border text-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-50 transition-all"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span>Edit</span>
+                </Link>
               </div>
             </div>
           </div>
@@ -787,6 +759,14 @@ export default function ResultsPage() {
                   >
                     <LogIn className="w-4 h-4" />
                     <span>Already have an account?</span>
+                  </Link>
+                  <Link
+                    to="/calculator"
+                    state={{ editMode: true, inputs: displayInputs, results: displayResults }}
+                    className="inline-flex items-center gap-2 px-6 py-4 bg-white text-primary border-2 border-primary/30 rounded-xl font-medium hover:bg-primary/5 hover:border-primary transition-all"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Edit</span>
                   </Link>
                 </div>
                 <p className="text-xs text-neutral-500 mt-3 flex items-center gap-1.5">
@@ -1192,7 +1172,7 @@ export default function ResultsPage() {
                   Ready for the Full Report?
                 </h3>
                 <p className="text-neutral-700 mb-4 leading-relaxed">
-                  Sign in to save this analysis free, compare 2-4 properties, and unlock investor-grade PDF reports for {priceLabel} each.
+                  Sign in to save this analysis free, compare 2-3 properties, and unlock investor-grade PDF reports for {priceLabel} each.
                 </p>
                 <div className="flex flex-wrap items-center gap-3 mb-4">
                   <div className="flex items-center gap-2 text-sm text-neutral-600">

@@ -707,6 +707,99 @@ export function PremiumReport({
             </div>
           )}
 
+          {/* Property Image */}
+          {displayInputs.propertyImageUrl && (
+            <div className="mb-6 pdf-subsection page-break-avoid">
+              <h3 className="text-lg font-semibold text-foreground mb-4 pdf-h3">Property Image</h3>
+              <div className="bg-white rounded-xl border border-border overflow-hidden p-4">
+                <img
+                  src={displayInputs.propertyImageUrl}
+                  alt={displayInputs.propertyName || 'Property'}
+                  className="w-full max-w-2xl mx-auto rounded-lg"
+                  style={{ maxHeight: '400px', objectFit: 'contain' }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Property Context - Optional property details */}
+          {(displayInputs.propertyType || displayInputs.location || displayInputs.bedrooms || displayInputs.bathrooms || (displayInputs.additionalAreas && displayInputs.additionalAreas.length > 0) || displayInputs.listingUrl || displayInputs.portalSource) && (
+            <div className="mb-6 pdf-subsection page-break-avoid">
+              <h3 className="text-lg font-semibold text-foreground mb-4 pdf-h3">Property Context</h3>
+              <div className="bg-white rounded-xl border border-border overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-neutral-50">
+                      <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Detail</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground text-sm" colSpan={2}>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {displayInputs.propertyType && (
+                      <tr className="bg-white">
+                        <td className="py-3 px-4 text-sm text-neutral-700">Property Type</td>
+                        <td className="py-3 px-4 text-sm font-medium text-foreground" colSpan={2}>{displayInputs.propertyType}</td>
+                      </tr>
+                    )}
+                    {displayInputs.location && (
+                      <tr className={displayInputs.propertyType ? 'bg-neutral-50' : 'bg-white'}>
+                        <td className="py-3 px-4 text-sm text-neutral-700">Location</td>
+                        <td className="py-3 px-4 text-sm font-medium text-foreground" colSpan={2}>{displayInputs.location}</td>
+                      </tr>
+                    )}
+                    {displayInputs.bedrooms && (
+                      <tr className={(displayInputs.propertyType || displayInputs.location) ? 
+                        ((displayInputs.propertyType && displayInputs.location) ? 'bg-white' : 'bg-neutral-50') : 'bg-white'}>
+                        <td className="py-3 px-4 text-sm text-neutral-700">Bedrooms</td>
+                        <td className="py-3 px-4 text-sm font-medium text-foreground" colSpan={2}>{displayInputs.bedrooms}</td>
+                      </tr>
+                    )}
+                    {displayInputs.bathrooms && (
+                      <tr className={(() => {
+                        const count = [displayInputs.propertyType, displayInputs.location, displayInputs.bedrooms].filter(Boolean).length;
+                        return count % 2 === 0 ? 'bg-white' : 'bg-neutral-50';
+                      })()}>
+                        <td className="py-3 px-4 text-sm text-neutral-700">Bathrooms</td>
+                        <td className="py-3 px-4 text-sm font-medium text-foreground" colSpan={2}>{displayInputs.bathrooms}</td>
+                      </tr>
+                    )}
+                    {displayInputs.additionalAreas && displayInputs.additionalAreas.length > 0 && (
+                      <tr className={(() => {
+                        const count = [displayInputs.propertyType, displayInputs.location, displayInputs.bedrooms, displayInputs.bathrooms].filter(Boolean).length;
+                        return count % 2 === 0 ? 'bg-white' : 'bg-neutral-50';
+                      })()}>
+                        <td className="py-3 px-4 text-sm text-neutral-700">Additional Areas</td>
+                        <td className="py-3 px-4 text-sm font-medium text-foreground" colSpan={2}>{displayInputs.additionalAreas.join(', ')}</td>
+                      </tr>
+                    )}
+                    {displayInputs.listingUrl && (
+                      <tr className={(() => {
+                        const count = [displayInputs.propertyType, displayInputs.location, displayInputs.bedrooms, displayInputs.bathrooms, (displayInputs.additionalAreas && displayInputs.additionalAreas.length > 0)].filter(Boolean).length;
+                        return count % 2 === 0 ? 'bg-white' : 'bg-neutral-50';
+                      })()}>
+                        <td className="py-3 px-4 text-sm text-neutral-700">Listing URL</td>
+                        <td className="py-3 px-4 text-sm font-medium text-foreground break-all" colSpan={2}>
+                          <a href={displayInputs.listingUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary-hover underline">
+                            {displayInputs.listingUrl}
+                          </a>
+                        </td>
+                      </tr>
+                    )}
+                    {displayInputs.portalSource && (
+                      <tr className={(() => {
+                        const count = [displayInputs.propertyType, displayInputs.location, displayInputs.bedrooms, displayInputs.bathrooms, (displayInputs.additionalAreas && displayInputs.additionalAreas.length > 0), displayInputs.listingUrl].filter(Boolean).length;
+                        return count % 2 === 0 ? 'bg-white' : 'bg-neutral-50';
+                      })()}>
+                        <td className="py-3 px-4 text-sm text-neutral-700">Portal Source</td>
+                        <td className="py-3 px-4 text-sm font-medium text-foreground" colSpan={2}>{displayInputs.portalSource}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* User Inputs */}
           <div className="mb-6 pdf-subsection page-break-avoid">
             <h3 className="text-lg font-semibold text-foreground mb-4 pdf-h3">Property & Financial Inputs (User-Provided)</h3>

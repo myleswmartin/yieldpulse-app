@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { usePublicPricing } from '../utils/usePublicPricing';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   TrendingUp,
@@ -26,6 +25,7 @@ import {
   Settings,
   XCircle
 } from 'lucide-react';
+import { usePublicPricing } from '../utils/usePublicPricing';
 
 // Tab configuration
 const tabs = [
@@ -259,8 +259,8 @@ function CodeSnippet({ code, language = 'css' }: { code: string; language?: stri
 }
 
 export default function InteractiveBrandGuidelines() {
-  const [activeTab, setActiveTab] = useState('overview');
   const { priceLabel } = usePublicPricing();
+  const [activeTab, setActiveTab] = useState('overview');
 
   return (
     <div className="min-h-screen">

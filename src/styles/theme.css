@@ -172,54 +172,75 @@
 
   /* Headings - Navy Blue (#1e2875) */
   h1 {
-    @apply text-5xl font-bold leading-tight;
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1.2;
     color: inherit; /* Allow parent to control color */
   }
 
   h2 {
-    @apply text-4xl font-bold leading-tight;
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1.2;
     color: inherit; /* Allow parent to control color */
   }
 
   h3 {
-    @apply text-3xl font-semibold leading-tight;
+    font-size: 1.875rem;
+    font-weight: 600;
+    line-height: 1.2;
     color: inherit; /* Allow parent to control color */
   }
 
   h4 {
-    @apply text-2xl font-semibold leading-normal;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.5;
     color: inherit; /* Allow parent to control color */
   }
 
   h5 {
-    @apply text-xl font-semibold leading-normal;
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.5;
     color: inherit; /* Allow parent to control color */
   }
 
   h6 {
-    @apply text-lg font-medium leading-normal;
+    font-size: 1.125rem;
+    font-weight: 500;
+    line-height: 1.5;
     color: inherit; /* Allow parent to control color */
   }
 
   /* Body text - Slate palette */
   p {
-    @apply text-base leading-relaxed;
+    font-size: 1rem;
+    line-height: 1.75;
     color: inherit; /* Allow parent to control color */
   }
 
   /* Labels and form elements */
   label {
-    @apply text-sm font-medium text-slate-700 leading-normal;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--slate-700);
+    line-height: 1.5;
   }
 
   button {
-    @apply text-base font-semibold leading-normal;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
   }
 
   input, 
   select, 
   textarea {
-    @apply text-base font-normal text-slate-900 leading-normal;
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--slate-900);
+    line-height: 1.5;
   }
 
   /* Enhanced focus states for accessibility - YieldPulse Navy */

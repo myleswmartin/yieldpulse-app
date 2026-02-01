@@ -1,0 +1,44 @@
+================================================================================
+📐 COMPARISON REPORT FIGMA DESIGNS - DEVELOPER GUIDE
+================================================================================
+
+👋 Hi Developer!
+
+You're looking at the Figma design reference files for the YieldPulse 
+Comparison Report PDF feature.
+
+📍 LOCATION OF DESIGN FILES:
+   This folder (/src/imports/) contains 6 design files:
+   
+   ✓ A41.tsx  - Cover Page
+   ✓ A42.tsx  - Summary Page with Property Cards
+   ✓ A43.tsx  - Yield Comparison Charts
+   ✓ A44.tsx  - Cash Flow Analysis
+   ✓ A4I5.tsx - Risk Profiles
+   ✓ A46.tsx  - Investment Decision Helper
+
+📖 READ THE FULL DOCUMENTATION:
+   Open: /src/imports/COMPARISON_REPORT_DESIGNS_README.md
+   
+   This file contains:
+   • Complete design specifications
+   • Color palette and typography
+   • Layout measurements
+   • Implementation checklist
+   • How to use these files
+
+🎯 YOUR TASK:
+   Match these Figma designs in the PDF generator located at:
+   /src/utils/comparisonPdfGenerator.ts
+
+💡 QUICK START:
+   1. Read: COMPARISON_REPORT_DESIGNS_README.md (in this folder)
+   2. Open: A41.tsx to see the cover page design
+   3. Compare: Current PDF output vs. Figma designs
+   4. Refine: Update comparisonPdfGenerator.ts to match
+
+⚠️ DO NOT DELETE THESE FILES - They are the design source of truth!
+
+================================================================================
+Questions? Check /DESIGN_REFERENCES.md at the project root
+================================================================================

@@ -117,7 +117,7 @@ of appreciation and 10.41% total growth versus the purchase price.
 
 ### Change 2: Article Before AED
 
-**Section:** 3. Understanding Investment Risk (Rent Sensitivity)  
+**Section:** 3. Sensitivity Analysis (Rent Sensitivity)  
 **Line:** 326  
 
 **BEFORE TEXT:**

@@ -49,7 +49,7 @@ import AdminSettings from '../pages/admin/AdminSettings';
 import AdminSetupPage from '../pages/admin/AdminSetupPage';
 import AdminDiscounts from '../pages/admin/AdminDiscounts';
 import SharedReportPage from '../pages/SharedReportPage';
-import ComparisonSharePage from '../pages/ComparisonSharePage';
+import ComparisonSharePage from '@/pages/ComparisonSharePage';
 
 // Route to page name mapping for analytics
 const ROUTE_PAGE_NAMES: Record<string, string> = {
@@ -133,35 +133,35 @@ function AppRoutes() {
         <Route path="/support" element={<SupportPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/payment-success" element={<PaymentSuccessPage />} />
-        <Route 
-          path="/dashboard" 
+        <Route
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <DashboardPage />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/comparison" 
+        <Route
+          path="/comparison"
           element={
             <ProtectedRoute>
               <ComparisonPage />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/profile-settings" 
+        <Route
+          path="/profile-settings"
           element={
             <ProtectedRoute>
               <ProfileSettingsPage />
             </ProtectedRoute>
-          } 
+          }
         />
         <Route path="/brand-identity" element={<BrandIdentityPage />} />
-        
+
         {/* Admin Routes - Nested under AdminLayout */}
-        <Route 
-          path="/admin" 
+        <Route
+          path="/admin"
           element={
             <AdminRoute>
               <AdminLayout />
@@ -181,16 +181,16 @@ function AppRoutes() {
           <Route path="settings" element={<AdminSettings />} />
           <Route path="discounts" element={<AdminDiscounts />} />
         </Route>
-        
-        <Route 
-          path="/admin/setup" 
-          element={<AdminSetupPage />} 
+
+        <Route
+          path="/admin/setup"
+          element={<AdminSetupPage />}
         />
-        
+
         {/* Shared Report - Public route with token parameter */}
-        <Route 
-          path="/shared/:token" 
-          element={<SharedReportPage />} 
+        <Route
+          path="/shared/:token"
+          element={<SharedReportPage />}
         />
         <Route
           path="/shared/comparison/:token"

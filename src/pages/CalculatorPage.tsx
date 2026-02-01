@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Calculator, TrendingUp, DollarSign, ArrowRight, Info, AlertCircle, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Calculator, TrendingUp, DollarSign, ArrowRight, Info, AlertCircle, CheckCircle, XCircle, AlertTriangle, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateROI, PropertyInputs, CalculationResults, formatCurrency, formatPercent } from '../utils/calculations';
-import { saveAnalysis } from '../utils/apiClient';
+import { saveAnalysis, updateAnalysis } from '../utils/apiClient';
 import { Header } from '../components/Header';
 import { StatCard } from '../components/StatCard';
 import { Tooltip } from '../components/Tooltip';
@@ -28,13 +28,9 @@ const parseFormattedNumber = (value: string): number => {
 
 export default function CalculatorPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
-  const [results, setResults] = useState<CalculationResults | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
-  const [warnings, setWarnings] = useState<FieldWarning[]>([]);
-
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<PropertyInputs>({
     propertyName: '',
     portalSource: 'Bayut',
     listingUrl: '',
@@ -44,13 +40,58 @@ export default function CalculatorPage() {
     downPaymentPercent: 20,
     mortgageInterestRate: 5.5,
     mortgageTermYears: 25,
-    serviceChargePerSqft: 15,
+    serviceChargeAnnual: 15 * 1000,
     propertyManagementFeePercent: 5,
     annualMaintenancePercent: 1,
     insuranceAnnual: 2000,
     vacancyRatePercent: 5,
     otherCostsAnnual: 1000,
+    bedrooms: '',
+    bathrooms: '',
+    additionalAreas: [] as string[],
   });
+  
+  const [results, setResults] = useState<CalculationResults | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [warnings, setWarnings] = useState<FieldWarning[]>([]);
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+  const [rentalIncomeMode, setRentalIncomeMode] = useState<'Monthly' | 'Annual'>('Monthly');
+  const [editModeAnalysisId, setEditModeAnalysisId] = useState<string | null>(null);
+  const [additionalAreasOpen, setAdditionalAreasOpen] = useState(false);
+  
+  useEffect(() => {
+    const editState = location.state as any;
+    if (editState?.editMode && editState?.inputs) {
+      console.log('🔧 Edit mode detected, pre-populating form...', editState.inputs);
+      setEditModeAnalysisId(editState.analysisId || null);
+      
+      const inputs = editState.inputs;
+      setFormData({
+        propertyName: inputs.propertyName || '',
+        portalSource: inputs.portalSource || 'Bayut',
+        listingUrl: inputs.listingUrl || '',
+        purchasePrice: inputs.purchasePrice || 1500000,
+        areaSqft: inputs.areaSqft || 1000,
+        expectedMonthlyRent: inputs.expectedMonthlyRent || 8000,
+        downPaymentPercent: inputs.downPaymentPercent || 20,
+        mortgageInterestRate: inputs.mortgageInterestRate || 5.5,
+        mortgageTermYears: inputs.mortgageTermYears || 25,
+        serviceChargeAnnual: inputs.serviceChargeAnnual && inputs.areaSqft 
+          ? inputs.serviceChargeAnnual 
+          : 15 * 1000,
+        propertyManagementFeePercent: inputs.propertyManagementFeePercent || 5,
+        annualMaintenancePercent: inputs.annualMaintenancePercent || 1,
+        insuranceAnnual: 2000,
+        vacancyRatePercent: inputs.vacancyRatePercent || 5,
+        otherCostsAnnual: 1000,
+        bedrooms: inputs.bedrooms || '',
+        bathrooms: inputs.bathrooms || '',
+        additionalAreas: inputs.additionalAreas || [] as string[],
+      });
+      
+      setRentalIncomeMode('Monthly');
+    }
+  }, [location.state]);
 
   const validateAndWarn = (name: string, value: number): string | null => {
     const newWarnings: FieldWarning[] = warnings.filter(w => w.field !== name);
@@ -90,10 +131,10 @@ export default function CalculatorPage() {
         }
         break;
 
-      case 'serviceChargePerSqft':
-        if (value < 5) {
+      case 'serviceChargeAnnual':
+        if (value < 5 * 1000) {
           newWarnings.push({ field: name, message: 'Service charge below AED 5/sqft is very low. Check with developer or community.', severity: 'warning' });
-        } else if (value > 30) {
+        } else if (value > 30 * 1000) {
           newWarnings.push({ field: name, message: 'Service charge above AED 30/sqft is high. Common range is AED 10-25/sqft.', severity: 'info' });
         }
         break;
@@ -135,6 +176,14 @@ export default function CalculatorPage() {
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log(' FORM SUBMITTED - handleCalculate called');
+    console.log('🟡 Form Data:', formData);
+    
+    // Normalize rental income to monthly regardless of input mode
+    const normalizedMonthlyRent = rentalIncomeMode === 'Annual' 
+      ? formData.expectedMonthlyRent / 12 
+      : formData.expectedMonthlyRent;
+    
     const inputs: PropertyInputs = {
       propertyName: formData.propertyName || undefined,
       portalSource: formData.portalSource,
@@ -144,10 +193,13 @@ export default function CalculatorPage() {
       downPaymentPercent: formData.downPaymentPercent,
       mortgageInterestRate: formData.mortgageInterestRate,
       mortgageTermYears: formData.mortgageTermYears,
-      expectedMonthlyRent: formData.expectedMonthlyRent,
-      serviceChargeAnnual: formData.serviceChargePerSqft * formData.areaSqft,
+      expectedMonthlyRent: normalizedMonthlyRent,
+      serviceChargeAnnual: formData.serviceChargeAnnual,
       annualMaintenancePercent: formData.annualMaintenancePercent,
       propertyManagementFeePercent: formData.propertyManagementFeePercent,
+      bedrooms: formData.bedrooms || undefined,
+      bathrooms: formData.bathrooms || undefined,
+      additionalAreas: formData.additionalAreas.length > 0 ? formData.additionalAreas : undefined,
       dldFeePercent: 4,
       agentFeePercent: 2,
       capitalGrowthPercent: 5,
@@ -156,81 +208,121 @@ export default function CalculatorPage() {
       holdingPeriodYears: 5,
     };
 
-    const calculatedResults = calculateROI(inputs);
+    console.log('🔵 Calculator - Inputs:', inputs);
+    
+    let calculatedResults;
+    try {
+      console.log('🟡 About to call calculateROI...');
+      calculatedResults = calculateROI(inputs);
+      console.log('🔵 Calculator - Results:', calculatedResults);
+      console.log('🔵 Calculator - User state:', user ? 'Logged in' : 'Guest');
+    } catch (error) {
+      console.error('❌ ERROR in calculateROI:', error);
+      handleError(
+        'Failed to calculate ROI. Please check your inputs and try again.',
+        'Calculation Error'
+      );
+      return;
+    }
+    
+    console.log('🟡 About to navigate to results...');
+    console.log('🟡 Navigation state will be:', { inputs, results: calculatedResults, isSaved: false });
+    
     setResults(calculatedResults);
 
     if (user) {
       setSaving(true);
       try {
-        const { data, error, requestId } = await saveAnalysis({
-          inputs,
-          results: calculatedResults,
-        });
+        let data;
+        let error;
+        let requestId;
+        
+        if (editModeAnalysisId) {
+          console.log('🔧 Edit mode: Updating existing analysis', editModeAnalysisId);
+          const result = await updateAnalysis(editModeAnalysisId, {
+            inputs,
+            results: calculatedResults,
+          });
+          data = result.data;
+          error = result.error;
+          requestId = result.requestId;
+        } else {
+          console.log('🆕 New analysis: Creating new save');
+          const result = await saveAnalysis({
+            inputs,
+            results: calculatedResults,
+          });
+          data = result.data;
+          error = result.error;
+          requestId = result.requestId;
+        }
 
         if (error) {
           console.error('Failed to save analysis:', error);
           
-          // Special handling for 401 errors (session expired)
+          // ALWAYS navigate to results, even if save fails
+          // Just show the error and let them proceed
           if (error.status === 401) {
-            handleError(
-              'Your session has expired. Please sign in again to save your analysis.',
-              'Session Expired',
-              undefined, // No retry - they need to sign in first
-              requestId
-            );
-            setSaving(false);
-            // Navigate to results without saving - user can sign in and try again
-            navigate('/results', { 
-              state: { 
-                inputs, 
-                results: calculatedResults,
-                isSaved: false 
-              } 
-            });
-            return;
+            console.log('🔵 Session expired, navigating without save...');
+          } else {
+            console.log('🔵 Save failed, navigating without save...', error);
           }
           
-          // All other errors
-          handleError(
-            error.error || 'Failed to save analysis. Please try again before viewing results.',
-            'Save Analysis',
-            () => handleCalculate(e),
-            requestId
-          );
           setSaving(false);
-          return; // CRITICAL: Block navigation if save fails
+          navigate('/results', { 
+            state: { 
+              inputs, 
+              results: calculatedResults,
+              isSaved: false 
+            } 
+          });
+          return;
         }
 
-        if (data?.id) {
-          showSuccess('Analysis saved successfully');
+        const finalAnalysisId = editModeAnalysisId || data?.id;
+        if (finalAnalysisId) {
+          console.log('🔵 Analysis saved successfully, navigating with ID:', finalAnalysisId);
+          showSuccess(editModeAnalysisId ? 'Analysis updated successfully' : 'Analysis saved successfully');
           // Navigate WITH analysisId only on successful save
           navigate('/results', { 
             state: { 
               inputs, 
               results: calculatedResults, 
-              analysisId: data.id,
+              analysisId: finalAnalysisId,
               isSaved: true 
             } 
           });
         } else {
-          handleError('Analysis saved but no ID returned. Please try again.');
+          console.log('🔵 No ID returned, navigating without save...');
           setSaving(false);
+          navigate('/results', { 
+            state: { 
+              inputs, 
+              results: calculatedResults,
+              isSaved: false 
+            } 
+          });
           return;
         }
       } catch (error: any) {
         console.error('Error saving analysis:', error);
-        handleError(
-          error.message || 'An unexpected error occurred while saving. Please try again.',
-          'Save Analysis',
-          () => handleCalculate(e)
-        );
+        console.log('🔵 Exception during save, navigating without save...');
         setSaving(false);
-        return; // CRITICAL: Block navigation on error
+        // ALWAYS navigate even on exception
+        navigate('/results', { 
+          state: { 
+            inputs, 
+            results: calculatedResults,
+            isSaved: false 
+          } 
+        });
+        return;
       } finally {
         setSaving(false);
       }
     } else {
       // Unauthenticated users: navigate with in-memory state only
+      console.log('🔵 Guest user, navigating to results...');
       setShowSignInPrompt(true);
       navigate('/results', { 
         state: { 
@@ -256,7 +348,7 @@ export default function CalculatorPage() {
       mortgageInterestRate: formData.mortgageInterestRate,
       mortgageTermYears: formData.mortgageTermYears,
       expectedMonthlyRent: formData.expectedMonthlyRent,
-      serviceChargeAnnual: formData.serviceChargePerSqft * formData.areaSqft,
+      serviceChargeAnnual: formData.serviceChargeAnnual,
       annualMaintenancePercent: formData.annualMaintenancePercent,
       propertyManagementFeePercent: formData.propertyManagementFeePercent,
       dldFeePercent: 4,
@@ -440,6 +532,94 @@ export default function CalculatorPage() {
                   <p className="mt-1.5 text-xs text-neutral-500">Built up area in square feet</p>
                 </div>
               </div>
+
+              {/* Optional Property Context Fields */}
+              <div className="grid md:grid-cols-3 gap-6 mt-6">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Number of Bedrooms <span className="text-neutral-400 font-normal">(optional)</span>
+                  </label>
+                  <select
+                    name="bedrooms"
+                    value={formData.bedrooms}
+                    onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  >
+                    <option value=""></option>
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7+">7+</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Number of Bathrooms <span className="text-neutral-400 font-normal">(optional)</span>
+                  </label>
+                  <select
+                    name="bathrooms"
+                    value={formData.bathrooms}
+                    onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  >
+                    <option value=""></option>
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5+">5+</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Additional Areas <span className="text-neutral-400 font-normal">(optional)</span>
+                  </label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setAdditionalAreasOpen(!additionalAreasOpen)}
+                      className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all flex items-center justify-between text-left"
+                    >
+                      <span className="text-sm text-foreground">
+                        {formData.additionalAreas.length > 0 
+                          ? `${formData.additionalAreas.length} selected` 
+                          : 'Select options'}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${additionalAreasOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {additionalAreasOpen && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <div className="p-2 space-y-1">
+                          {['Balcony', 'Terrace', 'Garden', "Maid's Room", 'Study', 'Storage', 'Parking', 'Roof Terrace'].map((area) => (
+                            <label key={area} className="flex items-center space-x-3 px-3 py-2 hover:bg-muted rounded cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={formData.additionalAreas.includes(area)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setFormData({ ...formData, additionalAreas: [...formData.additionalAreas, area] });
+                                  } else {
+                                    setFormData({ ...formData, additionalAreas: formData.additionalAreas.filter(a => a !== area) });
+                                  }
+                                }}
+                                className="w-4 h-4 text-primary border-neutral-300 rounded focus:ring-2 focus:ring-ring focus:ring-offset-0 cursor-pointer"
+                              />
+                              <span className="text-sm text-foreground select-none">{area}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Rent Section */}
@@ -452,7 +632,7 @@ export default function CalculatorPage() {
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
-                    <span>Expected Monthly Rent <span className="text-neutral-500 font-normal">(AED)</span></span>
+                    <span>Expected {rentalIncomeMode} Rent <span className="text-neutral-500 font-normal">(AED)</span></span>
                     <Tooltip content="Current market rent for similar properties in the area. Check recent listings on Bayut or Property Finder for comparable units. This is the second most influential factor after purchase price." />
                   </label>
                   <input
@@ -466,6 +646,34 @@ export default function CalculatorPage() {
                   <p className="mt-2 text-xs text-neutral-500">
                     Market rent for similar properties. Typical UAE yields: 4% to 8%.
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                    <span>Rental Income Period</span>
+                  </label>
+                  <select
+                    value={rentalIncomeMode}
+                    onChange={(e) => {
+                      const newMode = e.target.value as 'Monthly' | 'Annual';
+                      const currentValue = formData.expectedMonthlyRent;
+                      
+                      // Convert the value when switching modes
+                      if (rentalIncomeMode === 'Monthly' && newMode === 'Annual') {
+                        // Converting from monthly to annual: multiply by 12
+                        setFormData({ ...formData, expectedMonthlyRent: currentValue * 12 });
+                      } else if (rentalIncomeMode === 'Annual' && newMode === 'Monthly') {
+                        // Converting from annual to monthly: divide by 12
+                        setFormData({ ...formData, expectedMonthlyRent: currentValue / 12 });
+                      }
+                      
+                      setRentalIncomeMode(newMode);
+                    }}
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  >
+                    <option value="Monthly">Monthly</option>
+                    <option value="Annual">Annual</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -510,7 +718,7 @@ export default function CalculatorPage() {
                     required
                     min="0"
                     max="100"
-                    step="0.1"
+                    step="0.01"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
                   />
                   <p className="mt-1.5 text-xs text-neutral-500">Default: 5.5% (current UAE market average)</p>
@@ -551,8 +759,8 @@ export default function CalculatorPage() {
                   </label>
                   <input
                     type="number"
-                    name="serviceChargePerSqft"
-                    value={formData.serviceChargePerSqft}
+                    name="serviceChargeAnnual"
+                    value={formData.serviceChargeAnnual / formData.areaSqft}
                     onChange={handleInputChange}
                     required
                     min="0"
@@ -692,7 +900,7 @@ export default function CalculatorPage() {
                   </div>
                   <div className="bg-white rounded-lg p-4 border border-border">
                     <p className="text-xs text-neutral-500 mb-1">Service Charge</p>
-                    <p className="font-semibold text-foreground">{formatCurrency(formData.serviceChargePerSqft * formData.areaSqft)}</p>
+                    <p className="font-semibold text-foreground">{formatCurrency(formData.serviceChargeAnnual)}</p>
                     <p className="text-xs text-neutral-500 mt-1">per year</p>
                   </div>
                 </div>

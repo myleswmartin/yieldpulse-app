@@ -16,77 +16,22 @@ export interface ApiResponse<T = any> {
 }
 
 /**
- * Get a valid access token, refreshing if necessary
- * Returns null if user is not authenticated or refresh fails
+ * Get current session and access token
  */
-async function getAccessToken(): Promise<string | null> {
+async function getAuthHeaders(): Promise<HeadersInit | null> {
   try {
-    console.log('🔑 Attempting to retrieve access token...');
-    
     const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      console.error('❌ Error getting session:', error);
+
+    if (error || !session) {
+      console.log('ℹ️ No active session for API call');
       return null;
     }
-    
-    if (!session) {
-      console.log('ℹ️ No active session found');
-      return null;
-    }
-    
-    const expiresAt = session.expires_at || 0;
-    const now = Math.floor(Date.now() / 1000);
-    const timeUntilExpiry = expiresAt - now;
-    
-    console.log(`⏱️ Token expires in ${timeUntilExpiry} seconds`);
-    
-    const isExpired = timeUntilExpiry <= 0;
-    const isExpiringSoon = timeUntilExpiry <= 300; // Less than 5 minutes
-    
-    if (isExpired) {
-      console.log('🔄 Token expired, attempting to refresh...');
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-      
-      if (refreshError || !refreshedSession) {
-        console.error('❌ Failed to refresh session:', refreshError);
-        // Clear the invalid session
-        await supabase.auth.signOut();
-        // Return null to prevent making API call with invalid token
-        return null;
-      }
-      
-      console.log('✅ Session refreshed successfully');
-      return refreshedSession.access_token;
-    }
-    
-    if (isExpiringSoon) {
-      console.log('⏰ Token expiring soon, refreshing proactively...');
-      // Try to refresh but don't block on it
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-      
-      if (refreshError || !refreshedSession) {
-        console.warn('⚠️ Proactive refresh failed, using current token:', refreshError);
-        // Still return current token as it's still valid
-        return session.access_token;
-      }
-      
-      console.log('✅ Session refreshed proactively');
-      return refreshedSession.access_token;
-    }
-    
-    console.log('✅ Access token retrieved successfully');
-    console.log('📊 Token info:', {
-      expiresAt: new Date(expiresAt * 1000).toISOString(),
-      expiresIn: expiresAt - now,
-      tokenLength: session.access_token.length,
-      userId: session.user?.id,
-      userEmail: session.user?.email,
-    });
-    
-    return session.access_token;
+
+    return {
+      'Authorization': `Bearer ${session.access_token}`,
+    };
   } catch (err) {
-    console.error('❌ Exception while getting access token:', err);
+    console.error('❌ Error getting auth headers:', err);
     return null;
   }
 }
@@ -96,56 +41,63 @@ async function getAccessToken(): Promise<string | null> {
  */
 async function apiCall<T = any>(
   endpoint: string,
-  options: RequestInit = {},
-  accessTokenOverride?: string | null,
+  options: {
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+    body?: any;
+    requireAuth?: boolean;
+  } = {}
 ): Promise<ApiResponse<T>> {
   try {
-    const accessToken = accessTokenOverride ?? await getAccessToken();
-    
+    const { method = 'GET', body, requireAuth = true } = options;
+
+    console.log(`🌐 API Call: ${method} ${endpoint}`);
+
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      ...options.headers,
     };
 
-    // Add Authorization header if user is authenticated
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
+    // Add auth headers if required
+    if (requireAuth) {
+      const authHeaders = await getAuthHeaders();
+      if (!authHeaders) {
+        return {
+          error: {
+            error: 'Not authenticated. Please sign in to continue.',
+            status: 401,
+          },
+        };
+      }
+      Object.assign(headers, authHeaders);
+      console.log(`🔑 Auth headers added for ${endpoint}`);
     }
 
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-      ...options,
+    const fetchOptions: RequestInit = {
+      method,
       headers,
-    });
+    };
+
+    if (body) {
+      fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
+    }
+
+    console.log(`📤 Sending request to: ${BASE_URL}${endpoint}`);
+    const response = await fetch(`${BASE_URL}${endpoint}`, fetchOptions);
+    console.log(`📨 Response: ${response.status} ${response.statusText}`);
 
     // Extract requestId from response header
     const requestId = response.headers.get('X-Request-ID') || undefined;
 
-    // Handle 401 Unauthorized - clear local session
-    if (response.status === 401) {
-      // Silently sign out user on frontend to clear invalid session
-      try {
-        await supabase.auth.signOut();
-      } catch (e) {
-        // Silent failure - user will be redirected to login anyway
-      }
-      
-      const errorData = await response.json().catch(() => ({ error: 'Unauthorized' }));
-      return {
-        error: {
-          error: errorData.error || 'Session expired. Please sign in again.',
-          requestId,
-          status: 401,
-        },
-        requestId,
-      };
-    }
-
     // Handle error responses
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      const errorData = await response.json().catch(() => ({
+        error: `HTTP ${response.status}`
+      }));
+
+      console.error(`❌ API Error (${response.status}):`, errorData);
+
       return {
         error: {
-          error: errorData.error || `HTTP ${response.status}`,
+          error: errorData.error || errorData.message || `HTTP ${response.status}`,
           requestId,
           status: response.status,
         },
@@ -155,9 +107,10 @@ async function apiCall<T = any>(
 
     // Parse success response
     const data = await response.json();
+    console.log(`✅ API call successful`);
     return { data, requestId };
   } catch (err: any) {
-    console.error('API call failed:', err);
+    console.error('❌ API call exception:', err);
     return {
       error: {
         error: err.message || 'Network error',
@@ -172,43 +125,11 @@ async function apiCall<T = any>(
  * Endpoint: POST /make-server-ef294769/discounts/validate
  */
 export async function validateDiscountCode(code: string): Promise<ApiResponse> {
-  try {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${publicAnonKey}`,
-    };
-
-    const response = await fetch(`${BASE_URL}/make-server-ef294769/discounts/validate`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ code }),
-    });
-
-    const requestId = response.headers.get('X-Request-ID') || undefined;
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      return {
-        error: {
-          error: errorData.error || `HTTP ${response.status}`,
-          requestId,
-          status: response.status,
-        },
-        requestId,
-      };
-    }
-
-    const data = await response.json();
-    return { data, requestId };
-  } catch (err: any) {
-    console.error('Discount validation failed:', err);
-    return {
-      error: {
-        error: err.message || 'Network error',
-        status: 0,
-      },
-    };
-  }
+  return apiCall('/make-server-ef294769/discounts/validate', {
+    method: 'POST',
+    body: { code },
+    requireAuth: false,
+  });
 }
 
 // ================================================================
@@ -220,13 +141,11 @@ export interface CreateShareRequest {
   inputs?: any;
   results?: any;
   propertyName?: string;
-  comparisonItems?: ComparisonShareItem[];
 }
 
-export interface ComparisonShareItem {
+export interface CreateComparisonShareRequest {
+  analysisIds: string[];
   propertyName?: string;
-  inputs: any;
-  results: any;
 }
 
 /**
@@ -236,14 +155,18 @@ export interface ComparisonShareItem {
 export async function createShareLink(payload: CreateShareRequest): Promise<ApiResponse> {
   return apiCall('/make-server-ef294769/reports/share', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: payload,
   });
 }
 
-export async function createComparisonShareLink(payload: { analysisIds: string[]; propertyName?: string }): Promise<ApiResponse> {
+/**
+ * Create a shareable link for a comparison report (requires authentication)
+ * Endpoint: POST /make-server-ef294769/reports/share/comparison
+ */
+export async function createComparisonShareLink(payload: CreateComparisonShareRequest): Promise<ApiResponse> {
   return apiCall('/make-server-ef294769/reports/share/comparison', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: payload,
   });
 }
 
@@ -252,81 +175,10 @@ export async function createComparisonShareLink(payload: { analysisIds: string[]
  * Endpoint: GET /make-server-ef294769/reports/shared/:token
  */
 export async function getSharedReport(token: string): Promise<ApiResponse> {
-  try {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${publicAnonKey}`,
-    };
-
-    const response = await fetch(`${BASE_URL}/make-server-ef294769/reports/shared/${token}`, {
-      method: 'GET',
-      headers,
-    });
-
-    const requestId = response.headers.get('X-Request-ID') || undefined;
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      return {
-        error: {
-          error: errorData.error || `HTTP ${response.status}`,
-          requestId,
-          status: response.status,
-        },
-        requestId,
-      };
-    }
-
-    const data = await response.json();
-    return { data, requestId };
-  } catch (err: any) {
-    console.error('Failed to fetch shared report:', err);
-    return {
-      error: {
-        error: err.message || 'Network error',
-        status: 0,
-      },
-    };
-  }
-}
-
-export async function getSharedComparison(token: string): Promise<ApiResponse> {
-  try {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${publicAnonKey}`,
-    };
-
-    const response = await fetch(`${BASE_URL}/make-server-ef294769/reports/shared/comparison/${token}`, {
-      method: 'GET',
-      headers,
-    });
-
-    const requestId = response.headers.get('X-Request-ID') || undefined;
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      return {
-        error: {
-          error: errorData.error || `HTTP ${response.status}`,
-          requestId,
-          status: response.status,
-        },
-        requestId,
-      };
-    }
-
-    const data = await response.json();
-    return { data, requestId };
-  } catch (err: any) {
-    console.error('Failed to fetch shared comparison report:', err);
-    return {
-      error: {
-        error: err.message || 'Network error',
-        status: 0,
-      },
-    };
-  }
+  return apiCall(`/make-server-ef294769/reports/shared/${token}`, {
+    method: 'GET',
+    requireAuth: false,
+  });
 }
 
 /**
@@ -381,14 +233,11 @@ export interface SaveAnalysisRequest {
  * Save a new analysis (requires authentication)
  * Endpoint: POST /make-server-ef294769/analyses
  */
-export async function saveAnalysis(
-  payload: SaveAnalysisRequest,
-  accessTokenOverride?: string | null,
-): Promise<ApiResponse> {
+export async function saveAnalysis(payload: SaveAnalysisRequest): Promise<ApiResponse> {
   return apiCall('/make-server-ef294769/analyses', {
     method: 'POST',
-    body: JSON.stringify(payload),
-  }, accessTokenOverride);
+    body: payload,
+  });
 }
 
 /**
@@ -418,7 +267,7 @@ export async function deleteAnalysis(analysisId: string): Promise<ApiResponse> {
 export async function updateAnalysis(analysisId: string, updates: Record<string, any>): Promise<ApiResponse> {
   return apiCall(`/make-server-ef294769/analyses/${analysisId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
+    body: updates,
   });
 }
 
@@ -429,7 +278,7 @@ export async function updateAnalysis(analysisId: string, updates: Record<string,
 export async function updateAnalysisNote(analysisId: string, note: string): Promise<ApiResponse> {
   return apiCall(`/make-server-ef294769/analyses/${analysisId}/note`, {
     method: 'PUT',
-    body: JSON.stringify({ note }),
+    body: { note },
   });
 }
 
@@ -440,8 +289,58 @@ export async function updateAnalysisNote(analysisId: string, note: string): Prom
 export async function updatePropertyName(analysisId: string, propertyName: string): Promise<ApiResponse> {
   return apiCall(`/make-server-ef294769/analyses/${analysisId}/property-name`, {
     method: 'PATCH',
-    body: JSON.stringify({ propertyName }),
+    body: { propertyName },
   });
+}
+
+/**
+ * Update property image URL for an analysis (requires authentication)
+ * Endpoint: PATCH /make-server-ef294769/analyses/:id/property-image
+ */
+export async function updatePropertyImage(analysisId: string, imageUrl: string | null): Promise<ApiResponse> {
+  return apiCall(`/make-server-ef294769/analyses/${analysisId}/property-image`, {
+    method: 'PATCH',
+    body: { propertyImageUrl: imageUrl },
+  });
+}
+
+export async function getSharedComparison(token: string): Promise<ApiResponse> {
+  try {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${publicAnonKey}`,
+    };
+
+    const response = await fetch(`${BASE_URL}/make-server-ef294769/reports/shared/comparison/${token}`, {
+      method: 'GET',
+      headers,
+    });
+
+    const requestId = response.headers.get('X-Request-ID') || undefined;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      return {
+        error: {
+          error: errorData.error || `HTTP ${response.status}`,
+          requestId,
+          status: response.status,
+        },
+        requestId,
+      };
+    }
+
+    const data = await response.json();
+    return { data, requestId };
+  } catch (err: any) {
+    console.error('Failed to fetch shared comparison report:', err);
+    return {
+      error: {
+        error: err.message || 'Network error',
+        status: 0,
+      },
+    };
+  }
 }
 
 // ================================================================
@@ -470,7 +369,7 @@ export interface CreateCheckoutRequest {
 export async function createCheckoutSession(payload: CreateCheckoutRequest): Promise<ApiResponse> {
   return apiCall('/make-server-ef294769/stripe/checkout-session', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: payload,
   });
 }
 
@@ -485,56 +384,9 @@ export interface CreateGuestCheckoutRequest {
  * Endpoint: POST /make-server-ef294769/stripe/guest-checkout-session
  */
 export async function createGuestCheckoutSession(payload: CreateGuestCheckoutRequest): Promise<ApiResponse> {
-  // Call without user authentication, but include anon key for Supabase Edge Function access
-  try {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${publicAnonKey}`, // Anon key needed for Supabase Edge Function access
-    };
-
-    const response = await fetch(`${BASE_URL}/make-server-ef294769/stripe/guest-checkout-session`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-    });
-
-    // Extract requestId from response header
-    const requestId = response.headers.get('X-Request-ID') || undefined;
-
-    // Handle error responses
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      return {
-        error: {
-          error: errorData.error || `HTTP ${response.status}`,
-          requestId,
-          status: response.status,
-        },
-        requestId,
-      };
-    }
-
-    // Parse success response
-    const data = await response.json();
-    return { data, requestId };
-  } catch (err: any) {
-    console.error('API call failed:', err);
-    return {
-      error: {
-        error: err.message || 'Network error',
-        status: 0,
-      },
-    };
-  }
-}
-
-/**
- * Claim a guest purchase and attach it to the authenticated user
- * Endpoint: POST /make-server-ef294769/guest/claim
- */
-export async function claimGuestPurchase(purchaseId: string): Promise<ApiResponse> {
-  return apiCall('/make-server-ef294769/guest/claim', {
+  return apiCall('/make-server-ef294769/stripe/guest-checkout-session', {
     method: 'POST',
-    body: JSON.stringify({ purchaseId }),
+    body: payload,
+    requireAuth: false,
   });
 }

@@ -62,7 +62,7 @@
 
 ### Change C: Added Projection Year 1 Formula Reconciliation
 
-**Location:** Section 8 - Calculation Formulas and Methodology (Formulas section)
+**Location:** (REMOVED - Section 8 Calculation Formulas has been removed from reports)
 
 **BEFORE:**
 ```jsx
@@ -273,9 +273,8 @@ The Premium Report now explicitly explains why Executive Summary (today snapshot
 **Change 2:** Updated Cash Flow Trajectory to show escalated rent calculation  
 **Change 3:** Fixed "shows received" grammar to "shows AED X received"  
 
-### Section 8 - Calculation Formulas and Methodology
-**Change 4:** Added "Today Snapshot" labels to existing formulas  
-**Change 5:** Added "Projection Year 1" reconciliation section showing Year by Year table calculation  
+### Section 8 - (REMOVED)
+Section 8 (Calculation Formulas and Methodology) has been removed from reports.  
 
 **Total Changes:** 5 text-only modifications  
 **Total Files Modified:** 1 (PremiumReport.tsx)  

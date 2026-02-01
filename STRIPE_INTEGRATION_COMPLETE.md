@@ -1,8 +1,8 @@
 # ✅ YieldPulse Phase 4: Stripe Integration Complete
 
-**Status**: Implementation Complete\
-**Date**: January 3, 2026\
-**Architecture**: Vite React SPA + Supabase Edge Functions
+**Status**: Implementation Complete  
+**Date**: January 3, 2026  
+**Architecture**: Vite React SPA + Supabase Edge Functions  
 
 ---
 
@@ -23,16 +23,12 @@ YieldPulse now has a production-ready Stripe payment integration with:
 ## 📁 Files Modified/Created
 
 ### **Database Migration**
-
-- `/DATABASE_MIGRATION_STRIPE.sql` - Creates `report_purchases` table with RLS
-  policies
+- `/DATABASE_MIGRATION_STRIPE.sql` - Creates `report_purchases` table with RLS policies
 
 ### **Backend** (Supabase Edge Function)
-
 - `/supabase/functions/server/index.tsx` - Added 3 new Stripe routes
 
 ### **Frontend** (Vite React)
-
 - `/src/pages/ResultsPage.tsx` - Added purchase status check and checkout flow
 - `/src/pages/DashboardPage.tsx` - Added post-payment success/cancel banner
 
@@ -49,37 +45,32 @@ All routes prefixed with `/make-server-ef294769`
 **Authentication**: Required (JWT Bearer token)
 
 **Request Body**:
-
 ```json
 {
-   "analysisId": "uuid",
-   "successUrl": "https://app.com/dashboard?payment=success&analysisId=uuid",
-   "cancelUrl": "https://app.com/dashboard"
+  "analysisId": "uuid",
+  "successUrl": "https://app.com/dashboard?payment=success&analysisId=uuid",
+  "cancelUrl": "https://app.com/dashboard?payment=cancelled"
 }
 ```
 
 **Response**:
-
 ```json
 {
-   "url": "https://checkout.stripe.com/c/pay/..."
+  "url": "https://checkout.stripe.com/c/pay/..."
 }
 ```
 
 **Behavior**:
-
 1. Authenticates user via Supabase Auth
 2. Fetches analysis owned by user
 3. Creates immutable snapshot (inputs, results, calculation version)
 4. Inserts `report_purchases` record with `status='pending'`
 5. Creates Stripe Checkout Session for AED 49
-6. Attaches metadata: `platform`, `user_id`, `analysis_id`, `purchase_id`,
-   `environment`
+6. Attaches metadata: `platform`, `user_id`, `analysis_id`, `purchase_id`, `environment`
 7. Stores `stripe_checkout_session_id` in purchase record
 8. Returns Checkout Session URL
 
 **Security**:
-
 - Amount (AED 49) server-controlled
 - No client input for price or currency
 - User ID verified from JWT token
@@ -94,11 +85,9 @@ All routes prefixed with `/make-server-ef294769`
 **Authentication**: Stripe signature verification (no JWT)
 
 **Webhook Events Handled**:
-
 - `checkout.session.completed`
 
 **Behavior**:
-
 1. Verifies Stripe signature using `STRIPE_WEBHOOK_SECRET`
 2. Rejects invalid signatures immediately
 3. Extracts `purchase_id` from session metadata
@@ -109,14 +98,12 @@ All routes prefixed with `/make-server-ef294769`
 5. Updates `analyses.is_paid` = true (backwards compatibility)
 
 **Security**:
-
 - Signature verification prevents spoofing
 - Uses Service Role Key (bypass RLS)
 - No frontend involvement
 - Idempotent (can be called multiple times safely)
 
-**Critical**: This is the **ONLY** route that unlocks premium. Frontend cannot
-unlock.
+**Critical**: This is the **ONLY** route that unlocks premium. Frontend cannot unlock.
 
 ---
 
@@ -127,11 +114,9 @@ unlock.
 **Authentication**: Required (JWT Bearer token)
 
 **Query Parameters**:
-
 - `analysisId` (required)
 
 **Response**:
-
 ```json
 {
   "status": "none" | "pending" | "paid" | "failed" | "refunded",
@@ -142,7 +127,6 @@ unlock.
 ```
 
 **Behavior**:
-
 1. Authenticates user
 2. Queries latest purchase for `user_id` + `analysis_id`
 3. Returns explicit status or `"none"` if no purchase exists
@@ -180,27 +164,24 @@ CREATE TABLE report_purchases (
 ```
 
 **Indexes**:
-
 - `idx_report_purchases_user_id` on `user_id`
 - `idx_report_purchases_analysis_id` on `analysis_id`
 - `idx_report_purchases_stripe_session` on `stripe_checkout_session_id`
 - `idx_report_purchases_status` on `status`
 
 **RLS Policies**:
-
 - Users can `SELECT` own purchases
 - Users can `INSERT` own purchases
 - Only service role can `UPDATE` (webhook only)
 
 **Snapshot Structure**:
-
 ```json
 {
-   "inputs": {/* all PropertyInputs */},
-   "results": {/* CalculationResults */},
-   "analysis": {/* full analysis record */},
-   "calculationVersion": "v1",
-   "snapshotCreatedAt": "ISO8601 timestamp"
+  "inputs": { /* all PropertyInputs */ },
+  "results": { /* CalculationResults */ },
+  "analysis": { /* full analysis record */ },
+  "calculationVersion": "v1",
+  "snapshotCreatedAt": "ISO8601 timestamp"
 }
 ```
 
@@ -211,7 +192,6 @@ CREATE TABLE report_purchases (
 ### **ResultsPage**
 
 **New State**:
-
 ```typescript
 const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
 const [checkingPurchaseStatus, setCheckingPurchaseStatus] = useState(false);
@@ -219,62 +199,54 @@ const [creatingCheckout, setCreatingCheckout] = useState(false);
 ```
 
 **On Mount**:
-
 ```typescript
 useEffect(() => {
-   if (analysisId && user) {
-      checkPurchaseStatus(); // Calls GET /purchases/status
-   }
+  if (analysisId && user) {
+    checkPurchaseStatus(); // Calls GET /purchases/status
+  }
 }, [analysisId, user]);
 ```
 
 **Purchase Status Check**:
-
 - Calls `/purchases/status?analysisId=${analysisId}`
 - If `status === 'paid'`: sets `isPremiumUnlocked = true`
 - Otherwise: keeps premium locked
 
 **Unlock Button Handler**:
-
 ```typescript
 const handleUnlockPremium = async () => {
-   // 1. Validate user signed in
-   // 2. Validate analysis saved
-   // 3. Call POST /stripe/checkout-session
-   // 4. Redirect to Stripe Checkout URL
-};
+  // 1. Validate user signed in
+  // 2. Validate analysis saved
+  // 3. Call POST /stripe/checkout-session
+  // 4. Redirect to Stripe Checkout URL
+}
 ```
 
 **Conditional Rendering**:
-
 - If `!isPremiumUnlocked`: Show locked overlay with "Unlock for AED 49" button
 - If `isPremiumUnlocked`: Show full premium charts and tables
 
-**No Unlock Without Webhook**: Refresh safety maintained. User cannot bypass
-paywall.
+**No Unlock Without Webhook**: Refresh safety maintained. User cannot bypass paywall.
 
 ---
 
 ### **DashboardPage**
 
 **New Imports**:
-
 ```typescript
-import { useSearchParams } from "react-router-dom";
-import { CheckCircle, X, XCircle } from "lucide-react";
+import { useSearchParams } from 'react-router-dom';
+import { CheckCircle, XCircle, X } from 'lucide-react';
 ```
 
 **URL Parameter Detection**:
-
 ```typescript
-const payment = searchParams.get("payment"); // 'success' | 'cancelled'
-const analysisId = searchParams.get("analysisId");
+const payment = searchParams.get('payment'); // 'success' | 'cancelled'
+const analysisId = searchParams.get('analysisId');
 ```
 
 **Payment Banner States**:
 
 **Success Banner**:
-
 ```
 ✅ Premium report unlocked successfully
 Your premium analysis is now fully accessible with all charts and projections.
@@ -284,7 +256,6 @@ Your premium analysis is now fully accessible with all charts and projections.
 ```
 
 **Cancel Banner**:
-
 ```
 ⚠️ Payment cancelled
 You can try again anytime from the results page.
@@ -294,8 +265,7 @@ You can try again anytime from the results page.
 
 **Banner Placement**: Between Welcome section and Stats cards
 
-**Auto-dismissible**: User can close banner, and URL params are cleaned
-immediately
+**Auto-dismissible**: User can close banner, and URL params are cleaned immediately
 
 ---
 
@@ -388,7 +358,7 @@ immediately
 3. User clicks "Back" or closes checkout
 4. Stripe redirects to `cancelUrl`
 5. User lands on Dashboard
-   - URL: `/dashboard`
+   - URL: `/dashboard?payment=cancelled`
    - Cancel banner displays
    - No report unlocked
 
@@ -433,7 +403,6 @@ immediately
 ## 🔧 Environment Variables Required
 
 **Supabase Edge Function** (already configured):
-
 ```
 SUPABASE_URL=https://woqwrkfmdjuaerzpvshj.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -441,14 +410,12 @@ SUPABASE_SERVICE_ROLE_KEY=<service_role_key>
 ```
 
 **New Environment Variables** (must be added):
-
 ```
 STRIPE_SECRET_KEY=sk_test_...  # Stripe secret key (test mode)
 STRIPE_WEBHOOK_SECRET=whsec_...  # Webhook signing secret
 ```
 
 **Frontend** (client-side, already present):
-
 - Uses `projectId` and `publicAnonKey` from `/utils/supabase/info.tsx`
 - No Stripe keys exposed to client
 
@@ -459,8 +426,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...  # Webhook signing secret
 ### **1. Create Stripe Product** (if not exists)
 
 - **Product Name**: YieldPulse Property Investment Report
-- **Description**: Complete premium analysis with yield calculations, cash flow
-  projections, and investment metrics
+- **Description**: Complete premium analysis with yield calculations, cash flow projections, and investment metrics
 - **Type**: One-time payment
 
 ### **2. Create Price**
@@ -471,8 +437,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...  # Webhook signing secret
 
 ### **3. Configure Webhook**
 
-- **Endpoint URL**:
-  `https://woqwrkfmdjuaerzpvshj.supabase.co/functions/v1/make-server-ef294769/stripe/webhook`
+- **Endpoint URL**: `https://woqwrkfmdjuaerzpvshj.supabase.co/functions/v1/make-server-ef294769/stripe/webhook`
 - **Events to listen**:
   - `checkout.session.completed`
 - **Copy Webhook Signing Secret** → `STRIPE_WEBHOOK_SECRET`
@@ -489,31 +454,26 @@ STRIPE_WEBHOOK_SECRET=whsec_...  # Webhook signing secret
 ## 📝 Next Steps (Future Enhancements)
 
 ### **PDF Export** (Phase 5)
-
 - Generate PDF from purchased snapshot
 - Include YieldPulse branding
 - Email PDF to user after purchase
 
 ### **Comparison Tool** (Phase 6)
-
 - Allow users to compare multiple purchased reports
 - Side-by-side metrics view
 - Visual comparison charts
 
 ### **Production Stripe Account**
-
 - Migrate from Individual to Business account
 - Enable live mode
 - Configure payout details
 
 ### **VAT Compliance** (Future)
-
 - Add UAE VAT (5%) logic
 - Update amount to AED 51.45 (49 + 5% VAT)
 - Store VAT details in purchase record
 
 ### **Refund Handling**
-
 - Handle `charge.refunded` webhook event
 - Update `report_purchases.status = 'refunded'`
 - Lock premium access after refund
@@ -560,23 +520,19 @@ STRIPE_WEBHOOK_SECRET=whsec_...  # Webhook signing secret
 **YieldPulse Phase 4 is production-ready for Stripe payment integration.**
 
 The application now functions as:
-
 - ✅ A monetized financial analysis platform
 - ✅ With auditable, immutable purchased reports
 - ✅ With server-verified entitlements
 - ✅ With clean UX handoff via dashboard banner
-- ✅ With zero refactor required for future PDF export, comparison tool, or
-  Business Stripe account migration
+- ✅ With zero refactor required for future PDF export, comparison tool, or Business Stripe account migration
 
-**No changes required to calculation formulas, database schema (analyses table),
-or core application logic.**
+**No changes required to calculation formulas, database schema (analyses table), or core application logic.**
 
 ---
 
 ## 📞 Support
 
 For Stripe integration issues:
-
 1. Check Supabase Edge Function logs
 2. Check Stripe Dashboard webhook events
 3. Verify environment variables are set
@@ -584,7 +540,6 @@ For Stripe integration issues:
 5. Ensure webhook signature verification passes
 
 For questions, refer to:
-
 - Stripe Checkout Documentation: https://stripe.com/docs/payments/checkout
 - Stripe Webhooks Guide: https://stripe.com/docs/webhooks
 - Supabase Edge Functions: https://supabase.com/docs/guides/functions

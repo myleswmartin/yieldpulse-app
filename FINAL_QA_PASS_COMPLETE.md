@@ -340,11 +340,10 @@ represent {formatPercent(...)} of {isSampleMode ? 'the' : 'your'} initial invest
 ### Manual Spot Checks
 - Section 1: Five-Year Investment Outcome ✅
 - Section 2: Year-by-Year Financial Trajectory ✅
-- Section 3: Understanding Investment Risk ✅
+- Section 3: Sensitivity Analysis ✅
 - Section 5: Upfront Capital Requirement ✅
 - Section 6: Understanding the Mortgage ✅
 - Section 7: Input and Assumption Verification ✅
-- Section 8: Calculation Formulas ✅
 
 ### Cross-Reference Verification
 - Verified narrative text matches calculation outputs

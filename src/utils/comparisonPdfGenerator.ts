@@ -5,6 +5,7 @@ import { formatCurrency, formatPercent } from './calculations';
 interface ComparisonAnalysis {
   id: string;
   property_name: string;
+  property_image_url?: string | null;
   purchase_price: number;
   expected_monthly_rent: number;
   calculation_results: any;
@@ -56,6 +57,80 @@ const SPACE = {
 const PANEL = {
   borderRadius: 3,
   borderWidth: 0.3,
+};
+
+const COMPARISON_COLORS = ['#1E2875', '#15B8A6', '#F59E0C', '#6366F1'];
+
+const getComparisonServerUrl = () => {
+  const raw = import.meta.env.VITE_PDF_COMPARISON_SERVER_URL as string | undefined;
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  return trimmed.length ? trimmed.replace(/\/$/, '') : null;
+};
+
+const buildComparisonPayload = (analyses: ComparisonAnalysis[]) => {
+  const trimmedAnalyses = analyses.slice(0, 3);
+  const reportDate = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  const properties = trimmedAnalyses.map((analysis, idx) => {
+    const calc = analysis.calculation_results || {};
+    const projection = Array.isArray(calc.projection) ? calc.projection : [];
+    const cashFlow = {
+      year1: projection[0]?.cashFlow ?? 0,
+      year2: projection[1]?.cashFlow ?? 0,
+      year3: projection[2]?.cashFlow ?? 0,
+      year4: projection[3]?.cashFlow ?? 0,
+      year5: projection[4]?.cashFlow ?? 0,
+    };
+
+    return {
+      id: formatReportId(analysis.id),
+      name: analysis.property_name || 'Unnamed Property',
+      color: COMPARISON_COLORS[idx % COMPARISON_COLORS.length],
+      purchasePrice: analysis.purchase_price ?? 0,
+      rentalIncome:
+        calc.grossAnnualRentalIncome ??
+        (analysis.expected_monthly_rent ? analysis.expected_monthly_rent * 12 : 0),
+      grossYield: calc.grossRentalYield ?? 0,
+      netYield: calc.netRentalYield ?? 0,
+      monthlyCashFlow: calc.monthlyCashFlow ?? 0,
+      cashOnCashReturn: calc.cashOnCashReturn ?? 0,
+      year5TotalReturn: calc.year5TotalReturn ?? projection[4]?.totalReturn ?? 0,
+      roi5Year: calc.roi5Year ?? projection[4]?.roiPercent ?? 0,
+      cashFlow,
+      riskProfile: {
+        marketRisk: 'Medium',
+        tenancyRisk: 'Medium',
+        locationRisk: 'Medium',
+        maintenanceRisk: 'Medium',
+      },
+      overallRisk: 'Medium',
+      property_image_url: analysis.property_image_url || undefined,
+    };
+  });
+
+  return {
+    reportTitle: 'Property Investment Comparison Report',
+    reportDescription:
+      'Side by side analysis of property investment performance, cash flow, and risk profiles',
+    reportDate,
+    properties,
+  };
+};
+
+const downloadPdfBlob = (blob: Blob, filename: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 };
 
 // Helper to format report ID
@@ -1337,6 +1412,48 @@ function renderNotes(doc: jsPDF, analyses: ComparisonAnalysis[], yPos: number): 
 // ==================== MAIN PDF GENERATION ====================
 
 export async function generateComparisonPDF(analyses: ComparisonAnalysis[]) {
+  const now = new Date();
+  const dateStr = now
+    .toLocaleDateString('en-AE', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+    .replace(/\//g, '-');
+  const timeStr = now
+    .toLocaleTimeString('en-AE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
+    .replace(/:/g, '-');
+  const fileName = `YieldPulse Comparison - ${dateStr} ${timeStr}.pdf`;
+
+  const serverUrl = getComparisonServerUrl();
+  if (serverUrl) {
+    if (analyses.length > 3) {
+      console.warn('[Comparison PDF] Server supports up to 3 properties. Extra selections will be ignored.');
+    }
+    const payload = buildComparisonPayload(analyses);
+
+    const response = await fetch(`${serverUrl}/api/generate-pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to generate comparison PDF');
+    }
+
+    const blob = await response.blob();
+    downloadPdfBlob(blob, fileName);
+    return;
+  }
+
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -1420,18 +1537,5 @@ export async function generateComparisonPDF(analyses: ComparisonAnalysis[]) {
   }
   
   // ==================== DOWNLOAD ====================
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('en-AE', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
-  }).replace(/\//g, '-');
-  const timeStr = now.toLocaleTimeString('en-AE', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  }).replace(/:/g, '-');
-  
-  const fileName = `YieldPulse Comparison - ${dateStr} ${timeStr}.pdf`;
   doc.save(fileName);
 }

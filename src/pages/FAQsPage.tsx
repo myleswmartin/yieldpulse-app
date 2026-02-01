@@ -8,9 +8,9 @@ import { useState, useEffect } from 'react';
 import { usePublicPricing } from '../utils/usePublicPricing';
 
 export default function FAQsPage() {
+  const { priceLabel } = usePublicPricing();
   const [openIndex, setOpenIndex] = useState<number | null>(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const { priceLabel } = usePublicPricing();
 
   // Track page view for analytics
   useEffect(() => {
@@ -78,7 +78,7 @@ export default function FAQsPage() {
       faqs: [
         {
           question: `Why does a Premium Report cost ${priceLabel}?`,
-          answer: `${priceLabel} is intentionally affordable - less than a single coffee meeting with an agent. You get: institutional-grade financial analysis, multi-decade projections, professional PDF report, unlimited access, and support. Compare this to hiring a financial analyst (AED 500-2,000 per property) or making a poor AED 500,000+ investment decision. It\'s the cheapest insurance policy for your investment.`
+          answer: `${priceLabel} is intentionally affordable - less than a single coffee meeting with an agent. You get: institutional-grade financial analysis, multi-decade projections, professional PDF report, unlimited access, and support. Compare this to hiring a financial analyst (AED 500-2,000 per property) or making a poor AED 500,000+ investment decision. It's the cheapest insurance policy for your investment.`
         },
         {
           question: 'How do I purchase a Premium Report?',

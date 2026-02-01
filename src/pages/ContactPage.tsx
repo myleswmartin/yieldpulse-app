@@ -28,7 +28,7 @@ export default function ContactPage() {
 
     // Validation
     if (!formData.fullName || !formData.email || !formData.subject || !formData.message) {
-      showToast('Please fill in all fields', 'error');
+      showToast({ type: 'error', message: 'Please fill in all fields' });
       return;
     }
 
@@ -52,7 +52,10 @@ export default function ContactPage() {
         throw new Error(error || 'Failed to send message');
       }
 
-      showToast('Message sent successfully. We will respond as soon as possible.', 'success');
+      showToast({
+        type: 'success',
+        message: 'Message sent successfully. We will respond as soon as possible.',
+      });
       
       // Reset form
       setFormData({
@@ -63,7 +66,7 @@ export default function ContactPage() {
       });
     } catch (error) {
       console.error('Error submitting contact form:', error);
-      showToast('Failed to send message. Please try again.', 'error');
+      showToast({ type: 'error', message: 'Failed to send message. Please try again.' });
     } finally {
       setIsSubmitting(false);
     }

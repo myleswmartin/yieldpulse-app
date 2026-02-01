@@ -468,7 +468,7 @@ export default function HowItWorksPage() {
                 <div className="bg-gradient-to-br from-[#1e2875]/10 to-[#1e2875]/5 p-4 rounded-lg border border-[#1e2875]/20">
                   <p className="text-sm text-neutral-700">
                     <strong>Dashboard features:</strong> View all analyses, download purchased reports, 
-                    compare 2-4 properties side-by-side, track your investment pipeline.
+                    compare 2-3 properties side-by-side, track your investment pipeline.
                   </p>
                 </div>
               </div>
@@ -493,7 +493,7 @@ export default function HowItWorksPage() {
             <div className="bg-white p-6 rounded-xl border border-neutral-200">
               <Eye className="w-10 h-10 text-[#14b8a6] mb-4" />
               <h3 className="font-semibold text-neutral-900 mb-2">
-                Compare 2-4 Properties
+                Compare 2-3 Properties
               </h3>
               <p className="text-neutral-600">
                 Run analyses on multiple properties to identify which offers the best ROI 

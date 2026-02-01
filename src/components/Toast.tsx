@@ -70,7 +70,8 @@ export function Toast({
     },
   };
 
-  const { bg, border, text, icon: Icon } = config[type] ?? config.info;
+  const safeConfig = config[type] ?? config.info;
+  const { bg, border, text, icon: Icon } = safeConfig;
 
   return (
     <div
@@ -147,15 +148,6 @@ export function ToastContainer() {
 }
 
 // Helper function to show toasts
-export function showToast(toast: Omit<ToastMessage, 'id'>): void;
-export function showToast(message: string, type?: ToastType, description?: string): void;
-export function showToast(
-  toastOrMessage: Omit<ToastMessage, 'id'> | string,
-  type: ToastType = 'info',
-  description?: string
-) {
-  const detail = typeof toastOrMessage === 'string'
-    ? { type, message: toastOrMessage, description }
-    : toastOrMessage;
-  window.dispatchEvent(new CustomEvent('show-toast', { detail }));
+export function showToast(toast: Omit<ToastMessage, 'id'>) {
+  window.dispatchEvent(new CustomEvent('show-toast', { detail: toast }));
 }

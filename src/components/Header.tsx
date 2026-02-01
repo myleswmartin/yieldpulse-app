@@ -1,20 +1,19 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { TrendingUp, LogIn, LogOut, LayoutDashboard, Calculator, Menu, X, Shield, FileCheck, Settings, User, BookOpen, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 
 interface HeaderProps {
   variant?: 'default' | 'transparent';
 }
 
-export function Header({ variant = 'default' }: HeaderProps) {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+export function Header({ variant = 'default' }: HeaderProps = {}) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut, isAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -77,7 +76,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setResourcesMenuOpen(!resourcesMenuOpen)}
+                onClick={() => setResourcesOpen(!resourcesOpen)}
                 className={`flex items-center space-x-2 ${navLinkClass('/resources')} ${
                   isActive('/premium-report-guide') || isActive('/glossary') || isActive('/faqs') 
                     ? 'text-primary bg-primary/10' 
@@ -86,19 +85,19 @@ export function Header({ variant = 'default' }: HeaderProps) {
               >
                 <BookOpen className="w-4 h-4" />
                 <span>Resources</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${resourcesMenuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 transition-transform ${resourcesOpen ? 'rotate-180' : ''}`} />
               </button>
               
-              {resourcesMenuOpen && (
+              {resourcesOpen && (
                 <>
                   <div 
                     className="fixed inset-0 z-10" 
-                    onClick={() => setResourcesMenuOpen(false)}
+                    onClick={() => setResourcesOpen(false)}
                   ></div>
                   <div className="absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-neutral-200 py-2 z-20">
                     <Link
                       to="/premium-report-guide"
-                      onClick={() => setResourcesMenuOpen(false)}
+                      onClick={() => setResourcesOpen(false)}
                       className="flex items-start space-x-3 px-4 py-3 text-sm hover:bg-neutral-50 transition-colors"
                     >
                       <BookOpen className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
@@ -110,7 +109,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                     
                     <Link
                       to="/glossary"
-                      onClick={() => setResourcesMenuOpen(false)}
+                      onClick={() => setResourcesOpen(false)}
                       className="flex items-start space-x-3 px-4 py-3 text-sm hover:bg-neutral-50 transition-colors"
                     >
                       <BookOpen className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
@@ -122,7 +121,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                     
                     <Link
                       to="/faqs"
-                      onClick={() => setResourcesMenuOpen(false)}
+                      onClick={() => setResourcesOpen(false)}
                       className="flex items-start space-x-3 px-4 py-3 text-sm hover:bg-neutral-50 transition-colors"
                     >
                       <BookOpen className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
@@ -136,7 +135,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                     
                     <Link
                       to="/contact"
-                      onClick={() => setResourcesMenuOpen(false)}
+                      onClick={() => setResourcesOpen(false)}
                       className="flex items-start space-x-3 px-4 py-3 text-sm hover:bg-neutral-50 transition-colors"
                     >
                       <BookOpen className="w-4 h-4 text-neutral-400 mt-0.5 flex-shrink-0" />
@@ -163,7 +162,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                 </Link>
                 
                 {/* Admin Link - Only visible to admins */}
-                {user.isAdmin && (
+                {isAdmin && (
                   <Link to="/admin/dashboard" className={`flex items-center space-x-2 ${navLinkClass('/admin')}`}>
                     <Shield className="w-4 h-4" />
                     <span>Admin</span>
@@ -312,7 +311,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                   </Link>
                   
                   {/* Admin Link - Only visible to admins */}
-                  {user.isAdmin && (
+                  {isAdmin && (
                     <Link 
                       to="/admin/dashboard" 
                       className={`${navLinkClass('/admin')} w-full text-left flex items-center space-x-2`}

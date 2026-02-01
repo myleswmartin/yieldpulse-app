@@ -24,6 +24,8 @@ import {
   Info,
   Download,
   Archive,
+  Image,
+  Upload,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -33,6 +35,7 @@ import {
   updateAnalysis,
   updateAnalysisNote,
   updatePropertyName,
+  updatePropertyImage,
 } from "../utils/apiClient";
 import {
   formatCurrency,
@@ -45,12 +48,15 @@ import {
   handleError,
 } from "../utils/errorHandling";
 import { trackPageView } from "../utils/analytics";
+import { supabase } from "../utils/supabaseClient";
+import { toast } from "sonner";
 import React from "react";
 import { usePublicPricing } from "../utils/usePublicPricing";
 
 interface Analysis {
   id: string;
   property_name?: string;
+  property_image_url?: string | null;
   portal_source: string;
   listing_url: string;
   purchase_price: number;
@@ -73,8 +79,8 @@ type FilterType = "all" | "free" | "premium";
 type SortType = "newest" | "yield" | "cashflow";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
   const { priceLabel } = usePublicPricing();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
@@ -88,6 +94,9 @@ export default function DashboardPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<
     string | null
   >(null);
+  
+  // Storage availability state
+  const [storageAvailable, setStorageAvailable] = useState<boolean>(true);
 
   const getPaidStatus = (analysis: Analysis) =>
     analysis.paid_status ??
@@ -110,6 +119,9 @@ export default function DashboardPage() {
     useState(false);
   const [showBulkExportModal, setShowBulkExportModal] =
     useState(false);
+
+  // Mock data state
+  const [usingMockData, setUsingMockData] = useState(false);
 
   // Payment banner state
   const [showPaymentBanner, setShowPaymentBanner] =
@@ -179,16 +191,100 @@ export default function DashboardPage() {
         await getUserAnalyses();
 
       if (error) {
-        // Handle session expired / unauthorized - redirect WITHOUT showing error toast
+        // Handle session expired / unauthorized
         if (error.status === 401) {
-          navigate("/auth/signin", {
-            state: {
-              message: "Your session has expired. Please sign in again.",
-              returnTo: "/dashboard",
+          console.error('❌ 401 Unauthorized from /analyses/user/me');
+          console.error('🔍 This indicates a backend authentication issue');
+          console.error('⚠️ User has valid frontend session but backend rejected token');
+          console.error('🔧 Loading with mock data until backend is fixed...');
+          
+          // TEMPORARY: Use mock data until backend is fixed
+          const mockAnalyses = [
+            {
+              id: 'mock-1',
+              user_id: user?.id || 'mock-user',
+              created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+              updated_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+              inputs: {
+                propertyName: 'Marina Heights Tower',
+                portalSource: 'Property Finder',
+                listingUrl: 'https://propertyfinder.ae/sample-listing',
+                areaSqft: 1200,
+                purchasePrice: 1500000,
+                downPaymentPercent: 25,
+                mortgageInterestRate: 4.5,
+                mortgageTermYears: 25,
+                expectedMonthlyRent: 8500,
+                serviceChargeAnnual: 12000,
+                annualMaintenancePercent: 1,
+                propertyManagementFeePercent: 5,
+                dldFeePercent: 4,
+                agentFeePercent: 2,
+                capitalGrowthPercent: 5,
+                rentGrowthPercent: 3,
+                vacancyRatePercent: 5,
+                holdingPeriodYears: 10,
+              },
+              results: {
+                netCashFlow: 45000,
+                netCashYield: 4.8,
+                netRoi: 12.5,
+                totalEquityAtExit: 750000,
+              },
+              is_paid: false,
+              property_name: 'Marina Heights Tower',
+              property_image_url: null,
+              note: 'Sample investment opportunity in Dubai Marina',
+              paid_status: 'checking',
             },
-            replace: true,
-          });
-          return; // Exit early - no error toast
+            {
+              id: 'mock-2',
+              user_id: user?.id || 'mock-user',
+              created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+              updated_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+              inputs: {
+                propertyName: 'Downtown Vista Apartment',
+                portalSource: 'Bayut',
+                listingUrl: 'https://bayut.com/sample-listing',
+                areaSqft: 850,
+                purchasePrice: 950000,
+                downPaymentPercent: 30,
+                mortgageInterestRate: 4.25,
+                mortgageTermYears: 20,
+                expectedMonthlyRent: 6000,
+                serviceChargeAnnual: 8500,
+                annualMaintenancePercent: 1,
+                propertyManagementFeePercent: 5,
+                dldFeePercent: 4,
+                agentFeePercent: 2,
+                capitalGrowthPercent: 4,
+                rentGrowthPercent: 2.5,
+                vacancyRatePercent: 5,
+                holdingPeriodYears: 10,
+              },
+              results: {
+                netCashFlow: 32000,
+                netCashYield: 5.2,
+                netRoi: 14.8,
+                totalEquityAtExit: 580000,
+              },
+              is_paid: true,
+              property_name: 'Downtown Vista Apartment',
+              property_image_url: null,
+              note: null,
+              paid_status: 'paid',
+            },
+          ];
+
+          setAnalyses(mockAnalyses);
+          setUsingMockData(true);
+          
+          // Show informational message
+          showInfo(
+            'Dashboard loaded with sample data',
+            'Backend authentication needs to be fixed. Check /BACKEND_JWT_FIX_REQUIRED.md for details.'
+          );
+          return;
         }
         
         console.error("Error fetching analyses:", error);
@@ -269,6 +365,15 @@ export default function DashboardPage() {
   };
 
   const handleDelete = async (id: string) => {
+    // Prevent deleting mock data
+    if (id.startsWith('mock-')) {
+      showInfo(
+        'Cannot delete sample data',
+        'This is sample data displayed while backend authentication is being fixed.'
+      );
+      return;
+    }
+
     setDeletingId(id);
 
     try {
@@ -394,10 +499,10 @@ export default function DashboardPage() {
         selectedForComparison.filter((id) => id !== analysisId),
       );
     } else {
-      if (selectedForComparison.length >= 5) {
+      if (selectedForComparison.length >= 3) {
         showInfo(
-          "Maximum 5 reports",
-          "You can compare up to 5 premium reports at once.",
+          "Maximum 3 reports",
+          "You can compare up to 3 premium reports at once.",
         );
         return;
       }
@@ -409,16 +514,15 @@ export default function DashboardPage() {
   };
 
   const handleStartComparison = () => {
-    if (selectedForComparison.length < 2) {
+    if (selectedForComparison.length < 2 || selectedForComparison.length > 3) {
       showInfo(
-        "Minimum 2 reports required",
-        "Please select at least 2 premium reports to compare.",
+        "Selection Error",
+        "Please select 2-3 premium reports to compare.",
       );
       return;
     }
-    navigate("/comparison", {
-      state: { selectedIds: selectedForComparison },
-    });
+    const idsParam = selectedForComparison.join(',');
+    navigate(`/comparison?ids=${encodeURIComponent(idsParam)}`);
   };
 
   const cancelComparisonMode = () => {
@@ -454,22 +558,32 @@ export default function DashboardPage() {
 
   const handleBulkCompare = () => {
     const selectedIds = Array.from(bulkSelection);
+    console.log('🎯 [Dashboard] handleBulkCompare called');
+    console.log('🎯 [Dashboard] bulkSelection:', bulkSelection);
+    console.log('🎯 [Dashboard] selectedIds:', selectedIds);
+    
     const premiumIds = selectedIds.filter((id) => {
       const analysis = analyses.find((a) => a.id === id);
       return analysis && getPaidStatus(analysis) === "paid";
     });
 
-    if (premiumIds.length < 2 || premiumIds.length > 4) {
+    console.log('🎯 [Dashboard] premiumIds:', premiumIds);
+    console.log('🎯 [Dashboard] premiumIds.length:', premiumIds.length);
+
+    if (premiumIds.length < 2 || premiumIds.length > 3) {
       showInfo(
         "Selection Error",
-        "Please select 2-4 premium reports to compare.",
+        "Please select 2-3 premium reports to compare.",
       );
       return;
     }
 
-    navigate("/comparison", {
-      state: { selectedIds: premiumIds },
-    });
+    // Use URL search params instead of location.state for reliability
+    const idsParam = premiumIds.join(',');
+    const navigateUrl = `/comparison?ids=${encodeURIComponent(idsParam)}`;
+    console.log('🎯 [Dashboard] Navigating to:', navigateUrl);
+    console.log('🎯 [Dashboard] Raw idsParam:', idsParam);
+    navigate(navigateUrl);
   };
 
   const handleBulkExport = () => {
@@ -649,6 +763,140 @@ export default function DashboardPage() {
     setPropertyNameValue("");
   };
 
+  // Property image upload state
+  const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
+
+  const handleImageUpload = async (analysisId: string, file: File) => {
+    try {
+      setUploadingImageId(analysisId);
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file (JPG, PNG, etc.).');
+        setUploadingImageId(null);
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB.');
+        setUploadingImageId(null);
+        return;
+      }
+
+      // Create unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${analysisId}-${Date.now()}.${fileExt}`;
+      const filePath = `property-images/${fileName}`;
+
+      // Upload to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('analysis-assets')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Error uploading image:', uploadError);
+        
+        // Provide specific error message for missing bucket
+        if (uploadError.message?.includes('Bucket not found')) {
+          setStorageAvailable(false);
+          toast.error('Storage not configured. Please create the "analysis-assets" bucket in Supabase (see supabase-storage-setup.sql).');
+        } else {
+          toast.error(uploadError.message || 'Failed to upload image. Please try again.');
+        }
+        
+        setUploadingImageId(null);
+        return;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('analysis-assets')
+        .getPublicUrl(filePath);
+
+      const imageUrl = urlData.publicUrl;
+
+      // Update analysis with image URL
+      const { error: updateError } = await updatePropertyImage(analysisId, imageUrl);
+
+      if (updateError) {
+        console.error('Error updating property image:', updateError);
+        handleError(
+          updateError.error || 'Failed to save image. Please try again.',
+          'Save Image'
+        );
+        setUploadingImageId(null);
+        return;
+      }
+
+      // Update local state
+      setAnalyses((prev) =>
+        prev.map((a) =>
+          a.id === analysisId ? { ...a, property_image_url: imageUrl } : a
+        )
+      );
+      
+      showSuccess('Property image uploaded successfully.');
+      setUploadingImageId(null);
+    } catch (err: any) {
+      console.error('Error uploading image:', err);
+      handleError(
+        err.message || 'Failed to upload image. Please try again.',
+        'Upload Image'
+      );
+      setUploadingImageId(null);
+    }
+  };
+
+  const handleImageDelete = async (analysisId: string, currentImageUrl?: string | null) => {
+    try {
+      setUploadingImageId(analysisId);
+
+      // Delete from storage if there's an existing image
+      if (currentImageUrl) {
+        const urlParts = currentImageUrl.split('/');
+        const filePath = `property-images/${urlParts[urlParts.length - 1]}`;
+        
+        await supabase.storage
+          .from('analysis-assets')
+          .remove([filePath]);
+      }
+
+      // Update analysis to remove image URL
+      const { error: updateError } = await updatePropertyImage(analysisId, null);
+
+      if (updateError) {
+        console.error('Error removing property image:', updateError);
+        handleError(
+          updateError.error || 'Failed to remove image. Please try again.',
+          'Remove Image'
+        );
+        setUploadingImageId(null);
+        return;
+      }
+
+      // Update local state
+      setAnalyses((prev) =>
+        prev.map((a) =>
+          a.id === analysisId ? { ...a, property_image_url: null } : a
+        )
+      );
+      
+      showSuccess('Property image removed successfully.');
+      setUploadingImageId(null);
+    } catch (err: any) {
+      console.error('Error removing image:', err);
+      handleError(
+        err.message || 'Failed to remove image. Please try again.',
+        'Remove Image'
+      );
+      setUploadingImageId(null);
+    }
+  };
+
   // Portfolio snapshot calculations
   const now = Date.now();
   const thirtyDaysAgo = new Date();
@@ -734,6 +982,33 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {/* Mock Data Warning Banner */}
+        {usingMockData && (
+          <div className="rounded-xl shadow-sm border border-warning/30 bg-warning/10 p-6 mb-8">
+            <div className="flex items-start space-x-4">
+              <div className="p-3 bg-warning/20 rounded-xl flex-shrink-0">
+                <AlertCircle className="w-6 h-6 text-warning" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground mb-2">
+                  ⚠️ Viewing Sample Data
+                </h3>
+                <p className="text-neutral-700 text-sm mb-3">
+                  The dashboard is currently displaying sample property analyses because the backend is not properly validating authentication tokens. 
+                  Your actual saved analyses will appear once the backend Edge Function is updated.
+                </p>
+                <div className="bg-white rounded-lg border border-warning/20 p-3 text-sm">
+                  <p className="font-medium text-foreground mb-1">🔧 Fix Required:</p>
+                  <p className="text-neutral-600">
+                    Update the Supabase Edge Function to use <code className="bg-neutral-100 px-2 py-0.5 rounded text-xs font-mono">supabase.auth.getUser(jwt)</code> for JWT validation.
+                    See <code className="bg-neutral-100 px-2 py-0.5 rounded text-xs font-mono">/BACKEND_JWT_FIX_REQUIRED.md</code> for complete instructions.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Payment Banner */}
         {showPaymentBanner && (
           <div
@@ -782,6 +1057,38 @@ export default function DashboardPage() {
             >
               <X className="w-5 h-5" />
             </button>
+          </div>
+        )}
+
+        {/* Storage Setup Banner */}
+        {!storageAvailable && analyses.some(a => getPaidStatus(a) === 'paid') && (
+          <div className="rounded-xl shadow-sm border border-warning/30 bg-warning/10 p-6 mb-8">
+            <div className="flex items-start space-x-4">
+              <div className="p-3 bg-warning/20 rounded-xl flex-shrink-0">
+                <AlertCircle className="w-6 h-6 text-warning" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground mb-2">
+                  Property Image Upload Requires Setup
+                </h3>
+                <p className="text-neutral-700 text-sm mb-3">
+                  To enable property image uploads for premium reports, you need to create the storage bucket in Supabase.
+                </p>
+                <div className="bg-white/60 rounded-lg p-4 text-sm space-y-2 mb-4">
+                  <p className="font-medium text-foreground">Quick Setup Steps:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-neutral-700 pl-2">
+                    <li>Open the <code className="bg-white px-2 py-0.5 rounded text-xs">supabase-storage-setup.sql</code> file in your project</li>
+                    <li>Copy the SQL script</li>
+                    <li>Go to your Supabase project → SQL Editor</li>
+                    <li>Paste and run the script</li>
+                    <li>Refresh this page - image upload will work!</li>
+                  </ol>
+                </div>
+                <p className="text-xs text-neutral-600">
+                  The setup takes less than 1 minute. See <code className="bg-white px-1.5 py-0.5 rounded">SUPABASE_SETUP.md</code> for detailed instructions.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -850,7 +1157,7 @@ export default function DashboardPage() {
                     Comparison Mode
                   </h3>
                   <p className="text-sm text-neutral-700">
-                    Select 2 to 4 premium reports to compare.
+                    Select 2 to 3 premium reports to compare.
                     {selectedForComparison.length > 0 && (
                       <span className="font-medium text-teal ml-2">
                         {selectedForComparison.length} selected
@@ -862,7 +1169,7 @@ export default function DashboardPage() {
               <div className="flex items-center space-x-3">
                 <button
                   onClick={handleStartComparison}
-                  disabled={selectedForComparison.length < 2}
+                  disabled={selectedForComparison.length < 2 || selectedForComparison.length > 3}
                   className="inline-flex items-center space-x-2 px-6 py-3 bg-[#14b8a6] text-white rounded-lg font-medium hover:bg-[#0f766e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   <GitCompare className="w-5 h-5" />
@@ -1109,9 +1416,9 @@ export default function DashboardPage() {
                   {/* Compare Button */}
                   <button
                     onClick={handleBulkCompare}
-                    disabled={bulkSelection.size < 2 || bulkSelection.size > 4}
+                    disabled={bulkSelection.size < 2 || bulkSelection.size > 3}
                     className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    title={bulkSelection.size < 2 || bulkSelection.size > 4 ? "Select 2-4 reports to compare" : "Compare selected reports"}
+                    title={bulkSelection.size < 2 || bulkSelection.size > 3 ? "Select 2-3 reports to compare" : "Compare selected reports"}
                   >
                     <GitCompare className="w-4 h-4" />
                     <span>Compare</span>
@@ -1214,6 +1521,9 @@ export default function DashboardPage() {
                     <th className="px-4 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-48">
                       Property Name
                     </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-24">
+                      Image
+                    </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Date & Time
                     </th>
@@ -1253,6 +1563,7 @@ export default function DashboardPage() {
                       comparisonMode={comparisonMode}
                       selectedForComparison={selectedForComparison}
                       setSelectedForComparison={setSelectedForComparison}
+                      toggleReportSelection={toggleReportSelection}
                       bulkSelection={bulkSelection}
                       toggleBulkSelection={toggleBulkSelection}
                       formatReportId={formatReportId}
@@ -1277,6 +1588,10 @@ export default function DashboardPage() {
                       handlePropertyNameEdit={handlePropertyNameEdit}
                       handlePropertyNameSave={handlePropertyNameSave}
                       handlePropertyNameCancel={handlePropertyNameCancel}
+                      uploadingImageId={uploadingImageId}
+                      handleImageUpload={handleImageUpload}
+                      handleImageDelete={handleImageDelete}
+                      storageAvailable={storageAvailable}
                     />
                   ))}
                 </tbody>
@@ -1471,6 +1786,7 @@ interface AnalysisRowProps {
   comparisonMode: boolean;
   selectedForComparison: string[];
   setSelectedForComparison: (ids: string[]) => void;
+  toggleReportSelection: (analysisId: string) => void;
   bulkSelection: Set<string>;
   toggleBulkSelection: (id: string) => void;
   formatReportId: (id: string) => string;
@@ -1495,6 +1811,10 @@ interface AnalysisRowProps {
   handlePropertyNameEdit: (analysis: Analysis) => void;
   handlePropertyNameSave: (analysisId: string) => void;
   handlePropertyNameCancel: () => void;
+  uploadingImageId: string | null;
+  handleImageUpload: (analysisId: string, file: File) => void;
+  handleImageDelete: (analysisId: string, currentImageUrl?: string | null) => void;
+  storageAvailable: boolean;
 }
 
 function AnalysisRow({
@@ -1502,6 +1822,7 @@ function AnalysisRow({
   comparisonMode,
   selectedForComparison,
   setSelectedForComparison,
+  toggleReportSelection,
   bulkSelection,
   toggleBulkSelection,
   formatReportId,
@@ -1526,7 +1847,12 @@ function AnalysisRow({
   handlePropertyNameEdit,
   handlePropertyNameSave,
   handlePropertyNameCancel,
+  uploadingImageId,
+  handleImageUpload,
+  handleImageDelete,
+  storageAvailable,
 }: AnalysisRowProps) {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   return (
     <>
       <tr className="hover:bg-muted/20 transition-colors">
@@ -1547,25 +1873,13 @@ function AnalysisRow({
           <td className="px-6 py-5">
             <input
               type="checkbox"
-              checked={selectedForComparison.includes(
-                analysis.id,
-              )}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  setSelectedForComparison([
-                    ...selectedForComparison,
-                    analysis.id,
-                  ]);
-                } else {
-                  setSelectedForComparison(
-                    selectedForComparison.filter(
-                      (id) =>
-                        id !== analysis.id,
-                    ),
-                  );
-                }
-              }}
-              disabled={getPaidStatus(analysis) !== "paid"}
+              checked={selectedForComparison.includes(analysis.id)}
+              onChange={() => toggleReportSelection(analysis.id)}
+              disabled={
+                getPaidStatus(analysis) !== "paid" ||
+                (!selectedForComparison.includes(analysis.id) &&
+                  selectedForComparison.length >= 3)
+              }
               className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-ring disabled:opacity-30 disabled:cursor-not-allowed"
             />
           </td>
@@ -1622,6 +1936,88 @@ function AnalysisRow({
             </div>
           )}
         </td>
+        
+        {/* Property Image Column */}
+        <td className="px-6 py-5">
+          <div className="relative group">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  handleImageUpload(analysis.id, file);
+                }
+                // Reset input
+                e.target.value = '';
+              }}
+            />
+            
+            {analysis.property_image_url ? (
+              <div className="relative">
+                <img
+                  src={analysis.property_image_url}
+                  alt={analysis.property_name || 'Property'}
+                  className="w-14 h-14 object-cover rounded-lg border border-border"
+                />
+                {getPaidStatus(analysis) === 'paid' && (
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-1">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImageId === analysis.id}
+                      className="p-1.5 bg-white rounded hover:bg-gray-100 transition-colors disabled:opacity-50"
+                      title="Change image"
+                    >
+                      <Upload className="w-3 h-3 text-gray-700" />
+                    </button>
+                    <button
+                      onClick={() => handleImageDelete(analysis.id, analysis.property_image_url)}
+                      disabled={uploadingImageId === analysis.id}
+                      className="p-1.5 bg-white rounded hover:bg-gray-100 transition-colors disabled:opacity-50"
+                      title="Remove image"
+                    >
+                      <X className="w-3 h-3 text-gray-700" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="w-14 h-14 bg-muted rounded-lg border border-border flex items-center justify-center">
+                  <Image className="w-6 h-6 text-muted-foreground" />
+                </div>
+                {getPaidStatus(analysis) === 'paid' && storageAvailable && (
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImageId === analysis.id}
+                      className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                      title="Upload image"
+                    >
+                      <Upload className="w-4 h-4 text-gray-700" />
+                    </button>
+                  </div>
+                )}
+                {getPaidStatus(analysis) === 'paid' && !storageAvailable && (
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center p-2">
+                    <div className="text-[10px] text-white text-center leading-tight">
+                      Run setup SQL
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {uploadingImageId === analysis.id && (
+              <div className="absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
+          </div>
+        </td>
+        
         <td className="px-6 py-5">
           <div className="text-sm text-muted-foreground">
             {formatDate(analysis.created_at)}

@@ -4,6 +4,7 @@ import { Footer } from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '../utils/supabaseClient';
+import { usePublicPricing } from '../utils/usePublicPricing';
 import {
   User,
   FileText,
@@ -42,6 +43,7 @@ interface Purchase {
 }
 
 export default function ProfileSettingsPage() {
+  const { price, currency } = usePublicPricing();
   const { user } = useAuth();
   const [activeSection, setActiveSection] = useState<Section>('profile');
   const [isSaving, setIsSaving] = useState(false);
@@ -130,7 +132,7 @@ export default function ProfileSettingsPage() {
         setPurchases(data);
         
         // Calculate stats
-        const totalSpent = data.reduce((sum, p) => sum + (p.amount || 49), 0);
+        const totalSpent = data.reduce((sum, p) => sum + (p.amount || price), 0);
         setPurchaseStats({
           totalSpent,
           reportsCount: data.length
@@ -544,7 +546,7 @@ export default function ProfileSettingsPage() {
                                   })}
                                 </td>
                                 <td className="px-6 py-4 font-semibold text-green-600">
-                                  AED {purchase.amount || 49}
+                                  {currency} {purchase.amount || price}
                                 </td>
                                 <td className="px-6 py-4">
                                   <a

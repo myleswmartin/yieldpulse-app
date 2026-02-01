@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { CTASection } from '../components/CTASection';
+import { usePublicPricing } from '../utils/usePublicPricing';
 import { 
   CheckCircle, 
   HelpCircle,
@@ -15,7 +16,6 @@ import {
   BarChart3,
   Building
 } from 'lucide-react';
-import { usePublicPricing } from '../utils/usePublicPricing';
 
 export default function PricingPage() {
   const { priceLabel } = usePublicPricing();
@@ -310,7 +310,7 @@ export default function PricingPage() {
                     { feature: 'Assumption verification', free: false, premium: true },
                     { feature: 'Professional PDF report', free: false, premium: true },
                     { feature: 'Download and share', free: false, premium: true },
-                    { feature: 'Compare 2-4 premium reports', free: false, premium: true }
+                    { feature: 'Compare 2-3 premium reports', free: false, premium: true }
                   ].map((item, i) => (
                     <tr key={i} className="hover:bg-muted/20 transition-colors">
                       <td className="px-6 py-4 text-sm text-neutral-700">
@@ -575,7 +575,7 @@ export default function PricingPage() {
               },
               {
                 q: 'Can I compare multiple properties?',
-                a: 'Yes. You can compare 2-4 premium reports side by side using our comparison tool. This helps you make informed decisions when choosing between multiple investment opportunities.'
+                a: 'Yes. You can compare 2-3 premium reports side by side using our comparison tool. This helps you make informed decisions when choosing between multiple investment opportunities.'
               },
               {
                 q: 'Do you offer refunds?',

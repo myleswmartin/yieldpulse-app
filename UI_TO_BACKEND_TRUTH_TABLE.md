@@ -401,7 +401,7 @@
 | **Response Error** | `{ error: string, alreadyPurchased?: boolean }` (400, 401, 403, 404, 500) |
 | **RLS Applied** | `"Users can create own purchases"` - `WITH CHECK (auth.uid() = user_id)` |
 | **Idempotency** | SEMI-IDEMPOTENT:<br>- Checks for existing paid purchase → returns error<br>- Reuses pending purchase if created within 30 mins<br>- Creates new purchase otherwise |
-| **Critical Notes** | - **Origin allowlist enforced:** localhost, figma.site, vercel.app<br>- Creates immutable `snapshot` (JSONB) with inputs, results, metadata<br>- Sets `status: 'pending'`, `amount_aed: 49`<br>- Stripe session includes metadata: user_id, analysis_id, purchase_id<br>- Success URL: `/dashboard?payment=success&analysisId={id}`<br>- Cancel URL: `/results` |
+| **Critical Notes** | - **Origin allowlist enforced:** localhost, figma.site, vercel.app<br>- Creates immutable `snapshot` (JSONB) with inputs, results, metadata<br>- Sets `status: 'pending'`, `amount_aed: 49`<br>- Stripe session includes metadata: user_id, analysis_id, purchase_id<br>- Success URL: `/dashboard?payment=success&analysisId={id}`<br>- Cancel URL: `/results?payment=cancelled` |
 
 #### POST `/make-server-ef294769/stripe/webhook`
 | Property | Value |
