@@ -68,7 +68,7 @@ export default function FAQsPage() {
         },
         {
           question: 'Can I compare multiple properties?',
-          answer: 'Yes! Our Property Comparison Tool (available to registered users) lets you compare up to 4 properties side-by-side. See ROI, yield, cash flow, and break-even point in one view. Perfect for deciding between options. Access it from your Dashboard under "Compare Properties."'
+          answer: 'Yes! Our Property Comparison Tool (available to registered users) lets you compare up to 3 properties side-by-side. See ROI, yield, cash flow, and break-even point in one view. Perfect for deciding between options. Access it from your Dashboard under "Compare Properties."'
         },
       ]
     },
