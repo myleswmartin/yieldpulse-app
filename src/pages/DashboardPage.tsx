@@ -2029,8 +2029,9 @@ function AnalysisRow({
               {analysis.portal_source}
             </div>
             <div className="text-sm text-muted-foreground">
-              {analysis.area_sqft.toLocaleString()}{" "}
-              sqft
+              {analysis.area_sqft != null
+                ? `${analysis.area_sqft.toLocaleString()} sqft`
+                : "N/A"}
             </div>
           </div>
         </td>
