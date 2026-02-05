@@ -466,6 +466,15 @@ export default function DashboardPage() {
   };
 
   const filteredAnalyses = getFilteredAndSortedAnalyses();
+  const bulkSelectedAnalyses = analyses.filter((analysis) =>
+    bulkSelection.has(analysis.id),
+  );
+  const premiumSelectedCount = bulkSelectedAnalyses.filter(
+    (analysis) => getPaidStatus(analysis) === "paid",
+  ).length;
+  const hasFreeSelected = bulkSelectedAnalyses.some(
+    (analysis) => getPaidStatus(analysis) !== "paid",
+  );
 
   const formatDate = (dateString: string) => {
     // Ensure the date string is parsed as UTC if it doesn't have timezone info
@@ -1416,9 +1425,19 @@ export default function DashboardPage() {
                   {/* Compare Button */}
                   <button
                     onClick={handleBulkCompare}
-                    disabled={bulkSelection.size < 2 || bulkSelection.size > 3}
+                    disabled={
+                      premiumSelectedCount < 2 ||
+                      premiumSelectedCount > 3 ||
+                      hasFreeSelected
+                    }
                     className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    title={bulkSelection.size < 2 || bulkSelection.size > 3 ? "Select 2-3 reports to compare" : "Compare selected reports"}
+                    title={
+                      premiumSelectedCount < 2 ||
+                      premiumSelectedCount > 3 ||
+                      hasFreeSelected
+                        ? "Select 2-3 premium reports to compare"
+                        : "Compare selected reports"
+                    }
                   >
                     <GitCompare className="w-4 h-4" />
                     <span>Compare</span>

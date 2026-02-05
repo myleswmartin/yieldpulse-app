@@ -134,6 +134,9 @@ export default function ResultsPage() {
   const [creatingCheckout, setCreatingCheckout] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [pdfSnapshot, setPdfSnapshot] = useState<any>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [creatingShareLink, setCreatingShareLink] = useState(false);
   
   // Admin preview toggle (UI only, does not bypass payment)
   const [adminPreviewEnabled, setAdminPreviewEnabled] = useState(false);
@@ -244,7 +247,47 @@ export default function ResultsPage() {
       setGeneratingPDF(false);
     }
   };
-  
+
+  const handleShare = async () => {
+    if (!user) {
+      handleError('Please sign in to share reports.', 'Share Report');
+      return;
+    }
+
+    if (!analysisId && (!displayInputs || !displayResults)) {
+      handleError('Please save the report before sharing.', 'Share Report');
+      return;
+    }
+
+    setCreatingShareLink(true);
+    try {
+      const payload = analysisId
+        ? { analysisId, propertyName: displayInputs?.propertyName }
+        : {
+            inputs: displayInputs,
+            results: displayResults,
+            propertyName: displayInputs?.propertyName,
+          };
+
+      const { data, error } = await createShareLink(payload);
+
+      if (error) {
+        handleError(error.error || 'Failed to create share link.', 'Share Report');
+        return;
+      }
+
+      if (data?.shareUrl) {
+        setShareUrl(data.shareUrl);
+        setShowShareModal(true);
+      }
+    } catch (error) {
+      console.error('Error creating share link:', error);
+      handleError(error, 'Share Report', handleShare);
+    } finally {
+      setCreatingShareLink(false);
+    }
+  };
+
   const handleUnlockPremium = async () => {
     setCreatingCheckout(true);
     
@@ -618,15 +661,43 @@ export default function ResultsPage() {
                   <Download className="w-4 h-4" />
                   <span>{generatingPDF ? 'Generating...' : 'Export PDF'}</span>
                 </button>
-                <Link
-                  to="/comparison"
-                  state={{ analysisId }}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-border text-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-50 transition-all"
+                <button
+                  onClick={handleShare}
+                  disabled={!displayInputs || !displayResults || creatingShareLink}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    displayInputs && displayResults
+                      ? 'bg-white border border-border text-neutral-700 hover:bg-neutral-50'
+                      : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                  }`}
                 >
-                  <GitCompare className="w-4 h-4" />
-                  <span>Compare</span>
-                </Link>
-                <Link
+                  <Share2 className="w-4 h-4" />
+                  <span>{creatingShareLink ? 'Creating Link...' : 'Share'}</span>
+                </button>
+                {isPremiumUnlocked ? (
+                  <Link
+                    to="/comparison"
+                    state={{ analysisId }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-border text-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-50 transition-all"
+                  >
+                    <GitCompare className="w-4 h-4" />
+                    <span>Compare</span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-100 text-neutral-400 rounded-lg text-sm font-medium cursor-not-allowed"
+                  >
+                    <GitCompare className="w-4 h-4" />
+                    <span>Compare</span>
+                  </button>
+                )}
+                
+                {
+                  isPremiumUnlocked ?
+                  <></>
+                  :
+                  <Link
                   to="/calculator"
                   state={{ editMode: true, analysisId, inputs: displayInputs, results: displayResults }}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-border text-neutral-700 rounded-lg text-sm font-medium hover:bg-neutral-50 transition-all"
@@ -634,6 +705,7 @@ export default function ResultsPage() {
                   <Edit className="w-4 h-4" />
                   <span>Edit</span>
                 </Link>
+                }
               </div>
             </div>
           </div>
@@ -936,6 +1008,14 @@ export default function ResultsPage() {
         </div>
         )}
 
+        {/* Share Modal */}
+        {showShareModal && shareUrl && (
+          <ShareModal
+            shareUrl={shareUrl}
+            propertyName={displayInputs?.propertyName || 'Investment Property'}
+            onClose={() => setShowShareModal(false)}
+          />
+        )}
         {/* CONVERSION LAYER: Premium CTA after Executive Summary (only show if not unlocked) */}
         {!showPremiumContent && (
           <PremiumCTA 
